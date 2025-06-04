@@ -24,11 +24,12 @@ Install the required packages:
 # For macOS
 brew install cmake
 brew install curl
+brew install googletest
 xcode-select --install
 
 # For unix
 sudo apt update
-sudo apt install cmake g++ libcurl4-openssl-dev
+sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev
 ```
 
 To build the project, navigate to the project directory and run the following command:
@@ -59,6 +60,9 @@ OBJECTID,Facility Name,Address,City,State,Zip Code,GLOBALID,lon,lat
 After building the project, you can run the application with the following command:
 ```
 ./run_simulator
+# If you are still inside build folder
+../run_simulator
+# just make sure the paths in the .env reflect where you are
 ```
 
 ## Cleaning Up
@@ -68,3 +72,5 @@ To remove the compiled files and clean the project directory, use the command:
 make clean
 ```
 
+## Development
+Don't forget to create test cases. Place them inside `test/` and run `./test_simulator` after make.

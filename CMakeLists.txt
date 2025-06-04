@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(PROGRAM_NAME "run_simulator")
+set(TEST_NAME "test_simulator")
 
 # Set the project name and version
 project(${PROGRAM_NAME} VERSION 1.0)
@@ -16,13 +17,22 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
+enable_testing()
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
 # Add all source files in the src/ directory
 # file(GLOB SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-
+file(GLOB_RECURSE TESTSOURCES "test/*.cpp")
 
 # Add the executable
 add_executable(${PROGRAM_NAME} ${SOURCES})
+
+# For testing
+add_executable(${TEST_NAME} ${TESTSOURCES})
+target_link_libraries(${TEST_NAME} GTest::gtest_main pthread)
+add_test(NAME RunUnitTests COMMAND ${TEST_NAME})
 
 target_link_libraries(${PROGRAM_NAME} PRIVATE CURL::libcurl)
 
@@ -37,6 +47,11 @@ endif()
 
 # Set the output directory for the binary
 set_target_properties(${PROGRAM_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+
+# Set the output directory for the test binary
+set_target_properties(${TEST_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 

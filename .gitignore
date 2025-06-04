@@ -96,3 +96,5 @@ Temporary Items
 .env
 run_simulator
 .vscode/settings.json
+build/
+test_simulator
