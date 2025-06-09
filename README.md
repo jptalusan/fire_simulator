@@ -20,6 +20,7 @@ fire_simulator
 
 ## Building the Project
 Install the required packages:
+> `gdb` debugging does not work on current macOS devices.
 ```bash
 # For macOS
 brew install cmake
@@ -74,3 +75,4 @@ make clean
 
 ## Development
 Don't forget to create test cases. Place them inside `test/` and run `./test_simulator` after make.
+> `gdb` does not work on `arm`-based macOS devices right now. Use Linux to build and debug code.

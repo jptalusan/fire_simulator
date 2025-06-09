@@ -1,0 +1,41 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "(release) create build directory",
+        "type": "shell",
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "command": "mkdir -p build", //this command creates a build directory if it does not exist
+      },
+      {
+        "label": "cmake1",
+        "type": "shell",
+        "options": {
+            "cwd": "${workspaceFolder}/build"
+        },
+        "command": "cmake",
+        "args": [
+            "-DCMAKE_BUILD_TYPE=Debug",
+            ".."
+        ],
+      },
+      {
+        "label": "run the makefile",
+        "type": "shell",
+        "options": {
+            "cwd": "${workspaceFolder}/build"
+        },
+        "command": "make", //its like writing in console make //btw you can others commands like clean make build etc
+        "problemMatcher": [],
+        "dependsOrder": "sequence",
+        "dependsOn": [
+            "(release) create build directory",
+            "cmake1"
+        ]
+      }
+    ]
+  }

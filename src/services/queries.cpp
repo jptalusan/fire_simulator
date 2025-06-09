@@ -11,7 +11,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
     return size * nmemb;
 }
 
-Queries::Queries() : env(".env") {
+Queries::Queries() : env("../.env") {
     osrm_url = env.get("OSRM_URL", "http://router.project-osrm.org/table/v1/driving/");
 }
 

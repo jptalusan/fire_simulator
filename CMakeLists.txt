@@ -10,16 +10,22 @@ project(${PROGRAM_NAME} VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# For GoogleTest test cases
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 # Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 # Find libcurl package
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
-
-enable_testing()
-find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add all source files in the src/ directory
 # file(GLOB SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
