@@ -30,7 +30,7 @@ xcode-select --install
 
 # For unix
 sudo apt update
-sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev
+sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb
 ```
 
 To build the project, navigate to the project directory and run the following command:
