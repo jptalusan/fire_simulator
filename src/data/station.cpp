@@ -61,7 +61,7 @@ std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename
     EnvLoader env("../.env");
     std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
-    std::vector<Point> polygon = loadPolygonFromGeoJSON(bounds_path);
+    std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
 
     std::unordered_map<int, Station> stations;
     std::ifstream file(filename);
@@ -129,7 +129,7 @@ std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename
         int num_fire_trucks = 2; // Default value, can be updated later
         int num_ambulances = 0;  // Default value, can be updated later
 
-        if (isPointInPolygon(polygon, Point(lon, lat))) {
+        if (isPointInPolygon(polygon, Location(lon, lat))) {
             Station station(station_id,
                             facility_name,
                             address,

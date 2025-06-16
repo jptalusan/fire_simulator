@@ -23,7 +23,7 @@ void Incident::printInfo() const {
 std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
     EnvLoader env("../.env");
     std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
-    std::vector<Point> polygon = loadPolygonFromGeoJSON(bounds_path);
+    std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
     std::vector<Incident> incidents;
     std::ifstream file(filename);
 
@@ -66,7 +66,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         }
         time_t unix_time = std::mktime(&tm);
 
-        if (isPointInPolygon(polygon, Point(lon, lat))) {
+        if (isPointInPolygon(polygon, Location(lon, lat))) {
             incidents.emplace_back(id, lat, lon, type, level, unix_time);
         } else {
             std::cout << "Incident " << id << " is out of bounds and will be ignored." << std::endl;
