@@ -1,4 +1,6 @@
 #include "data/station.h"
+#include "data/geometry.h"
+#include "config/EnvLoader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -55,8 +57,13 @@ void Station::printInfo() const {
               << std::endl;
 }
 
-std::vector<Station> loadStationsFromCSV(const std::string& filename) {
-    std::vector<Station> stations;
+std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename) {
+    EnvLoader env("../.env");
+    std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
+
+    std::vector<Point> polygon = loadPolygonFromGeoJSON(bounds_path);
+
+    std::unordered_map<int, Station> stations;
     std::ifstream file(filename);
     std::string line;
 
@@ -113,16 +120,30 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
 
         // x
         std::getline(ss, token, ',');
-        double x = std::stod(token);
+        double lat = std::stod(token);
 
         // y
         std::getline(ss, token, ',');
-        double y = std::stod(token);
+        double lon = std::stod(token);
 
         int num_fire_trucks = 2; // Default value, can be updated later
         int num_ambulances = 0;  // Default value, can be updated later
 
-        stations.emplace_back(station_id, facility_name, address, city, state, zip_code, x, y, num_fire_trucks, num_ambulances);
+        if (isPointInPolygon(polygon, Point(lon, lat))) {
+            Station station(station_id,
+                            facility_name,
+                            address,
+                            city,
+                            state,
+                            zip_code,
+                            lon,
+                            lat,
+                            num_fire_trucks,
+                            num_ambulances);
+            stations.emplace(station_id, station);
+        } else {
+            std::cout << "Station " << station_id << " is out of bounds and will be ignored." << std::endl;
+        }
     }
 
     file.close();

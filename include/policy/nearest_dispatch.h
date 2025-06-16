@@ -10,7 +10,7 @@ class NearestDispatch : public DispatchPolicy {
 public:
     NearestDispatch(const std::string& osrmUrl);  // e.g., http://localhost:5000
 
-    void dispatch(State& state, const Event& event) override;
+    int getAction(State& state) override;
 
 private:
     std::string osrmUrl_;

@@ -22,4 +22,6 @@ private:
     EnvLoader env;  // Add EnvLoader instance
 };
 
+bool checkOSRM(const std::string& base_url);
+
 #endif // QUERIES_H

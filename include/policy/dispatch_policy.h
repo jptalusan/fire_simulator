@@ -9,7 +9,7 @@ public:
     virtual ~DispatchPolicy() = default;
 
     // Handle dispatching logic given the state and an event
-    virtual void dispatch(State& state, const Event& event) = 0;
+    virtual int getAction(State& state) = 0;
 };
 
 #endif // DISPATCH_POLICY_H

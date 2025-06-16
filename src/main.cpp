@@ -2,6 +2,7 @@
 #include "data/incident.h"
 #include "services/queries.h"
 #include "simulator/simulator.h"
+#include "policy/nearest_dispatch.h"
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
@@ -16,8 +17,8 @@ std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
 void foo(std::string filename = "data/stations.csv") {
 
     auto stations = loadStationsFromCSV(filename);
-    for (const auto& s : stations) {
-        std::cout << "Station ID: " << s.getStationId() << ", Name: " << s.getFacilityName() << std::endl;
+    for (const auto& [id, station] : stations) {
+        std::cout << "Station ID: " << id << ", Name: " << station.getFacilityName() << std::endl;
     }
     
     Queries queries;
@@ -60,14 +61,17 @@ int main() {
 
     State initial_state;
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
-    initial_state.getStations() = loadStationsFromCSV(stations_path);
+    initial_state.addStations(loadStationsFromCSV(stations_path));
+
+    DispatchPolicy* policy = new NearestDispatch(env.get("BASE_OSRM_URL", "http://router.project-osrm.org"));
 
     EnvironmentModel environment_model;
-    Simulator simulator(initial_state, events, environment_model);
+    Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
 
     simulator.replay();
     std::cout << "Simulation completed successfully." << std::endl;
 
+    delete policy;
     return 0;
 }

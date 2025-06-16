@@ -16,10 +16,14 @@ public:
     std::string incident_type;
     std::string incident_level;
     time_t unix_time;
+    time_t response_time; // Time when the incident was responded to
+    time_t resolved_time; // Time when the incident was resolved
+    bool is_responded; // Flag to indicate if the incident has been responded to
 
     Incident(int id, double latitude, double longitude,
              const std::string& type, const std::string& level,
              time_t unix_time);
+    Incident() = default;
 
     void printInfo() const override;
     Location getLocation() const;

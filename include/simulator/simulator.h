@@ -3,19 +3,25 @@
 
 #include "simulator/event.h"
 #include "simulator/state.h"
+#include "policy/dispatch_policy.h"
 #include "environment/environment_model.h"
 #include <vector>
 
 class Simulator {
 public:
-    Simulator(State& initialState, const std::vector<Event>& events, EnvironmentModel& environmentModel);
+    Simulator(State& initialState, 
+        const std::vector<Event>& events, 
+        EnvironmentModel& environmentModel,
+        DispatchPolicy& dispatchPolicy
+    );
     void run();
     void replay();
 
 private:
     State& state_;
-    EnvironmentModel& environment_;
     std::vector<Event> events_;
+    EnvironmentModel& environment_;
+    DispatchPolicy& dispatchPolicy_;
     std::vector<State> state_history_;
 };
 

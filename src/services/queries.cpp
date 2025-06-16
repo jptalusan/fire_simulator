@@ -4,6 +4,8 @@
 #include <sstream>
 #include <curl/curl.h>
 #include <cstdlib>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 // Helper for libcurl response
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
@@ -70,4 +72,50 @@ void Queries::queryTableService(const std::vector<Location>& sources,
     }
 
     curl_easy_cleanup(curl);
+}
+
+bool checkOSRM(const std::string& base_url) {
+    CURL* curl;
+    CURLcode res;
+    std::string readBuffer;
+
+    std::string query_url = base_url + "/route/v1/driving/-86.7844,36.1659;-86.8005,36.1447";
+    std::cout << "Checking OSRM URL: " << query_url << std::endl;
+    curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Failed to initialize curl." << std::endl;
+        return false;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, query_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+    res = curl_easy_perform(curl);
+    bool is_ok = false;
+
+    if (res == CURLE_OK) {
+        long http_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+        if (http_code == 200) {
+            try {
+                auto json_response = json::parse(readBuffer);
+                if (json_response.contains("code") && json_response["code"] == "Ok") {
+                    is_ok = true;
+                }
+            } catch (const json::parse_error& e) {
+                std::cerr << "JSON parse error: " << e.what() << std::endl;
+            }
+        } else {
+            std::cerr << "HTTP error code: " << http_code << std::endl;
+        }
+    } else {
+        std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+    }
+
+    curl_easy_cleanup(curl);
+    return is_ok;
 }

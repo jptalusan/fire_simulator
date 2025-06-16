@@ -27,6 +27,8 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
+find_package(nlohmann_json REQUIRED)
+
 # Add all source files in the src/ directory
 # file(GLOB SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE SOURCES "src/*.cpp")
@@ -41,6 +43,7 @@ target_link_libraries(${TEST_NAME} GTest::gtest_main pthread)
 add_test(NAME RunUnitTests COMMAND ${TEST_NAME})
 
 target_link_libraries(${PROGRAM_NAME} PRIVATE CURL::libcurl)
+target_link_libraries(${PROGRAM_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 # Set different compile definitions and options for debug and release builds
 if(CMAKE_BUILD_TYPE MATCHES Debug)

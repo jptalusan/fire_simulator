@@ -2,10 +2,10 @@
 #define STATE_H
 
 #include <ctime>
-#include <vector>
+#include <unordered_map>
 #include <memory>
-#include <unordered_set>
-
+#include <queue>
+#include "data/incident.h"
 #include "data/station.h"
 #include "data/fire_truck.h"
 
@@ -14,18 +14,23 @@ public:
     State();
 
     void advanceTime(std::time_t new_time);
-    void addRespondedIncident(int incident_id);
+    void addIncident(Incident incident);
 
     std::time_t getSystemTime() const;
-    const std::unordered_set<int>& getRespondedIncidents() const;
-    std::vector<Station>& getStations();
-    std::vector<FireTruck>& getFireTrucks();
-
+    const std::queue<Incident>& getRespondedIncidents() const;
+    Station& getStation(int station_id);
+    std::unordered_map<int, Station>& getAllStations();
+    FireTruck& getFireTruck(int fire_truck_id);
+    std::unordered_map<int, FireTruck>& getAllFireTrucks();
+    void addStations(std::unordered_map<int, Station> stations);
+    Incident getUnresolvedIncident();
+    
 private:
     std::time_t system_time_;
-    std::unordered_set<int> responded_incidents_;
-    std::vector<Station> stations_;
-    std::vector<FireTruck> fire_trucks_;
+    std::queue<Incident> queuedIncidents_;
+    std::unordered_map<int, Station> stations_;
+    std::unordered_map<int, FireTruck> fire_trucks_;
+    std::vector<Incident> addressedIncidents_;
 };
 
 #endif // STATE_H

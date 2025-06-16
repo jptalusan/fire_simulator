@@ -14,7 +14,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
                           << " | Level: " << incident->incident_level << "\n";
 
                 // Example logic: mark incident as responded
-                state.addRespondedIncident(incident->incident_id);
+                state.addIncident(*incident);
             }
             break;
         }

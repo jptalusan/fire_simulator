@@ -3,6 +3,8 @@
 
 class FireTruck {
 public:
+    // TODO: Will result in garbage values. Add a default constructor
+    FireTruck() = default; // Default constructor
     FireTruck(int id);
 
     int getId() const;

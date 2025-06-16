@@ -2,15 +2,18 @@
 #include <algorithm>
 #include <iostream>
 
-Simulator::Simulator(State& initialState, const std::vector<Event>& events, EnvironmentModel& environmentModel)
-    : state_(initialState), events_(events), environment_(environmentModel) {}
+Simulator::Simulator(State& initialState, 
+    const std::vector<Event>& events, EnvironmentModel& environmentModel,
+    DispatchPolicy& dispatchPolicy)
+    : state_(initialState), events_(events), environment_(environmentModel), dispatchPolicy_(dispatchPolicy) {}
 
 void Simulator::run() {
     std::cout << "[Simulator] Starting simulation at system time: " << state_.getSystemTime() << "\n";
     
     for (const auto& event : events_) {
         environment_.handleEvent(state_, event);
-
+        int nextIncident = dispatchPolicy_.getAction(state_);
+        std::cout << "Incident ID:" << nextIncident << std::endl;
         state_history_.push_back(state_);  // Store the current state after handling the event
     }
 

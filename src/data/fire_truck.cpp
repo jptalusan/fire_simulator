@@ -1,5 +1,6 @@
 #include "data/fire_truck.h"
 
+
 FireTruck::FireTruck(int id)
     : id_(id), time_to_destination_(0) {}
 
