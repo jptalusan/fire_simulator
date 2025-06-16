@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <spdlog/spdlog.h>
 
 Incident::Incident(int id, double latitude, double longitude,
                    const std::string& type, const std::string& level,
@@ -13,22 +14,20 @@ Incident::Incident(int id, double latitude, double longitude,
       incident_type(type), incident_level(level), unix_time(time) {}
 
 void Incident::printInfo() const {
-    std::cout << "Incident ID: " << incident_id
-              << ", Type: " << incident_type
-              << ", Level: " << incident_level
-              << ", Lat: " << lat << ", Lon: " << lon
-              << ", Time: " << unix_time << "\n";
+    spdlog::debug("Incident ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
+                incident_id, incident_type, incident_level, lat, lon, unix_time);
 }
 
 std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
     EnvLoader env("../.env");
     std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
+    spdlog::info("Loading incidents from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
     std::vector<Incident> incidents;
     std::ifstream file(filename);
 
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << '\n';
+        spdlog::error("Failed to open file: {}", filename);
         return incidents;
     }
 
@@ -69,7 +68,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         if (isPointInPolygon(polygon, Location(lon, lat))) {
             incidents.emplace_back(id, lat, lon, type, level, unix_time);
         } else {
-            std::cout << "Incident " << id << " is out of bounds and will be ignored." << std::endl;
+            spdlog::warn("Incident {} is out of bounds and will be ignored.", id);
         }
         
     }

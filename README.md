@@ -27,12 +27,13 @@ brew install cmake
 brew install curl
 brew install googletest
 brew install nlohmann-json
+brew install spdlog
 xcode-select --install
 
 # For unix
 sudo apt update
 sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb
-sudo apt install nlohmann-json3-dev
+sudo apt install nlohmann-json3-dev libspdlog-dev
 ```
 
 To build the project, navigate to the project directory and run the following command:

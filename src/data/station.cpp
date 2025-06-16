@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
 Station::Station(int station_id,
                  const std::string& facility_name,
@@ -44,31 +45,23 @@ void Station::setNumFireTrucks(int n) { num_fire_trucks = n; }
 void Station::setNumAmbulances(int n) { num_ambulances = n; }
 
 void Station::printInfo() const {
-    std::cout << "Station ID: " << station_id
-              << ", Name: " << facility_name
-              << ", Address: " << address
-              << ", City: " << city
-              << ", State: " << state
-              << ", Zip: " << zip_code
-              << ", Lat: " << lat
-              << ", Lon: " << lon
-              << ", Fire Trucks: " << num_fire_trucks
-              << ", Ambulances: " << num_ambulances
-              << std::endl;
+    spdlog::debug("Station ID: {}, Name: {}, Address: {}, City: {}, State: {}, Zip: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
+                station_id, facility_name, address, city, state, zip_code, lat, lon, num_fire_trucks, num_ambulances);
 }
 
-std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename) {
+std::vector<Station> loadStationsFromCSV(const std::string& filename) {
     EnvLoader env("../.env");
     std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
+    spdlog::info("Loading stations from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
 
-    std::unordered_map<int, Station> stations;
+    std::vector<Station> stations;
     std::ifstream file(filename);
     std::string line;
 
     if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
+        spdlog::error("Failed to open file: {}", filename);
         return stations;
     }
 
@@ -140,9 +133,10 @@ std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename
                             lat,
                             num_fire_trucks,
                             num_ambulances);
-            stations.emplace(station_id, station);
+            stations.emplace_back(station);
+            spdlog::debug("Loaded station: {} - {} {}", station_id, facility_name, address);
         } else {
-            std::cout << "Station " << station_id << " is out of bounds and will be ignored." << std::endl;
+            spdlog::warn("Station {} is out of bounds and will be ignored.", station_id);
         }
     }
 

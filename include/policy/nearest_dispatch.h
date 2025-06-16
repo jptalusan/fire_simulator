@@ -14,9 +14,11 @@ public:
 
 private:
     std::string osrmUrl_;
+    Queries queries_;
 
     // Helper function to extract incident from the event
     std::shared_ptr<Incident> extractIncident(const Event& event) const;
+    int findMinIndex(const std::vector<double>& durations);
 };
 
 #endif // NEAREST_DISPATCH_H

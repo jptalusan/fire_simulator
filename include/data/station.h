@@ -2,6 +2,7 @@
 #define STATION_H
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include "data/location.h"
 
@@ -53,6 +54,6 @@ private:
     int num_ambulances;
 };
 
-std::unordered_map<int, Station> loadStationsFromCSV(const std::string& filename);
+std::vector<Station> loadStationsFromCSV(const std::string& filename);
 
 #endif // STATION_H

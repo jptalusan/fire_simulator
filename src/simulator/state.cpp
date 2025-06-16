@@ -21,15 +21,10 @@ const std::queue<Incident>& State::getRespondedIncidents() const {
 }
 
 Station& State::getStation(int station_id) {
-    auto it = stations_.find(station_id);
-    if (it == stations_.end()) {
-        // TODO: Check if this makes sense: If the station does not exist, create it
-        stations_[station_id] = Station();
-    }
     return stations_[station_id];
 }
 
-std::unordered_map<int, Station>& State::getAllStations() {
+std::vector<Station>& State::getAllStations() {
     return stations_;
 }
 
@@ -53,11 +48,14 @@ std::unordered_map<int, FireTruck>& State::getAllFireTrucks() {
     return fire_trucks_;
 }
 
-void State::addStations(std::unordered_map<int, Station> stations) {
+void State::addStations(std::vector<Station> stations) {
     stations_ = std::move(stations);
 }
 
 Incident State::getUnresolvedIncident() {
+/*
+This function retrieves the next unresolved incident from the queue.
+*/
     if (!queuedIncidents_.empty()) {
         Incident next = queuedIncidents_.front();
         queuedIncidents_.pop();

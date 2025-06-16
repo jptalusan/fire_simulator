@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Output program names
 set(PROGRAM_NAME "run_simulator")
 set(TEST_NAME "test_simulator")
 
@@ -20,30 +21,33 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Find external packages
+find_package(CURL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(spdlog REQUIRED)
+
 # Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-# Find libcurl package
-find_package(CURL REQUIRED)
+# Add external include directories
 include_directories(${CURL_INCLUDE_DIRS})
 
-find_package(nlohmann_json REQUIRED)
-
 # Add all source files in the src/ directory
-# file(GLOB SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 file(GLOB_RECURSE TESTSOURCES "test/*.cpp")
 
-# Add the executable
+# Add sources to the executable
 add_executable(${PROGRAM_NAME} ${SOURCES})
 
 # For testing
 add_executable(${TEST_NAME} ${TESTSOURCES})
-target_link_libraries(${TEST_NAME} GTest::gtest_main pthread)
 add_test(NAME RunUnitTests COMMAND ${TEST_NAME})
 
+# Linking external libraries
+target_link_libraries(${TEST_NAME} GTest::gtest_main pthread)
 target_link_libraries(${PROGRAM_NAME} PRIVATE CURL::libcurl)
 target_link_libraries(${PROGRAM_NAME} PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(${PROGRAM_NAME} PRIVATE spdlog::spdlog)
 
 # Set different compile definitions and options for debug and release builds
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -54,12 +58,12 @@ elseif(CMAKE_BUILD_TYPE MATCHES Release)
     target_compile_options(${PROGRAM_NAME} PRIVATE -O2 -Wall -Wextra)
 endif()
 
-# Set the output directory for the binary
+# Set the output directory for the binary (These are optional)
 set_target_properties(${PROGRAM_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 
-# Set the output directory for the test binary
+# Set the output directory for the test binary (debug)
 set_target_properties(${TEST_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
