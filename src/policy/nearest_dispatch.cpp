@@ -53,21 +53,6 @@ Action NearestDispatch::getAction(const State& state) {
         return Action(StationActionType::DoNothing);
     }
     
-    // Using OSRM Table API to get travel times
-    // Location incidentLoc(i.lat, i.lon);
-
-    // // Get all station locations
-    // std::vector<Location> station_locs;
-    // auto& stations = state.getAllStations();
-    // for (const auto& station : stations) {
-    //     station_locs.push_back(station.getLocation());
-    // }
-
-    // // Use Queries to get travel times from all stations to the incident
-    // std::vector<double> durations, distances;
-    // std::vector<Location> destinations = { incidentLoc }; // single destination
-    // queries_.queryTableService(station_locs, destinations, durations, distances);
-
     // If matrix is loaded, use it instead of OSRM
     std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentID);
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentID);
@@ -84,7 +69,7 @@ Action NearestDispatch::getAction(const State& state) {
     for (const auto& index : sortedIndices) {
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
         if (numberOfFireTrucks > 0) {
-            spdlog::info("Nearest station to incident {} is {} with index {}, {} sec away.", incidentID, validStations[index].getAddress(), index, durations[index]);
+            spdlog::info("[DispatchPolicy] Nearest station to incident {} is {} with index {}, {} sec away.", incidentID, validStations[index].getAddress(), index, durations[index]);
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
 
             dispatchAction = Action(StationActionType::Dispatch, {
@@ -97,7 +82,7 @@ Action NearestDispatch::getAction(const State& state) {
             });
             break;
         } else {
-            spdlog::warn("Station {} has no available fire trucks right now.", validStations[index].getAddress());
+            spdlog::warn("[DispatchPolicy] Station {} has no available fire trucks right now.", validStations[index].getAddress());
         }
     }
     

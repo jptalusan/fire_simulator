@@ -9,7 +9,7 @@
 
 // TODO: This needs models for computing travel times, resolution times etc... (during take action).
 void EnvironmentModel::handleEvent(State& state, const Event& event) {
-    spdlog::info("[EnvironmentModel] Handling {} at time: {}", to_string(event.event_type), formatTime(event.event_time));
+    spdlog::debug("[EnvironmentModel] Handling {} at time: {}", to_string(event.event_type), formatTime(event.event_time));
 
     switch (event.event_type) {
         case EventType::Incident: {
@@ -63,6 +63,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
 
 std::vector<Event> EnvironmentModel::takeAction(State& state, const Action& action) {
     std::unordered_map<std::string, std::string> payload = action.payload;
+    // TODO: Add reserve?
     std::vector<Event> newEvents = {};
     switch (action.type) {
         case StationActionType::Dispatch: {

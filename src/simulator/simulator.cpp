@@ -34,12 +34,10 @@ void Simulator::run() {
     // TODO: I probably just need the last state.
     state_history_.push_back(state_);
 
-    spdlog::info("Number of events unresolved: {}", state_.getIncidentQueue().size());
-    spdlog::info("Number of events addressed: {}", state_.getActiveIncidents().size());
+    spdlog::info("[Simulator] Number of events unresolved: {}", state_.getIncidentQueue().size());
+    spdlog::info("[Simulator] Number of events addressed: {}", state_.getActiveIncidents().size());
     
-
-    spdlog::info("[Simulator] Simulation complete.");
-    spdlog::info("[Simulator] Final system time: {}", state_.getSystemTime());
+    spdlog::info("[Simulator] Final system time: {}", formatTime(state_.getSystemTime()));
 }
 
 // TODO: Storing and saving activeIncidents may be expensive when there are many incidents.

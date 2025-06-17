@@ -14,6 +14,7 @@
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
+    events.reserve(incidents.size());  // Preallocate memory for efficiency
     for (const auto& incident : incidents) {
         auto inc_ptr = std::make_shared<Incident>(incident);
         Event e(EventType::Incident, incident.reportTime, inc_ptr);
@@ -30,7 +31,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::warn);
+        console_sink->set_level(spdlog::level::info);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::debug);
@@ -57,6 +58,7 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
     // Copy incidents to a vector and sort by reportTime if desired
     // Can be expensive, but its already at the end of the run
     std::vector<Incident> sortedIncidents;
+    sortedIncidents.reserve(activeIncidents.size());  // Preallocate memory for efficiency
     for (const auto& [id, incident] : activeIncidents) {
         sortedIncidents.push_back(incident);
     }
@@ -80,6 +82,7 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
 // Debug tool
 void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>& incidents, size_t chunk_size = 100) {
     spdlog::info("Starting Precomputation...");
+    spdlog::stopwatch sw;
     EnvLoader env("../.env");
     // Additional logic can be added here
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
@@ -98,10 +101,12 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     stations = loadStationsFromCSV(stations_path);
     incidents = loadIncidentsFromCSV(incidents_path);
     std::vector<Location> sources;
+    sources.reserve(stations.size());  // Preallocate memory for efficiency
     for (const auto& station : stations) {
         sources.push_back(station.getLocation());
     }
     std::vector<Location> destinations;
+    destinations.reserve(incidents.size());  // Preallocate memory for efficiency
     for (const auto& incident : incidents) {
         destinations.push_back(incident.getLocation());
     }
@@ -117,6 +122,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     // write_matrix_to_csv(full_matrix, matrix_path, 2, false);
     save_matrix_binary(full_duration_matrix, duration_matrix_path);
     save_matrix_binary(full_distance_matrix, distance_matrix_path);
+    spdlog::info("Preprocessing completed successfully in {:.3} s.", sw);
 }
 
 double* loadMatrixFromBinary(const std::string& filename, int& height, int& width) {
@@ -130,7 +136,6 @@ int main() {
 
     
     spdlog::info("Starting Fire Simulator...");
-    spdlog::stopwatch sw;
 
     // Additional logic can be added here
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
@@ -141,9 +146,10 @@ int main() {
     std::vector<Station> stations = {};
 
     // Debug tool to precompute matrices
-    size_t chunk_size = 100;
+    size_t chunk_size = 500;
     preComputingMatrices(stations, incidents, chunk_size);
 
+    spdlog::stopwatch sw;
     std::vector<Event> events = generateEvents(incidents);
 
     sortEventsByTime(events);
@@ -164,8 +170,7 @@ int main() {
     simulator.run();
 
     // // simulator.replay();
-    spdlog::info("Simulation completed successfully.");
-    spdlog::info("Elapsed {:.3}", sw);
+    spdlog::info("Simulation completed successfully in {:.3} s.", sw);
 
     std::vector<State> state_history = simulator.getStateHistory();
     writeReportToCSV(state_history, report_path);

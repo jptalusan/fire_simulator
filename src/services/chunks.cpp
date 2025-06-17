@@ -115,7 +115,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
             }
         }
 
-        spdlog::info("Processed chunk from {} to {}",
+        spdlog::debug("Processed chunk from {} to {}",
                  i, std::min(i + chunk_size, destinations.size()) - 1);
     }
     return {full_distance_matrix, full_duration_matrix};
