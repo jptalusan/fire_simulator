@@ -4,20 +4,28 @@
 #include "services/queries.h"
 #include "utils/error.h"
 #include "utils/constants.h"
+#include "services/chunks.h"
 
 // TODO: This will become confusing, stationID and index are different.
-NearestDispatch::NearestDispatch(const std::string& osrmUrl)
-    : osrmUrl_(osrmUrl), queries_() {
+NearestDispatch::NearestDispatch(const std::string& distanceMatrixPath, const std::string& durationMatrixPath)
+    : queries_(), distanceMatrix_(nullptr), durationMatrix_(nullptr) {
         // Validate the URL
-        if (checkOSRM(osrmUrl_)) {
-            spdlog::info("OSRM server is reachable and working correctly.");
+        std::ifstream file(distanceMatrixPath);
+        if (file) {
+            distanceMatrix_ = load_matrix_binary_flat(distanceMatrixPath, height_, width_);
+            durationMatrix_ = load_matrix_binary_flat(durationMatrixPath, height_, width_);
         } else {
-            spdlog::error("OSRM server is not reachable.");
-            throw OSMError();
+            spdlog::error("File does not exist, defaulting to using OSRM Table API.");
+            throw std::runtime_error("Distance matrix file not found: " + distanceMatrixPath);
         }
     }
 
-/**
+NearestDispatch::~NearestDispatch() {
+    delete[] distanceMatrix_; // Clean up the matrix if it was allocated
+    spdlog::info("NearestDispatch policy destroyed.");
+}
+
+ /**
  * @brief Determines the best station to dispatch to an unresolved incident.
  *
  * This function retrieves the next unresolved incident from the simulation state,
@@ -41,24 +49,29 @@ Action NearestDispatch::getAction(const State& state) {
     Incident i = state.getEarliestUnresolvedIncident();
     int incidentID = i.incident_id;
     if (incidentID < 0) {
-        spdlog::warn("No unresolved incident found.");
+        spdlog::debug("No unresolved incident found.");
         return Action(StationActionType::DoNothing);
     }
     
-    Location incidentLoc(i.lat, i.lon);
+    // Using OSRM Table API to get travel times
+    // Location incidentLoc(i.lat, i.lon);
 
-    // Get all station locations
-    std::vector<Location> station_locs;
-    auto& stations = state.getAllStations();
-    for (const auto& station : stations) {
-        station_locs.push_back(station.getLocation());
-    }
+    // // Get all station locations
+    // std::vector<Location> station_locs;
+    // auto& stations = state.getAllStations();
+    // for (const auto& station : stations) {
+    //     station_locs.push_back(station.getLocation());
+    // }
 
-    // Use Queries to get travel times from all stations to the incident
-    std::vector<double> durations, distances;
-    std::vector<Location> destinations = { incidentLoc }; // single destination
-    queries_.queryTableService(station_locs, destinations, durations, distances);
+    // // Use Queries to get travel times from all stations to the incident
+    // std::vector<double> durations, distances;
+    // std::vector<Location> destinations = { incidentLoc }; // single destination
+    // queries_.queryTableService(station_locs, destinations, durations, distances);
 
+    // If matrix is loaded, use it instead of OSRM
+    std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentID);
+    std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentID);
+    
     Action dispatchAction = Action(StationActionType::DoNothing);
     // int nearestStationIndex = findMinIndex(durations);
     std::vector<int> sortedIndices = getSortedIndicesByDuration(durations);
@@ -80,7 +93,7 @@ Action NearestDispatch::getAction(const State& state) {
                 {constants::INCIDENT_ID, std::to_string(incidentID)},
                 {constants::DISPATCH_TIME, std::to_string(state.getSystemTime())},
                 {constants::TRAVEL_TIME, std::to_string(durations[index])},
-                {constants::DISTANCE, std::to_string(distances[index])}
+                {constants::DISTANCE, std::to_string(distances[index])} //DEBUG
             });
             break;
         } else {
@@ -121,4 +134,25 @@ std::vector<int> NearestDispatch::getSortedIndicesByDuration(const std::vector<d
         indices.push_back(pair.first);
     }
     return indices;
+}
+
+/*
+* @brief Extracts a specific column from a 2D matrix represented as a flat array.
+ * @param matrix The flat array representing the matrix.
+ * @param width The number of columns in the matrix.
+ * @param height The number of rows in the matrix.
+ * @param col_index The index of the column to extract.
+ * @return A vector containing the values of the specified column.
+ * @note col_index represent the incidents.
+ * @note each row represents a station.
+*/
+std::vector<double> NearestDispatch::getColumn(double* matrix, int width, int height, int col_index) const {
+    std::vector<double> column;
+    column.reserve(height); // optional: preallocate memory for performance
+
+    for (int row = 0; row < height; ++row) {
+        column.push_back(matrix[row * width + col_index]);
+    }
+
+    return column;
 }

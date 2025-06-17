@@ -10,6 +10,7 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "utils/helpers.h"
 #include "services/chunks.h"
+#include "utils/error.h"
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
@@ -29,7 +30,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::err);
+        console_sink->set_level(spdlog::level::warn);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::debug);
@@ -47,7 +48,7 @@ void setupLogger(EnvLoader& env) {
     }
 }
 
-void writeReportToCSV(const std::vector<State>& state_history, const std::string& filename) {
+void writeReportToCSV(const std::vector<State>& state_history, const std::string& filename) {    
     State state = state_history.back();
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
     std::ofstream csv(filename);
@@ -77,14 +78,25 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
 }
 
 // Debug tool
-void preComputingMatrices() {
+void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>& incidents, size_t chunk_size = 100) {
+    spdlog::info("Starting Precomputation...");
     EnvLoader env("../.env");
     // Additional logic can be added here
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
+    std::string distance_matrix_path = env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin");
+    std::string duration_matrix_path = env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin");
+    std::string osrmUrl_ = env.get("BASE_OSRM_URL", "http://router.project-osrm.org");
 
-    std::vector<Station> stations = loadStationsFromCSV(stations_path);
-    std::vector<Incident> incidents = loadIncidentsFromCSV(incidents_path);
+    if (checkOSRM(osrmUrl_)) {
+        spdlog::info("OSRM server is reachable and working correctly.");
+    } else {
+        spdlog::error("OSRM server is not reachable.");
+        throw OSMError();
+    }
+
+    stations = loadStationsFromCSV(stations_path);
+    incidents = loadIncidentsFromCSV(incidents_path);
     std::vector<Location> sources;
     for (const auto& station : stations) {
         sources.push_back(station.getLocation());
@@ -94,18 +106,28 @@ void preComputingMatrices() {
         destinations.push_back(incident.getLocation());
     }
 
-    size_t chunk_size = 100;
-    std::string feature = "durations"; // or "distances" if needed
-    std::vector<std::vector<double>> full_matrix = generate_osrm_table_chunks(sources, destinations, feature, chunk_size);
-    std::cout << full_matrix.size() << " sources, " 
-              << full_matrix[0].size() << " destinations.\n";
-    print_matrix(full_matrix, 5, 5);
-    write_matrix_to_csv(full_matrix, "../logs/raw_matrix.csv", 2, false);
+    auto result = generate_osrm_table_chunks(sources, destinations, chunk_size);
+    const std::vector<std::vector<double>>& full_distance_matrix = result.first;
+    const std::vector<std::vector<double>>& full_duration_matrix = result.second;
+
+    std::cout << full_duration_matrix.size() << " sources, " 
+              << full_duration_matrix[0].size() << " destinations.\n";
+    // print_matrix(full_duration_matrix, 5, 5);
+    // For readability
+    // write_matrix_to_csv(full_matrix, matrix_path, 2, false);
+    save_matrix_binary(full_duration_matrix, duration_matrix_path);
+    save_matrix_binary(full_distance_matrix, distance_matrix_path);
+}
+
+double* loadMatrixFromBinary(const std::string& filename, int& height, int& width) {
+    return load_matrix_binary_flat(filename, height, width);
 }
 
 int main() {
+    // ###### ACTUAL CODE ######
     EnvLoader env("../.env");
     setupLogger(env);
+
     
     spdlog::info("Starting Fire Simulator...");
     spdlog::stopwatch sw;
@@ -115,7 +137,13 @@ int main() {
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
     std::string report_path = env.get("REPORT_CSV_PATH", "../logs/incident_report.csv");
 
-    std::vector<Incident> incidents = loadIncidentsFromCSV(incidents_path);
+    std::vector<Incident> incidents = {};
+    std::vector<Station> stations = {};
+
+    // Debug tool to precompute matrices
+    size_t chunk_size = 100;
+    preComputingMatrices(stations, incidents, chunk_size);
+
     std::vector<Event> events = generateEvents(incidents);
 
     sortEventsByTime(events);
@@ -126,15 +154,16 @@ int main() {
 
     State initial_state;
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
-    initial_state.addStations(loadStationsFromCSV(stations_path));
+    initial_state.addStations(stations);
 
-    DispatchPolicy* policy = new NearestDispatch(env.get("BASE_OSRM_URL", "http://router.project-osrm.org"));
+    DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+                                                 env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
     EnvironmentModel environment_model;
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
 
-    // simulator.replay();
+    // // simulator.replay();
     spdlog::info("Simulation completed successfully.");
     spdlog::info("Elapsed {:.3}", sw);
 

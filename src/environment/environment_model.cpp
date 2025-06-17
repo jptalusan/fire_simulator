@@ -152,9 +152,13 @@ void appendNewEvents(State& state, const Action& action, std::vector<Event>& new
     // TODO: Add error handling, but because of index and ID mismatch, i need to add index in station first.
     Station station = state.getStation(stationIndex);
     
-    time_t resolutionTime = calculateResolutionTime(incidentLevel);
+    time_t resolutionTime = std::time(nullptr);
+    resolutionTime = calculateResolutionTime(incidentLevel);
     resolutionTime = state.getSystemTime() + static_cast<time_t>(resolutionTime);
-    
+    if (resolutionTime < 0 || resolutionTime > 2147483647) {
+        spdlog::error("Resolution time for incident {} out of bounds: {}", incidentID, resolutionTime);
+    }
+
     // Resolution event creation
     IncidentResolutionEvent event(incidentID, stationIndex);
     newEvents.push_back(Event(EventType::IncidentResolution, resolutionTime, std::make_shared<IncidentResolutionEvent>(event)));
@@ -188,5 +192,6 @@ time_t calculateResolutionTime(IncidentLevel incidentLevel) {
             spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
+    
     return static_cast<time_t>(resolutionTime);
 }

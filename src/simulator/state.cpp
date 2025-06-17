@@ -1,7 +1,7 @@
 #include "simulator/state.h"
 #include <iostream>
 
-State::State() : system_time_(0) {}
+State::State() : system_time_(std::time(nullptr)) {}
 
 void State::advanceTime(std::time_t new_time) {
     system_time_ = new_time;

@@ -1,5 +1,9 @@
 #include <services/chunks.h>
+#include <spdlog/spdlog.h>
+#include <fstream>
+#include <iomanip>
 #include "data/location.h"
+#include "config/EnvLoader.h"
 
 // libcurl write callback
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
@@ -28,18 +32,19 @@ std::string fetch_osrm_response(const std::string& full_url) {
 }
 
 // Generate OSRM table queries: all sources with destination chunks
-std::vector<std::vector<double>> generate_osrm_table_chunks(
+std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> generate_osrm_table_chunks(
     const std::vector<Location>& sources,
     const std::vector<Location>& destinations,
-    const std::string& feature,
     size_t chunk_size
 ) {
-    const std::string base_url = "http://localhost:8080";
+    EnvLoader env("../.env");
+    const std::string base_url = env.get("BASE_OSRM_URL", "http://localhost:8080");
     size_t num_sources = sources.size();
     size_t num_destinations = destinations.size();
 
     // Initialize final durations matrix [sources][destinations]
-    std::vector<std::vector<double>> full_matrix(num_sources, std::vector<double>(num_destinations, -1.0));
+    std::vector<std::vector<double>> full_distance_matrix(num_sources, std::vector<double>(num_destinations, -1.0));
+    std::vector<std::vector<double>> full_duration_matrix(num_sources, std::vector<double>(num_destinations, -1.0));
 
     // Precompute source strings
     std::vector<std::string> source_strs;
@@ -90,19 +95,30 @@ std::vector<std::vector<double>> generate_osrm_table_chunks(
             continue;
         }
         
-        auto durations = json_resp[feature];
+        auto durations = json_resp["durations"];
 
         // Fill values into full_matrix
         for (size_t row = 0; row < durations.size(); ++row) {
             for (size_t col = 0; col < durations[row].size(); ++col) {
                 size_t dst_index = i + col;
-                full_matrix[row][dst_index] = durations[row][col].get<double>();
+                full_duration_matrix[row][dst_index] = durations[row][col].get<double>();
             }
         }
 
-        std::cout << "Processed destinations " << i << " to " << std::min(i + chunk_size, destinations.size()) - 1 << "\n";
+        auto distances = json_resp["distances"];
+
+        // Fill values into full_matrix
+        for (size_t row = 0; row < distances.size(); ++row) {
+            for (size_t col = 0; col < distances[row].size(); ++col) {
+                size_t dst_index = i + col;
+                full_distance_matrix[row][dst_index] = distances[row][col].get<double>();
+            }
+        }
+
+        spdlog::info("Processed chunk from {} to {}",
+                 i, std::min(i + chunk_size, destinations.size()) - 1);
     }
-    return full_matrix;
+    return {full_distance_matrix, full_duration_matrix};
 }
 
 void print_matrix(const std::vector<std::vector<double>>& matrix,
@@ -139,10 +155,6 @@ void print_matrix(const std::vector<std::vector<double>>& matrix,
     if (display_rows < rows)
         std::cout << "...\n";
 }
-
-
-#include <fstream>
-#include <iomanip>
 
 void write_matrix_to_csv(const std::vector<std::vector<double>>& matrix,
                          const std::string& filename,
@@ -182,4 +194,60 @@ void write_matrix_to_csv(const std::vector<std::vector<double>>& matrix,
 
     file.close();
     std::cout << "Matrix written to: " << filename << "\n";
+}
+
+/*
+* @brief Saves a matrix to a binary file in flat format.
+* The first two integers written to the file represent the width and height of the matrix.
+* The matrix is stored as a flat array of doubles.
+* @param matrix The matrix to save.
+* @param filename The path to the binary file.
+*/
+void save_matrix_binary(const std::vector<std::vector<double>>& matrix,
+                        const std::string& filename) {
+    std::ofstream out(filename, std::ios::binary);
+    if (!out) {
+        std::cerr << "Failed to open file for writing: " << filename << "\n";
+        return;
+    }
+
+    int height = static_cast<int>(matrix.size());
+    int width = height > 0 ? static_cast<int>(matrix[0].size()) : 0;
+
+    out.write(reinterpret_cast<const char*>(&width), sizeof(int));
+    out.write(reinterpret_cast<const char*>(&height), sizeof(int));
+
+    for (const auto& row : matrix) {
+        out.write(reinterpret_cast<const char*>(row.data()), sizeof(double) * width);
+    }
+
+    out.close();
+}
+
+/*
+* @brief Loads a matrix from a binary file in flat format.
+* The first two integers in the file represent the width and height of the matrix.
+* The matrix is stored as a flat array of doubles.
+* @param filename The path to the binary file.
+* @param height Output parameter for the number of rows in the matrix.
+* @param width Output parameter for the number of columns in the matrix.
+* @return A pointer to the loaded matrix, or nullptr on failure.
+* @note Accessing the matrix elements can be done using matrix[row * width + col].
+* @note ie., matrix[i * width + j] gives you source i → destination j.
+*/
+double* load_matrix_binary_flat(const std::string& filename, int& height, int& width) {
+    std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        std::cerr << "Failed to open file for reading: " << filename << "\n";
+        return nullptr;
+    }
+
+    in.read(reinterpret_cast<char*>(&width), sizeof(int));
+    in.read(reinterpret_cast<char*>(&height), sizeof(int));
+
+    double* matrix = new double[width * height];
+    in.read(reinterpret_cast<char*>(matrix), sizeof(double) * width * height);
+
+    in.close();
+    return matrix;
 }

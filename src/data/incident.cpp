@@ -38,6 +38,8 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
 
     std::unordered_set<int> seenIDs; // To track unique incident IDs
 
+    int ignoredCount = 0; // Count of ignored incidents
+
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string token;
@@ -63,10 +65,13 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         std::tm tm = {};
         std::istringstream datetime_ss(datetime_str);
         datetime_ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+
         if (datetime_ss.fail()) {
             std::cerr << "Failed to parse datetime: " << datetime_str << '\n';
-            continue;
+            throw std::runtime_error("Invalid datetime format: " + datetime_str);
+            // continue;
         }
+        tm.tm_isdst = -1;  // Let mktime() determine DST
         time_t unix_time = std::mktime(&tm);
 
         if (isPointInPolygon(polygon, Location(lon, lat))) {
@@ -90,11 +95,14 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
                 incidents.emplace_back(id, lat, lon, type, ilevel, unix_time);
             }
         } else {
-            spdlog::warn("Incident {} is out of bounds and will be ignored.", id);
+            spdlog::debug("Incident {} is out of bounds and will be ignored.", id);
+            ignoredCount++;
         }
         
     }
 
+    spdlog::info("Loaded {} incidents from CSV file.", incidents.size() - ignoredCount);
+    spdlog::warn("Ignored {} incidents that are out of bounds.", ignoredCount);
     return incidents;
 }
 

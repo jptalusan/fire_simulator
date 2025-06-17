@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <utility>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include "data/location.h"
@@ -10,10 +11,9 @@
 using json = nlohmann::json;
 
 // Coordinate pair: lat, lon
-std::vector<std::vector<double>> generate_osrm_table_chunks(
+std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> generate_osrm_table_chunks(
     const std::vector<Location>& sources,
     const std::vector<Location>& destinations,
-    const std::string& feature="durations",
     size_t chunk_size=100
 );
 
@@ -26,3 +26,8 @@ void write_matrix_to_csv(const std::vector<std::vector<double>>& matrix,
                          const std::string& filename,
                          int precision = 2,
                          bool add_headers = true);
+
+void save_matrix_binary(const std::vector<std::vector<double>>& matrix,
+                        const std::string& filename);
+
+double* load_matrix_binary_flat(const std::string& filename, int& height, int& width);

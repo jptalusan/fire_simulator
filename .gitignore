@@ -101,4 +101,5 @@ build/
 test_simulator
 test.ipynb
 *.log
-incident_report.csv
+*.csv
+*.bin

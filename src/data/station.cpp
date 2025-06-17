@@ -90,6 +90,8 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
     // Skip header line
     std::getline(file, line);
 
+    int ignoredCount = 0; // Count of ignored stations
+
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string token;
@@ -158,10 +160,13 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
             stations.emplace_back(station);
             spdlog::debug("Loaded station: {} - {} {}", station_id, facility_name, address);
         } else {
-            spdlog::warn("Station {} is out of bounds and will be ignored.", station_id);
+            spdlog::debug("Station {} is out of bounds and will be ignored.", station_id);
+            ignoredCount++;
         }
     }
 
     file.close();
+    spdlog::info("Loaded {} stations from CSV file.", stations.size() - ignoredCount);
+    spdlog::warn("Ignored {} stations that are out of bounds.", ignoredCount);
     return stations;
 }
