@@ -1,9 +1,11 @@
+#include <iostream>
+#include <spdlog/spdlog.h>
 #include "policy/nearest_dispatch.h"
 #include "services/queries.h"
-#include <iostream>
-#include "utils/error.hpp"
-#include <spdlog/spdlog.h>
+#include "utils/error.h"
+#include "utils/constants.h"
 
+// TODO: This will become confusing, stationID and index are different.
 NearestDispatch::NearestDispatch(const std::string& osrmUrl)
     : osrmUrl_(osrmUrl), queries_() {
         // Validate the URL
@@ -24,21 +26,26 @@ NearestDispatch::NearestDispatch(const std::string& osrmUrl)
  * select the nearest available station for dispatching resources.
  *
  * Steps:
- * 1. Retrieve the next unresolved incident from the state.
- * 2. Collect all station locations from the state.
- * 3. Use the OSRM Table API (via Queries::queryTableService) to get travel times
- *    from all stations (sources) to the incident (destination).
- * 4. (Planned) Select the station with the lowest travel time and available trucks.
- * 5. (Planned) Emit a station_action event for dispatch.
+ * @note 1. Retrieve the next unresolved incident from the state.
+ * @note 2. Collect all station locations from the state.
+ * @note 3. Use the OSRM Table API (via Queries::queryTableService) to get travel times
+ * @note    from all stations (sources) to the incident (destination).
+ * @note 4. (Planned) Select the station with the lowest travel time and available trucks.
+ * @note 5. (Planned) Emit a station_action event for dispatch.
  *
  * @param state The current simulation state, containing incidents and stations.
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
  */
-int NearestDispatch::getAction(State& state) {
+Action NearestDispatch::getAction(const State& state) {
     // Get unresolved incident
-    Incident i = state.getUnresolvedIncident();
+    Incident i = state.getEarliestUnresolvedIncident();
     int incidentID = i.incident_id;
-    Location incident_loc(i.lat, i.lon);
+    if (incidentID < 0) {
+        spdlog::warn("No unresolved incident found.");
+        return Action(StationActionType::DoNothing);
+    }
+    
+    Location incidentLoc(i.lat, i.lon);
 
     // Get all station locations
     std::vector<Location> station_locs;
@@ -49,23 +56,39 @@ int NearestDispatch::getAction(State& state) {
 
     // Use Queries to get travel times from all stations to the incident
     std::vector<double> durations, distances;
-    std::vector<Location> destinations = { incident_loc }; // single destination
+    std::vector<Location> destinations = { incidentLoc }; // single destination
     queries_.queryTableService(station_locs, destinations, durations, distances);
 
-    int min_idx = findMinIndex(durations);
-    spdlog::info("Nearest station to incident {} is {} with index {}", incidentID, stations[min_idx].getAddress(), min_idx);
-    spdlog::info("Duration: {} seconds", (min_idx >= 0 ? durations[min_idx] : -1));
-    // std::cout << "" << std::endl;
-    // For now, just return the incident id (replace with actual dispatch logic)
-    return i.incident_id;
-    // 1. Loop through all stations in state
-    // 2. For each, use OSRM table query to get travel time
-    // 3. Pick the one with lowest travel time and has available trucks
-    // 4. Create and emit a station_action event
-}
+    Action dispatchAction = Action(StationActionType::DoNothing);
+    // int nearestStationIndex = findMinIndex(durations);
+    std::vector<int> sortedIndices = getSortedIndicesByDuration(durations);
 
-std::shared_ptr<Incident> NearestDispatch::extractIncident(const Event& event) const {
-    return std::dynamic_pointer_cast<Incident>(event.payload);
+    if (sortedIndices.empty()) {
+        spdlog::warn("No valid stations found or all durations are infinite.");
+    }
+
+    std::vector<Station> validStations = state.getAllStations();
+    for (const auto& index : sortedIndices) {
+        int numberOfFireTrucks = validStations[index].getNumFireTrucks();
+        if (numberOfFireTrucks > 0) {
+            spdlog::info("Nearest station to incident {} is {} with index {}, {} sec away.", incidentID, validStations[index].getAddress(), index, durations[index]);
+            // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
+
+            dispatchAction = Action(StationActionType::Dispatch, {
+                {constants::STATION_INDEX, std::to_string(index)},
+                {constants::ENGINE_COUNT, "1"}, // Assuming we dispatch one engine
+                {constants::INCIDENT_ID, std::to_string(incidentID)},
+                {constants::DISPATCH_TIME, std::to_string(state.getSystemTime())},
+                {constants::TRAVEL_TIME, std::to_string(durations[index])},
+                {constants::DISTANCE, std::to_string(distances[index])}
+            });
+            break;
+        } else {
+            spdlog::warn("Station {} has no available fire trucks right now.", validStations[index].getAddress());
+        }
+    }
+    
+    return dispatchAction;
 }
 
 /**
@@ -77,4 +100,25 @@ int NearestDispatch::findMinIndex(const std::vector<double>& durations) {
     if (durations.empty()) return -1;
     auto min_it = std::min_element(durations.begin(), durations.end());
     return static_cast<int>(std::distance(durations.begin(), min_it));
+}
+
+// TODO: Very expensive operation but only cheap because limited stations.
+/**
+ * @brief Returns a vector of (index, duration) pairs sorted by duration (smallest to largest).
+ * @param durations The vector of durations.
+ * @return A vector of pairs (index, duration), sorted by duration.
+ */
+std::vector<int> NearestDispatch::getSortedIndicesByDuration(const std::vector<double>& durations) {
+    std::vector<std::pair<int, double>> indexed;
+    for (int i = 0; i < static_cast<int>(durations.size()); ++i) {
+        indexed.emplace_back(i, durations[i]);
+    }
+    std::sort(indexed.begin(), indexed.end(),
+              [](const auto& a, const auto& b) { return a.second < b.second; });
+
+    std::vector<int> indices;
+    for (const auto& pair : indexed) {
+        indices.push_back(pair.first);
+    }
+    return indices;
 }

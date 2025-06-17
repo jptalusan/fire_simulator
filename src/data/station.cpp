@@ -1,11 +1,12 @@
-#include "data/station.h"
-#include "data/geometry.h"
-#include "config/EnvLoader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <spdlog/spdlog.h>
+#include "data/station.h"
+#include "data/geometry.h"
+#include "config/EnvLoader.h"
+#include "utils/constants.h"
 
 Station::Station(int station_id,
                  const std::string& facility_name,
@@ -26,7 +27,9 @@ Station::Station(int station_id,
       lon(lon),
       lat(lat),
       num_fire_trucks(num_fire_trucks),
-      num_ambulances(num_ambulances) {}
+      num_ambulances(num_ambulances),
+      max_ambulances(num_ambulances),
+      max_fire_trucks(num_fire_trucks) {}
 
 int Station::getStationId() const { return station_id; }
 std::string Station::getFacilityName() const { return facility_name; }
@@ -41,8 +44,26 @@ int Station::getNumAmbulances() const { return num_ambulances; }
 Location Station::getLocation() const {
     return Location(lat, lon);
 }
-void Station::setNumFireTrucks(int n) { num_fire_trucks = n; }
-void Station::setNumAmbulances(int n) { num_ambulances = n; }
+
+// Make sure we don't exceed the maximum allowed fire trucks or ambulances
+// TODO: Right now we consider the number in the CSV as the max as well, but this can be changed
+void Station::setNumFireTrucks(int n) { 
+    if (n <= max_fire_trucks) {
+        num_fire_trucks = n;
+    }
+    else {
+        spdlog::warn("Attempted to set number of fire trucks to {} but max is {}", n, max_fire_trucks);
+    }
+}
+
+void Station::setNumAmbulances(int n) {
+    if (n <= max_ambulances) {
+        num_ambulances = n;
+    }
+    else {
+        spdlog::warn("Attempted to set number of ambulances to {} but max is {}", n, max_ambulances);
+    }
+}
 
 void Station::printInfo() const {
     spdlog::debug("Station ID: {}, Name: {}, Address: {}, City: {}, State: {}, Zip: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
@@ -119,8 +140,8 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
         std::getline(ss, token, ',');
         double lon = std::stod(token);
 
-        int num_fire_trucks = 2; // Default value, can be updated later
-        int num_ambulances = 0;  // Default value, can be updated later
+        int num_fire_trucks = constants::DEFAULT_NUM_FIRE_TRUCKS; // Default value, can be updated later
+        int num_ambulances = constants::DEFAULT_NUM_AMBULANCES;  // Default value, can be updated later
 
         if (isPointInPolygon(polygon, Location(lon, lat))) {
             Station station(station_id,

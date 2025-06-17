@@ -15,23 +15,23 @@ public:
     State();
 
     void advanceTime(std::time_t new_time);
-    void addIncident(Incident incident);
-
+    void addToQueue(Incident incident);
     std::time_t getSystemTime() const;
-    const std::queue<Incident>& getRespondedIncidents() const;
+    std::queue<Incident>& getIncidentQueue();
     Station& getStation(int station_id);
-    std::vector<Station>& getAllStations();
+    const std::vector<Station>& getAllStations() const;
     FireTruck& getFireTruck(int fire_truck_id);
-    std::unordered_map<int, FireTruck>& getAllFireTrucks();
+    const std::unordered_map<int, FireTruck>& getAllFireTrucks() const;
     void addStations(std::vector<Station> stations);
-    Incident getUnresolvedIncident();
+    Incident getEarliestUnresolvedIncident() const;
+    std::unordered_map<int, Incident>& getActiveIncidents();
     
 private:
     std::time_t system_time_;
-    std::queue<Incident> queuedIncidents_;
+    std::queue<Incident> incidentQueue_;
     std::vector<Station> stations_;
     std::unordered_map<int, FireTruck> fire_trucks_;
-    std::vector<Incident> addressedIncidents_;
+    std::unordered_map<int, Incident> activeIncidents_;
 };
 
 #endif // STATE_H

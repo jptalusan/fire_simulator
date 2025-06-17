@@ -52,6 +52,8 @@ private:
     double lat;
     int num_fire_trucks;
     int num_ambulances;
+    int max_ambulances;
+    int max_fire_trucks;
 };
 
 std::vector<Station> loadStationsFromCSV(const std::string& filename);

@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <ctime>
-#include "simulator/event_data.h"
 #include "data/location.h"
+#include "simulator/event.h"
 
 class Incident : public EventData {
 public:
@@ -14,16 +14,31 @@ public:
     double lat;
     double lon;
     std::string incident_type;
-    std::string incident_level;
-    time_t unix_time;
-    time_t response_time; // Time when the incident was responded to
-    time_t resolved_time; // Time when the incident was resolved
-    bool is_responded; // Flag to indicate if the incident has been responded to
+    IncidentLevel incident_level;
+    time_t reportTime;
+    time_t responseTime; // Time when the incident was responded to
+    time_t resolvedTime; // Time when the incident was resolved
+    bool hasBeenRespondedTo; // Flag to indicate if the incident has been responded to
+    int engineCount; // Number of fire trucks dispatched to the incident
+    int stationIndex; // Index of the station that responded to the incident
+    double oneWayTravelTimeTo; // Travel time from the station to the incident location
 
     Incident(int id, double latitude, double longitude,
-             const std::string& type, const std::string& level,
-             time_t unix_time);
-    Incident() = default;
+             const std::string& type, IncidentLevel level,
+             time_t report_time);
+    Incident()
+        : incident_id(-1),
+          lat(0.0),
+          lon(0.0),
+          incident_type(""),
+          incident_level(IncidentLevel::Invalid),
+          reportTime(0),
+          responseTime(0),
+          resolvedTime(0),
+          hasBeenRespondedTo(false),
+          engineCount(0),
+          stationIndex(-1)
+    {}
 
     void printInfo() const override;
     Location getLocation() const;

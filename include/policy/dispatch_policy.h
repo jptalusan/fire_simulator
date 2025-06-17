@@ -3,13 +3,14 @@
 
 #include "simulator/state.h"
 #include "simulator/event.h"
+#include "simulator/action.h"
 
 class DispatchPolicy {
 public:
     virtual ~DispatchPolicy() = default;
 
     // Handle dispatching logic given the state and an event
-    virtual int getAction(State& state) = 0;
+    virtual Action getAction(const State& state) = 0;
 };
 
 #endif // DISPATCH_POLICY_H

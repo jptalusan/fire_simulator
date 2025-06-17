@@ -8,26 +8,29 @@ void State::advanceTime(std::time_t new_time) {
     // Optionally, update truck timers here.
 }
 
-void State::addIncident(Incident incident) {
-    queuedIncidents_.push(incident);
+void State::addToQueue(Incident incident) {
+    incidentQueue_.push(incident);
 }
 
 std::time_t State::getSystemTime() const {
     return system_time_;
 }
 
-const std::queue<Incident>& State::getRespondedIncidents() const {
-    return queuedIncidents_;
+std::queue<Incident>& State::getIncidentQueue() {
+    return incidentQueue_;
 }
 
 Station& State::getStation(int station_id) {
     return stations_[station_id];
 }
 
-std::vector<Station>& State::getAllStations() {
+const std::vector<Station>& State::getAllStations() const {
     return stations_;
 }
 
+std::unordered_map<int, Incident>& State::getActiveIncidents() {
+    return activeIncidents_;
+}
 /*
 You are default-constructing a FireTruck
 (e.g., FireTruck truck; or std::unordered_map<int, FireTruck> fire_trucks_; 
@@ -44,7 +47,7 @@ FireTruck& State::getFireTruck(int fire_truck_id) {
     return fire_trucks_[fire_truck_id];
 }
 
-std::unordered_map<int, FireTruck>& State::getAllFireTrucks() {
+const std::unordered_map<int, FireTruck>& State::getAllFireTrucks() const {
     return fire_trucks_;
 }
 
@@ -52,15 +55,22 @@ void State::addStations(std::vector<Station> stations) {
     stations_ = std::move(stations);
 }
 
-Incident State::getUnresolvedIncident() {
+Incident State::getEarliestUnresolvedIncident() const {
 /*
 This function retrieves the next unresolved incident from the queue.
 */
-    if (!queuedIncidents_.empty()) {
-        Incident next = queuedIncidents_.front();
-        queuedIncidents_.pop();
+    if (!incidentQueue_.empty()) {
+        Incident next = incidentQueue_.front();
         return next;
     }
     // Handle the case where the queue is empty (could throw, return default, or handle as needed)
     return Incident();
 }
+
+// std::vector<Incident> State::getAddressedIncidents() {
+//     return addressedIncidents_;
+// }
+
+// void State::addToAddressedIncidents(Incident incident) {
+//     addressedIncidents_.push_back(incident);
+// }

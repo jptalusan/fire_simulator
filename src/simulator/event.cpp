@@ -1,4 +1,5 @@
 // event.cpp
+#include "enums.h"
 #include "simulator/event.h"
 #include <iostream>
 
@@ -12,4 +13,20 @@ void Event::print() const {
     } else {
         std::cout << "No payload\n";
     }
+}
+
+// TODO: This might be entirely unnecessary, but it is here for now.
+FireStationEvent::FireStationEvent(const int& stationIndex, const int& enginesCount)
+    : stationIndex(stationIndex), enginesCount(enginesCount) {}
+
+void FireStationEvent::printInfo() const {
+    std::cout << ", Station Index: " << stationIndex << ", Engines Count: " << enginesCount << "\n";
+}
+
+
+IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentID, const int& stationIndex)
+    : incidentID(incidentID), stationIndex(stationIndex) {}
+
+void IncidentResolutionEvent::printInfo() const {
+    std::cout << "Incident ID: " << incidentID << ", Station Index: " << stationIndex << "\n";
 }

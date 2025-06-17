@@ -42,6 +42,14 @@ std::vector<double> parseResponse(const std::string& response, const std::string
     return array;
 }
 
+/**
+ * @brief Builds the OSRM query URL for the table service.
+ * @note Requires `std::setprecision(10)` to ensure high precision in coordinates.
+ * 
+ * @param sources Vector of source locations.
+ * @param destinations Vector of destination locations.
+ * @return The constructed URL as a string.
+ */
 std::string Queries::buildQueryURL(const std::vector<Location>& sources,
                                    const std::vector<Location>& destinations) {
     std::ostringstream url;

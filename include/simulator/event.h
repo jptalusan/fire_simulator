@@ -5,9 +5,15 @@
 #include <string>
 #include <memory>
 #include <ctime>
-#include "event_data.h"
-#include "enums/event_type.h"
+#include "enums.h"
 
+class EventData {
+public:
+    virtual ~EventData() = default;
+    virtual void printInfo() const = 0;
+};
+
+// Payload is any class that inherits from EventData
 class Event {
 public:
     EventType event_type;
@@ -16,6 +22,24 @@ public:
 
     Event(EventType type, time_t time, std::shared_ptr<EventData> data);
     void print() const;
+};
+
+class FireStationEvent : public EventData {
+public:
+    int stationIndex;
+    int enginesCount; // Number of engines involved in the event
+
+    FireStationEvent(const int& stationIndex, const int& enginesCount);
+    void printInfo() const override;
+};
+
+class IncidentResolutionEvent : public EventData {
+public:
+    int incidentID;
+    int stationIndex;
+
+    IncidentResolutionEvent(const int& incidentID, const int& stationIndex);
+    void printInfo() const override;
 };
 
 #endif // EVENT_H

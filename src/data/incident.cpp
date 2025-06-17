@@ -1,21 +1,23 @@
-#include "data/incident.h"
-#include "data/geometry.h"
-#include "config/EnvLoader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <unordered_set>
 #include <spdlog/spdlog.h>
+#include "data/incident.h"
+#include "data/geometry.h"
+#include "config/EnvLoader.h"
+#include "utils/constants.h"
 
 Incident::Incident(int id, double latitude, double longitude,
-                   const std::string& type, const std::string& level,
+                   const std::string& type, IncidentLevel level,
                    time_t time)
     : incident_id(id), lat(latitude), lon(longitude),
-      incident_type(type), incident_level(level), unix_time(time) {}
+      incident_type(type), incident_level(level), reportTime(time) {}
 
 void Incident::printInfo() const {
     spdlog::debug("Incident ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
-                incident_id, incident_type, incident_level, lat, lon, unix_time);
+                incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
 }
 
 std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
@@ -33,6 +35,8 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
 
     std::string line;
     std::getline(file, line);  // Skip header
+
+    std::unordered_set<int> seenIDs; // To track unique incident IDs
 
     while (std::getline(file, line)) {
         std::istringstream ss(line);
@@ -66,7 +70,25 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         time_t unix_time = std::mktime(&tm);
 
         if (isPointInPolygon(polygon, Location(lon, lat))) {
-            incidents.emplace_back(id, lat, lon, type, level, unix_time);
+            IncidentLevel ilevel = IncidentLevel::Invalid; // Default to Invalid
+            if (level == constants::INCIDENT_LEVEL_LOW) {
+                ilevel = IncidentLevel::Low;
+            } else if (level == constants::INCIDENT_LEVEL_MODERATE) {
+                ilevel = IncidentLevel::Moderate;
+            } else if (level == constants::INCIDENT_LEVEL_HIGH) {
+                ilevel = IncidentLevel::High;
+            } else if (level == constants::INCIDENT_LEVEL_CRITICAL) {
+                ilevel = IncidentLevel::Critical;
+            } else {
+                ilevel = IncidentLevel::Invalid; // Handle invalid levels
+            }
+            if (seenIDs.count(id)) {
+                spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
+                continue; // Skip if ID is already seen
+            } else {
+                seenIDs.insert(id);
+                incidents.emplace_back(id, lat, lon, type, ilevel, unix_time);
+            }
         } else {
             spdlog::warn("Incident {} is out of bounds and will be ignored.", id);
         }
