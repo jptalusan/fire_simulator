@@ -29,10 +29,10 @@ void Simulator::run() {
         // Optionally, sort if you want to keep events_ ordered by event_time
         sortEventsByTime(events_);
 
-        // Store the current state for historical tracking
-        // TODO: I probably just need the last state.
-        state_history_.push_back(state_);
     }
+    // Store the current state for historical tracking
+    // TODO: I probably just need the last state.
+    state_history_.push_back(state_);
 
     spdlog::info("Number of events unresolved: {}", state_.getIncidentQueue().size());
     spdlog::info("Number of events addressed: {}", state_.getActiveIncidents().size());

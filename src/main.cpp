@@ -9,6 +9,7 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "utils/helpers.h"
+#include "services/chunks.h"
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
@@ -28,7 +29,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::info);
+        console_sink->set_level(spdlog::level::err);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::debug);
@@ -53,6 +54,7 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
     csv << "IncidentID,Reported,Responded,Resolved,TravelTime,StationID,EngineCount\n";
 
     // Copy incidents to a vector and sort by reportTime if desired
+    // Can be expensive, but its already at the end of the run
     std::vector<Incident> sortedIncidents;
     for (const auto& [id, incident] : activeIncidents) {
         sortedIncidents.push_back(incident);
@@ -72,6 +74,33 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
             << incident.engineCount << "\n";
     }
     csv.close();
+}
+
+// Debug tool
+void preComputingMatrices() {
+    EnvLoader env("../.env");
+    // Additional logic can be added here
+    std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
+    std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
+
+    std::vector<Station> stations = loadStationsFromCSV(stations_path);
+    std::vector<Incident> incidents = loadIncidentsFromCSV(incidents_path);
+    std::vector<Location> sources;
+    for (const auto& station : stations) {
+        sources.push_back(station.getLocation());
+    }
+    std::vector<Location> destinations;
+    for (const auto& incident : incidents) {
+        destinations.push_back(incident.getLocation());
+    }
+
+    size_t chunk_size = 100;
+    std::string feature = "durations"; // or "distances" if needed
+    std::vector<std::vector<double>> full_matrix = generate_osrm_table_chunks(sources, destinations, feature, chunk_size);
+    std::cout << full_matrix.size() << " sources, " 
+              << full_matrix[0].size() << " destinations.\n";
+    print_matrix(full_matrix, 5, 5);
+    write_matrix_to_csv(full_matrix, "../logs/raw_matrix.csv", 2, false);
 }
 
 int main() {
