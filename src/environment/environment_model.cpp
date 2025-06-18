@@ -27,12 +27,25 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
             auto payload = std::dynamic_pointer_cast<IncidentResolutionEvent>(event.payload);
             int incidentID = payload->incidentID;
             // int stationIndex = payload->stationIndex;
-            Incident& incident = state.getActiveIncidents()[incidentID];
-            if (incident.incident_id != incidentID) {
-                spdlog::error("[EnvironmentModel] Incident ID mismatch: {} vs {}", incidentID, incident.incident_id);
-                throw MismatchError(); // Throw an error if the incident ID does not match
+            auto& map = state.getActiveIncidents();
+            auto it = map.find(incidentID);
+            if (it != map.end()) {
+                Incident& incident = it->second;
+                if (incident.incident_id != incidentID) {
+                    spdlog::error("[EnvironmentModel] Incident ID mismatch: {} vs {}", incidentID, incident.incident_id);
+                    throw MismatchError(); // Throw an error if the incident ID does not match
+                }
+                if (event.event_time < 0 || event.event_time > 2147483647) {
+                    spdlog::error("Resolution time for incident {} out of bounds: {}", incidentID, event.event_time);
+                } else {
+                    incident.resolvedTime = event.event_time; // Update the resolved time of the incident
+                }
+            } else {
+                // handle missing key
+                spdlog::error("Incident {} not found", incidentID);
             }
-            incident.resolvedTime = event.event_time; // Update the resolved time of the incident
+
+
             break;
         }
 
@@ -93,7 +106,7 @@ std::vector<Event> EnvironmentModel::takeAction(State& state, const Action& acti
                         incident.engineCount = numberOfFireTrucksToDispatch; // Set the number of fire trucks dispatched to the incident
                         incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
                         
-                        state.getActiveIncidents()[incidentID] = incident;
+                        state.getActiveIncidents().insert({incidentID, incident});
                         // Remove the incident from the queue after dispatching
                         incidents.pop();
 

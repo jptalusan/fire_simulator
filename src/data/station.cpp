@@ -166,7 +166,7 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
     }
 
     file.close();
-    spdlog::info("Loaded {} stations from CSV file.", stations.size() - ignoredCount);
+    spdlog::info("Loaded {} stations from CSV file.", stations.size());
     spdlog::warn("Ignored {} stations that are out of bounds.", ignoredCount);
     return stations;
 }

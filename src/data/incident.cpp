@@ -89,6 +89,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
             }
             if (seenIDs.count(id)) {
                 spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
+                ignoredCount++;
                 continue; // Skip if ID is already seen
             } else {
                 seenIDs.insert(id);
@@ -100,8 +101,8 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         }
         
     }
-
-    spdlog::info("Loaded {} incidents from CSV file.", incidents.size() - ignoredCount);
+    spdlog::info("Total incidents: {}", incidents.size() + ignoredCount);
+    spdlog::info("Loaded {} incidents from CSV file.", incidents.size());
     spdlog::warn("Ignored {} incidents that are out of bounds.", ignoredCount);
     return incidents;
 }

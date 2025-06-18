@@ -5,7 +5,7 @@
 #include "services/queries.h"
 #include "simulator/simulator.h"
 #include "policy/nearest_dispatch.h"
-#include "spdlog/stopwatch.h"
+// #include "spdlog/stopwatch.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "utils/helpers.h"
@@ -49,8 +49,7 @@ void setupLogger(EnvLoader& env) {
     }
 }
 
-void writeReportToCSV(const std::vector<State>& state_history, const std::string& filename) {    
-    State state = state_history.back();
+void writeReportToCSV(State& state, const std::string& filename) {
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
     std::ofstream csv(filename);
     csv << "IncidentID,Reported,Responded,Resolved,TravelTime,StationID,EngineCount\n";
@@ -68,6 +67,10 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
         });
 
     for (const auto& incident : sortedIncidents) {
+        if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
+            spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incident_id, incident.resolvedTime);
+            continue; // Skip this incident
+        }
         csv << incident.incident_id << ","
             << formatTime(incident.reportTime) << ","
             << formatTime(incident.responseTime) << ","
@@ -82,7 +85,7 @@ void writeReportToCSV(const std::vector<State>& state_history, const std::string
 // Debug tool
 void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>& incidents, size_t chunk_size = 100) {
     spdlog::info("Starting Precomputation...");
-    spdlog::stopwatch sw;
+    //spdlog::stopwatch sw;
     EnvLoader env("../.env");
     // Additional logic can be added here
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
@@ -122,7 +125,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     // write_matrix_to_csv(full_matrix, matrix_path, 2, false);
     save_matrix_binary(full_duration_matrix, duration_matrix_path);
     save_matrix_binary(full_distance_matrix, distance_matrix_path);
-    spdlog::info("Preprocessing completed successfully in {:.3} s.", sw);
+   // spdlog::info("Preprocessing completed successfully in {:.3} s.", sw);
 }
 
 double* loadMatrixFromBinary(const std::string& filename, int& height, int& width) {
@@ -149,10 +152,10 @@ int main() {
     size_t chunk_size = 500;
     preComputingMatrices(stations, incidents, chunk_size);
 
-    spdlog::stopwatch sw;
+    //spdlog::stopwatch sw;
     std::vector<Event> events = generateEvents(incidents);
 
-    sortEventsByTime(events);
+    sortEventsByTimeAndType(events);
 
     for (const auto& event : events) {
         event.payload->printInfo(); // Dispatches to correct derived class print method
@@ -169,11 +172,9 @@ int main() {
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
 
-    // // simulator.replay();
-    spdlog::info("Simulation completed successfully in {:.3} s.", sw);
+    //spdlog::info("Simulation completed successfully in {:.3} s.", sw);
 
-    std::vector<State> state_history = simulator.getStateHistory();
-    writeReportToCSV(state_history, report_path);
+    writeReportToCSV(simulator.getCurrentState(), report_path);
     delete policy;
     return 0;
 }

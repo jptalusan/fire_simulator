@@ -17,6 +17,7 @@ public:
     void run();
     void replay();
     const std::vector<State>& getStateHistory() const;
+    State& getCurrentState();
 
 private:
     State& state_;

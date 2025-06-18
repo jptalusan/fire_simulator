@@ -2,6 +2,7 @@
 #define ACTION_H
 
 #include "enums.h"
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <variant>

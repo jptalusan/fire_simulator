@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <memory>
 #include <spdlog/spdlog.h>
 #include "simulator/action.h"
 #include "simulator/simulator.h"
@@ -15,24 +16,29 @@ void Simulator::run() {
     spdlog::info("[Simulator] Starting simulation at system time: {}", state_.getSystemTime());
 
     // Use index-based loop to allow safe modification of events_
+    // Avoiding invalidating iterators by always creating new events that are at least a minute in the future.
     for (size_t i = 0; i < events_.size(); ++i) {
         const Event& event = events_[i];
 
-        // Process the event
         environment_.handleEvent(state_, event);
         Action action = dispatchPolicy_.getAction(state_);
         std::vector<Event> newEvents = environment_.takeAction(state_, action);
-
-        // Add new events to the end of the vector
+        
+        if (!newEvents.empty()) {
+            spdlog::warn("[Simulator] No new events generated from action: {}", action.toString());
+            continue; // Skip to the next iteration if no new events
+        }
+        // Add new events to the end of the vector (you should only either add an incident with a later time, or a resolution/station event with the same current time)
+        // This is important to avoid modifying the vector while iterating over it.
         events_.insert(events_.end(), newEvents.begin(), newEvents.end());
 
         // Optionally, sort if you want to keep events_ ordered by event_time
-        sortEventsByTime(events_);
-
+        sortEventsByTimeAndType(events_);
     }
+
     // Store the current state for historical tracking
     // TODO: I probably just need the last state.
-    state_history_.push_back(state_);
+    // state_history_.push_back(state_);
 
     spdlog::info("[Simulator] Number of events unresolved: {}", state_.getIncidentQueue().size());
     spdlog::info("[Simulator] Number of events addressed: {}", state_.getActiveIncidents().size());
@@ -43,18 +49,9 @@ void Simulator::run() {
 // TODO: Storing and saving activeIncidents may be expensive when there are many incidents.
 void Simulator::replay() {
     spdlog::info("[Simulator] Replaying simulation...");
-
-    // for (const auto& state : state_history_) {
-    //     spdlog::debug("Replaying state at system time: {}", state.getSystemTime());
-    //     // spdlog::info("Addressing incidents: {} at time {}", state.getUnresolvedIncident().incident_id, state.getSystemTime());
-    //     // Additional logic to display or process the state can be added here
-    // }
     State state = state_history_.back();
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
     for (const auto& [id, incident] : activeIncidents) {
-        // spdlog::info("Incident ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Report Time: {}, Response Time: {}, Resolved Time: {}",
-        //              incident.incident_id, incident.incident_type, to_string(incident.incident_level),
-        //              incident.lat, incident.lon, incident.reportTime, incident.responseTime, incident.resolvedTime);
         spdlog::info("Incident ID: {}, Reported: {}, Responded: {}, Resolved: {}, TravelTime: {}", 
                      incident.incident_id, 
                      formatTime(incident.reportTime), 
@@ -68,4 +65,8 @@ void Simulator::replay() {
 
 const std::vector<State>& Simulator::getStateHistory() const {
     return state_history_;
+}
+
+State& Simulator::getCurrentState() {
+    return state_;
 }

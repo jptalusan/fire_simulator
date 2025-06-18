@@ -22,6 +22,7 @@ public:
     int engineCount; // Number of fire trucks dispatched to the incident
     int stationIndex; // Index of the station that responded to the incident
     double oneWayTravelTimeTo; // Travel time from the station to the incident location
+    double resolvedTimeDouble;
 
     Incident(int id, double latitude, double longitude,
              const std::string& type, IncidentLevel level,
@@ -32,12 +33,14 @@ public:
           lon(0.0),
           incident_type(""),
           incident_level(IncidentLevel::Invalid),
-          reportTime(0),
-          responseTime(0),
-          resolvedTime(0),
+          reportTime(std::time(nullptr)),
+          responseTime(std::time(nullptr)),
+          resolvedTime(std::time(nullptr)),
           hasBeenRespondedTo(false),
           engineCount(0),
-          stationIndex(-1)
+          stationIndex(-1),
+          oneWayTravelTimeTo(0.0),
+          resolvedTimeDouble(0.0)
     {}
 
     void printInfo() const override;
