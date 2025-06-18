@@ -8,14 +8,6 @@
 #include "simulator/event.h"
 #include "data/incident.h"
 
-// // Sorts a vector of Event by event_time (ascending)
-// inline void sortEventsByTime(std::vector<Event>& events) {
-//     std::sort(events.begin(), events.end(),
-//         [](const Event& a, const Event& b) {
-//             return a.event_time < b.event_time;
-//         });
-// }
-
 // Really stupid, i should just fix simulator so i dont modify the vector while iterating over it.
 inline void sortEventsByTimeAndType(std::vector<Event>& events) {
     std::sort(events.begin(), events.end(),
@@ -36,7 +28,6 @@ inline void sortEventsByTimeAndType(std::vector<Event>& events) {
             return false; // Equal
         });
 }
-
 
 inline std::string formatTime(std::time_t t) {
     std::ostringstream oss;

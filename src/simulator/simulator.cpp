@@ -24,8 +24,8 @@ void Simulator::run() {
         Action action = dispatchPolicy_.getAction(state_);
         std::vector<Event> newEvents = environment_.takeAction(state_, action);
         
-        if (!newEvents.empty()) {
-            spdlog::warn("[Simulator] No new events generated from action: {}", action.toString());
+        if (newEvents.empty()) {
+            spdlog::debug("[Simulator] No new events generated from action: {}", action.toString());
             continue; // Skip to the next iteration if no new events
         }
         // Add new events to the end of the vector (you should only either add an incident with a later time, or a resolution/station event with the same current time)
