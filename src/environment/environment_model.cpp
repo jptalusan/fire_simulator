@@ -100,7 +100,7 @@ std::vector<Event> EnvironmentModel::takeAction(State& state, const Action& acti
                         appendNewEvents(state, action, newEvents);
 
                         // TODO: can put this in a single updateIncident function
-                        incident.responseTime = state.getSystemTime(); // Set the response time for the incident
+                        incident.responseTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
                         incident.hasBeenRespondedTo = true; // Mark the incident as responded to
                         incident.stationIndex = stationIndex; // Set the station index that responded to the incident
                         incident.engineCount = numberOfFireTrucksToDispatch; // Set the number of fire trucks dispatched to the incident
@@ -168,8 +168,8 @@ void appendNewEvents(State& state, const Action& action, std::vector<Event>& new
     
     time_t resolutionTime = std::time(nullptr);
     resolutionTime = calculateResolutionTime(incidentLevel);
-    resolutionTime = state.getSystemTime() + static_cast<time_t>(resolutionTime);
-    if (resolutionTime < 0 || resolutionTime > 2147483647) {
+    resolutionTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime) + static_cast<time_t>(travel_time); // Add travel time to resolution time
+    if (resolutionTime <= 0 || resolutionTime > 2147483647) {
         spdlog::error("Resolution time for incident {} out of bounds: {}", incidentID, resolutionTime);
     }
 
@@ -191,16 +191,16 @@ time_t calculateResolutionTime(IncidentLevel incidentLevel) {
     
     switch (incidentLevel) {
         case IncidentLevel::Low:
-            resolutionTime = 5 * 300; // Example resolution time for low-level incidents
+            resolutionTime = 10 * constants::SECONDS_IN_MINUTE; // Example resolution time for low-level incidents
             break;
         case IncidentLevel::Moderate:
-            resolutionTime = 10 * 300; // Example resolution time for moderate-level incidents
+            resolutionTime = 30 * constants::SECONDS_IN_MINUTE; // Example resolution time for moderate-level incidents
             break;
         case IncidentLevel::High:
-            resolutionTime = 15 * 300; // Example resolution time for high-level incidents
+            resolutionTime = 60 * constants::SECONDS_IN_MINUTE; // Example resolution time for high-level incidents
             break;
         case IncidentLevel::Critical:
-            resolutionTime = 20 * 300; // Example resolution time for critical-level incidents
+            resolutionTime = 90 * constants::SECONDS_IN_MINUTE; // Example resolution time for critical-level incidents
             break;
         default:
             spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
