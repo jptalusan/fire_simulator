@@ -5,6 +5,7 @@
 namespace constants {
     // String constants
     inline constexpr const char* INCIDENT_ID = "INCIDENT_ID";
+    inline constexpr const char* INCIDENT_INDEX = "INCIDENT_INDEX";
     inline constexpr const char* STATION_ID = "STATION_ID";
     inline constexpr const char* STATION_INDEX = "STATION_INDEX";
     inline constexpr const char* ENGINE_COUNT = "ENGINE_COUNT";

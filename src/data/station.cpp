@@ -7,9 +7,11 @@
 #include "data/geometry.h"
 #include "config/EnvLoader.h"
 #include "utils/constants.h"
+#include "utils/error.h"
 
 // TODO: Need to change the name of the stationID to be unique and incrementally start from 0...N
-Station::Station(int station_id,
+Station::Station(int stationIndex, //simulator internal ID, not the one from the CSV
+                 int station_id,
                  const std::string& facility_name,
                  const std::string& address,
                  const std::string& city,
@@ -19,7 +21,8 @@ Station::Station(int station_id,
                  double lat,
                  int num_fire_trucks,
                  int num_ambulances)
-    : station_id(station_id),
+    : stationIndex(stationIndex),
+      station_id(station_id),
       facility_name(facility_name),
       address(address),
       city(city),
@@ -32,6 +35,7 @@ Station::Station(int station_id,
       max_ambulances(num_ambulances),
       max_fire_trucks(num_fire_trucks) {}
 
+int Station::getStationIndex() const { return stationIndex; }
 int Station::getStationId() const { return station_id; }
 std::string Station::getFacilityName() const { return facility_name; }
 std::string Station::getAddress() const { return address; }
@@ -91,30 +95,25 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
     std::getline(file, line);
 
     int ignoredCount = 0; // Count of ignored stations
-
+    int index = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string token;
 
         // Skip OBJECTID
+        // How to ensure that these are string that can be converted to int?
         std::getline(ss, token, ',');
+        int station_id = -1;
+        try {
+            station_id = std::stoi(token);
+        } catch (...) {
+            spdlog::error("Invalid station ID: {}", token);
+            throw InvalidStationError("Invalid station ID in CSV file: " + token);
+        }
 
         // Facility Name
         std::getline(ss, token, ',');
         std::string facility_name = token;
-
-        // Extract station_id from "Station 39"
-        int station_id = -1;
-        std::istringstream id_ss(token);
-        std::string word;
-        while (id_ss >> word) {
-            try {
-                station_id = std::stoi(word);
-                break;
-            } catch (...) {
-                // Not a number
-            }
-        }
 
         // Address
         std::string address;
@@ -147,7 +146,8 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
         int num_ambulances = constants::DEFAULT_NUM_AMBULANCES;  // Default value, can be updated later
 
         if (isPointInPolygon(polygon, Location(lon, lat))) {
-            Station station(station_id,
+            Station station(index,
+                            station_id,
                             facility_name,
                             address,
                             city,
@@ -159,6 +159,7 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
                             num_ambulances);
             stations.emplace_back(station);
             spdlog::debug("Loaded station: {} - {} {}", station_id, facility_name, address);
+            index++;
         } else {
             spdlog::debug("Station {} is out of bounds and will be ignored.", station_id);
             ignoredCount++;

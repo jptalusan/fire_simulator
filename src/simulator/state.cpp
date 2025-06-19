@@ -20,8 +20,8 @@ std::queue<Incident>& State::getIncidentQueue() {
     return incidentQueue_;
 }
 
-Station& State::getStation(int station_id) {
-    return stations_[station_id];
+Station& State::getStation(int stationIndex) {
+    return stations_[stationIndex];
 }
 
 const std::vector<Station>& State::getAllStations() const {
@@ -67,10 +67,10 @@ This function retrieves the next unresolved incident from the queue.
     return Incident();
 }
 
-// std::vector<Incident> State::getAddressedIncidents() {
-//     return addressedIncidents_;
-// }
+void State::updateStationMetrics(const std::string& metric) {
+    stationMetrics_.push_back(metric);
+}
 
-// void State::addToAddressedIncidents(Incident incident) {
-//     addressedIncidents_.push_back(incident);
-// }
+std::vector<std::string> State::getStationMetrics() const {
+    return stationMetrics_;
+}

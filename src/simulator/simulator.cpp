@@ -51,7 +51,7 @@ void Simulator::replay() {
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
     for (const auto& [id, incident] : activeIncidents) {
         spdlog::info("Incident ID: {}, Reported: {}, Responded: {}, Resolved: {}, TravelTime: {}", 
-                     incident.incident_id, 
+                     incident.incidentIndex, 
                      formatTime(incident.reportTime), 
                      formatTime(incident.responseTime), 
                      formatTime(incident.resolvedTime),

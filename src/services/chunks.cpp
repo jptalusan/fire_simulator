@@ -4,6 +4,7 @@
 #include <iomanip>
 #include "data/location.h"
 #include "config/EnvLoader.h"
+#include "utils/error.h"
 
 // libcurl write callback
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
@@ -101,7 +102,14 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
         for (size_t row = 0; row < durations.size(); ++row) {
             for (size_t col = 0; col < durations[row].size(); ++col) {
                 size_t dst_index = i + col;
-                full_duration_matrix[row][dst_index] = durations[row][col].get<double>();
+                if (durations[row][col].is_null()) {
+                    full_distance_matrix[row][dst_index] = -1.0; // Unreachable
+                    throw OSRMError(
+                        fmt::format("Unreachable route from source {} to destination {}",
+                                    row, dst_index));
+                } else {
+                    full_duration_matrix[row][dst_index] = durations[row][col].get<double>();
+                }
             }
         }
 
@@ -111,7 +119,14 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
         for (size_t row = 0; row < distances.size(); ++row) {
             for (size_t col = 0; col < distances[row].size(); ++col) {
                 size_t dst_index = i + col;
-                full_distance_matrix[row][dst_index] = distances[row][col].get<double>();
+                if (distances[row][col].is_null()) {
+                    full_distance_matrix[row][dst_index] = -1.0; // Unreachable
+                    throw OSRMError(
+                        fmt::format("Unreachable route from source {} to destination {}",
+                                    row, dst_index));
+                } else {
+                    full_distance_matrix[row][dst_index] = distances[row][col].get<double>();
+                }
             }
         }
 
@@ -183,11 +198,11 @@ void write_matrix_to_csv(const std::vector<std::vector<double>>& matrix,
     for (size_t i = 0; i < rows; ++i) {
         if (add_headers)
             file << "Src" << i;
-        else
-            file << i;
 
         for (size_t j = 0; j < cols; ++j) {
-            file << "," << matrix[i][j];
+            file  << matrix[i][j];
+            if (j < cols - 1)
+                file << ",";
         }
         file << "\n";
     }

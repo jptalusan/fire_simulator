@@ -3,9 +3,9 @@
 #include <stdexcept>
 #include <string>
 
-class OSMError : public std::runtime_error {
+class OSRMError : public std::runtime_error {
 public:
-    explicit OSMError(const std::string& msg="OSM Error")
+    explicit OSRMError(const std::string& msg="OSRM Error")
         : std::runtime_error(msg) {}
 };
 
@@ -24,5 +24,11 @@ public:
 class InvalidIncidentError : public std::runtime_error {
 public:
     explicit InvalidIncidentError(const std::string& msg="Invalid incident error")
+        : std::runtime_error(msg) {}
+};
+
+class InvalidStationError : public std::runtime_error {
+public:
+    explicit InvalidStationError(const std::string& msg="Invalid station error")
         : std::runtime_error(msg) {}
 };

@@ -49,15 +49,15 @@ NearestDispatch::~NearestDispatch() {
 std::vector<Action> NearestDispatch::getAction(const State& state) {
     // Get unresolved incident
     Incident i = state.getEarliestUnresolvedIncident();
-    int incidentID = i.incident_id;
-    if (incidentID < 0) {
+    int incidentIndex = i.incidentIndex;
+    if (incidentIndex < 0) {
         spdlog::debug("No unresolved incident found.");
         return { Action(StationActionType::DoNothing) };
     }
     
     // If matrix is loaded, use it instead of OSRM
-    std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentID);
-    std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentID);
+    std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentIndex);
+    std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
     
     Action dispatchAction = Action(StationActionType::DoNothing);
     // int nearestStationIndex = findMinIndex(durations);
@@ -86,7 +86,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
             int usedApparatusCount = 0;
             dispatchAction = Action(StationActionType::Dispatch, {
                 {constants::STATION_INDEX, std::to_string(index)},
-                {constants::INCIDENT_ID, std::to_string(incidentID)},
+                {constants::INCIDENT_INDEX, std::to_string(incidentIndex)},
                 {constants::DISPATCH_TIME, std::to_string(state.getSystemTime())},
                 {constants::TRAVEL_TIME, std::to_string(durations[index])},
                 {constants::DISTANCE, std::to_string(distances[index])} //DEBUG
@@ -103,7 +103,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
                 formatTime(state.getSystemTime()), 
                 validStations[index].getAddress(),
                 usedApparatusCount,
-                incidentID,
+                incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
         } else {
             spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getAddress());

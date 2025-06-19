@@ -23,24 +23,24 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
 
         case EventType::IncidentResolution: {
             auto payload = std::dynamic_pointer_cast<IncidentResolutionEvent>(event.payload);
-            int incidentID = payload->incidentID;
+            int incidentIndex = payload->incidentIndex;
             // int stationIndex = payload->stationIndex;
             auto& map = state.getActiveIncidents();
-            auto it = map.find(incidentID);
+            auto it = map.find(incidentIndex);
             if (it != map.end()) {
                 Incident& incident = it->second;
-                if (incident.incident_id != incidentID) {
-                    spdlog::error("[EnvironmentModel] Incident ID mismatch: {} vs {}", incidentID, incident.incident_id);
+                if (incident.incidentIndex != incidentIndex) {
+                    spdlog::error("[EnvironmentModel] Incident ID mismatch: {} vs {}", incidentIndex, incident.incidentIndex);
                     throw MismatchError(); // Throw an error if the incident ID does not match
                 }
                 if (event.event_time < 0 || event.event_time > 2147483647) {
-                    spdlog::error("Resolution time for incident {} out of bounds: {}", incidentID, event.event_time);
+                    spdlog::error("Resolution time for incident {} out of bounds: {}", incidentIndex, event.event_time);
                 } else {
                     incident.resolvedTime = event.event_time; // Update the resolved time of the incident
                 }
             } else {
                 // handle missing key
-                spdlog::error("Incident {} not found", incidentID);
+                spdlog::error("Incident {} not found", incidentIndex);
             }
 
 
@@ -62,7 +62,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
         }
 
         default: {
-            std::string msg = "[EnvironmentModel] Unknown event type: " + std::to_string(static_cast<int>(event.event_type));
+            std::string msg = "[" + formatTime(event.event_time) + "] Unknown event type: " + std::to_string(static_cast<int>(event.event_type));
             spdlog::warn(msg);
             throw UnknownValueError(msg); // Throw an error for unknown event types
             break;
@@ -75,7 +75,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
 std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector<Action>& actions) {
     // Obtained to make sure that the incident we are addressing downstream matches the earliest incident in the queue.
     Incident incident = state.getEarliestUnresolvedIncident();
-    if (incident.incident_id < 0) {
+    if (incident.incidentIndex < 0) {
         spdlog::debug("[EnvironmentModel] No unresolved incident found");
         return {};
     }
@@ -87,7 +87,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     int stationIndex = -1; // Initialize station index
     // TODO: Same for this
     double travelTime = 0.0; // Initialize travel time
-
+    
     for (const auto& action : actions) {
         std::unordered_map<std::string, std::string> payload = action.payload;
         switch (action.type) {
@@ -96,14 +96,27 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 Station& station = state.getStation(stationIndex);
                 int numberOfFireTrucksToDispatch = std::stoi(payload[constants::ENGINE_COUNT]);
 
-                int incidentID = std::stoi(payload[constants::INCIDENT_ID]);
-                if (incidentID != incident.incident_id) {
-                    spdlog::error("[EnvironmentModel] Incident ID does not match queued incident ID: {} vs {}", incidentID, incident.incident_id);
+                int incidentIndex = std::stoi(payload[constants::INCIDENT_INDEX]);
+                if (incidentIndex != incident.incidentIndex) {
+                    spdlog::error("[EnvironmentModel] Incident ID does not match queued incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
                     throw MismatchError(); // Throw an error if the incident ID does not match
                 }
 
                 travelTime = std::stod(payload[constants::TRAVEL_TIME]); // Get travel time from action payload
                 station.setNumFireTrucks(station.getNumFireTrucks() - numberOfFireTrucksToDispatch); // Decrease the number of fire trucks at the station
+                
+                // Writing to metrics
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(2);
+                oss << formatTime(state.getSystemTime()) << ",";
+                oss << station.getStationId() << ",";
+                oss << station.getStationIndex() << ",";
+                oss << numberOfFireTrucksToDispatch << ",";
+                oss << (station.getNumFireTrucks()) << ",";
+                oss << travelTime << ",";
+                oss << incident.incident_id << ",";
+                oss << incident.incidentIndex; // Append incident index to the metric string
+                state.updateStationMetrics(oss.str()); // Update station metrics with the new data
 
                 // Gets the list of queued incidents, and sends to the first one.
                 // Create new events based on the action taken
@@ -136,7 +149,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 
     if (incident.currentApparatusCount >= incident.totalApparatusRequired) {
         state.getIncidentQueue().pop();
-        state.getActiveIncidents().insert({incident.incident_id, incident});
+        state.getActiveIncidents().insert({incident.incidentIndex, incident});
     }
 
     // spdlog::debug("[EnvironmentModel] Action taken: {}", action.toString());
@@ -149,7 +162,7 @@ void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t e
     double timeToResolve = calculateResolutionTime(incident);
     spdlog::info("[{}] Incident {} | Level: {} | Requires: {} apparatus and with clear time of {:.2f} minutes.", 
                  formatTime(eventTime), 
-                 incident.incident_id, 
+                 incident.incidentIndex, 
                  to_string(incident.incident_level), 
                  totalApparatusRequired, 
                  timeToResolve / constants::SECONDS_IN_MINUTE);
@@ -161,7 +174,7 @@ void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t e
 
 time_t EnvironmentModel::generateIncidentResolutionEvent(State& state, const Incident& incident, std::vector<Event>& newEvents) {
     // Create a new IncidentResolutionEvent
-    IncidentResolutionEvent resolutionEvent(incident.incident_id, incident.stationIndex);
+    IncidentResolutionEvent resolutionEvent(incident.incidentIndex, incident.stationIndex);
     double resolutionTime = 1800;
     time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime); // Set the resolution time based on the incident's time to resolve
 
@@ -185,17 +198,17 @@ void EnvironmentModel::generateStationEvents(State& state,
         return; // Exit early if no actions are provided
     }
     
-    int incidentID = std::stoi(actions[0].payload.at(constants::INCIDENT_ID)); // Get incident ID from action payload
+    int incidentIndex = std::stoi(actions[0].payload.at(constants::INCIDENT_INDEX)); // Get incident ID from action payload
 
     // Error handling
-    if (incidentID < 0) {
-        spdlog::error("[EnvironmentModel] Invalid incident ID: {}", incidentID);
+    if (incidentIndex < 0) {
+        spdlog::error("[EnvironmentModel] Invalid incident ID: {}", incidentIndex);
         throw InvalidIncidentError(); // Throw an error for invalid incident IDs
     }
     Incident incident = state.getEarliestUnresolvedIncident();
-    
-    if (incident.incident_id != incidentID) {
-        spdlog::error("[EnvironmentModel] Incident ID does not match the unresolved incident ID: {} vs {}", incidentID, incident.incident_id);
+
+    if (incident.incidentIndex != incidentIndex) {
+        spdlog::error("[EnvironmentModel] Incident ID does not match the unresolved incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
         throw MismatchError(); // Throw an error if the incident ID does not match
     }
     time_t timeToResolve = incident.timeToResolve;
@@ -212,7 +225,7 @@ void EnvironmentModel::generateStationEvents(State& state,
         
         time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + timeToResolve + static_cast<time_t>(travel_time); // Add travel time to resolution time
         if (nextEventTime <= 0 || nextEventTime > 2147483647) {
-            spdlog::error("Resolution time for incident {} out of bounds: {}", incidentID, nextEventTime);
+            spdlog::error("Resolution time for incident {} out of bounds: {}", incidentIndex, nextEventTime);
         }
 
         // Fire Engine Idle Event creation

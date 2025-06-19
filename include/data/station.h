@@ -9,7 +9,8 @@
 class Station {
 public:
     Station()
-        : station_id(-1),
+        : stationIndex(-1),
+          station_id(-1),
           facility_name(""),
           address(""),
           city(""),
@@ -22,7 +23,8 @@ public:
           max_ambulances(0),
           max_fire_trucks(0)
     {}
-    Station(int station_id,
+    Station(int stationIndex,
+            int station_id,
             const std::string& facility_name,
             const std::string& address,
             const std::string& city,
@@ -34,6 +36,7 @@ public:
             int num_ambulances);
 
     // Getters
+    int getStationIndex() const;
     int getStationId() const;
     std::string getFacilityName() const;
     std::string getAddress() const;
@@ -54,6 +57,7 @@ public:
     void printInfo() const;
 
 private:
+    int stationIndex;
     int station_id;
     std::string facility_name;
     std::string address;

@@ -49,10 +49,14 @@ void setupLogger(EnvLoader& env) {
     }
 }
 
-void writeReportToCSV(State& state, const std::string& filename) {
+void writeReportToCSV(State& state, const EnvLoader& env) {
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
-    std::ofstream csv(filename);
-    csv << "IncidentID,Reported,Responded,Resolved,TravelTime,StationID,EngineCount\n";
+
+    std::string report_path = env.get("REPORT_CSV_PATH", "../logs/incident_report.csv");
+    std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
+    
+    std::ofstream csv(report_path);
+    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,TravelTime,StationIndex,EngineCount\n";
 
     // Copy incidents to a vector and sort by reportTime if desired
     // Can be expensive, but its already at the end of the run
@@ -68,10 +72,11 @@ void writeReportToCSV(State& state, const std::string& filename) {
 
     for (const auto& incident : sortedIncidents) {
         if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
-            spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incident_id, incident.resolvedTime);
+            spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
             continue; // Skip this incident
         }
-        csv << incident.incident_id << ","
+        csv << incident.incidentIndex << ","
+            << incident.incident_id << ","
             << formatTime(incident.reportTime) << ","
             << formatTime(incident.responseTime) << ","
             << formatTime(incident.resolvedTime) << ","
@@ -80,6 +85,15 @@ void writeReportToCSV(State& state, const std::string& filename) {
             << incident.currentApparatusCount << "\n";
     }
     csv.close();
+
+    // Writing station report
+    std::string stationMetricHeader = "DispatchTime,StationID,StationIndex,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
+    std::ofstream station_csv(station_report_path);
+    station_csv << stationMetricHeader << "\n";
+    for (const auto& stationMetric : state.getStationMetrics()) {
+        station_csv << stationMetric << "\n";
+    }
+    station_csv.close();
 }
 
 // Debug tool
@@ -99,7 +113,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
         spdlog::info("OSRM server is reachable and working correctly.");
     } else {
         spdlog::error("OSRM server is not reachable.");
-        throw OSMError();
+        throw OSRMError();
     }
 
     stations = loadStationsFromCSV(stations_path);
@@ -138,20 +152,23 @@ int main() {
     EnvLoader env("../.env");
     setupLogger(env);
 
-    
     spdlog::info("Starting Fire Simulator...");
 
     // Additional logic can be added here
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
-    std::string report_path = env.get("REPORT_CSV_PATH", "../logs/incident_report.csv");
 
     std::vector<Incident> incidents = {};
     std::vector<Station> stations = {};
 
-    // Debug tool to precompute matrices
-    size_t chunk_size = 500;
+    size_t chunk_size = 300;
     preComputingMatrices(stations, incidents, chunk_size);
+
+    // DEBUG
+    std::string duration_matrix_path = env.get("DURATION_MATRIX_PATH", "../data/stations.csv");
+    int width, height;
+    double* matrix = loadMatrixFromBinary(duration_matrix_path, height, width);
+    std::cout << matrix[6 * width + 896] << std::endl;
 
     //spdlog::stopwatch sw;
     std::vector<Event> events = generateEvents(incidents);
@@ -175,7 +192,7 @@ int main() {
 
     //spdlog::info("Simulation completed successfully in {:.3} s.", sw);
 
-    writeReportToCSV(simulator.getCurrentState(), report_path);
+    writeReportToCSV(simulator.getCurrentState(), env);
     delete policy;
     return 0;
 }

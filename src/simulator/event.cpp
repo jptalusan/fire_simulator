@@ -1,17 +1,18 @@
 // event.cpp
+#include <iostream>
+#include <spdlog/spdlog.h>
 #include "enums.h"
 #include "simulator/event.h"
-#include <iostream>
 
 Event::Event(EventType type, time_t time, std::shared_ptr<EventData> data)
     : event_type(type), event_time(time), payload(std::move(data)) {}
 
 void Event::print() const {
-    std::cout << "Event Type: " << static_cast<int>(event_type) << ", Time: " << event_time << "\n";
+    spdlog::debug("Event Type: {}, Time: {}", static_cast<int>(event_type), event_time);
     if (payload) {
         payload->printInfo();
     } else {
-        std::cout << "No payload\n";
+        spdlog::debug("No payload");
     }
 }
 
@@ -20,13 +21,13 @@ FireStationEvent::FireStationEvent(const int& stationIndex, const int& enginesCo
     : stationIndex(stationIndex), enginesCount(enginesCount) {}
 
 void FireStationEvent::printInfo() const {
-    std::cout << ", Station Index: " << stationIndex << ", Engines Count: " << enginesCount << "\n";
+    spdlog::debug(", Station Index: {}, Engines Count: {}", stationIndex, enginesCount);
 }
 
 
-IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentID, const int& stationIndex)
-    : incidentID(incidentID), stationIndex(stationIndex) {}
+IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentIndex, const int& stationIndex)
+    : incidentIndex(incidentIndex), stationIndex(stationIndex) {}
 
 void IncidentResolutionEvent::printInfo() const {
-    std::cout << "Incident ID: " << incidentID << ", Station Index: " << stationIndex << "\n";
+    spdlog::debug("Incident Index: {}, Station Index: {}", incidentIndex, stationIndex);
 }

@@ -18,13 +18,19 @@ public:
     void addToQueue(Incident incident);
     std::time_t getSystemTime() const;
     std::queue<Incident>& getIncidentQueue();
-    Station& getStation(int station_id);
+    Station& getStation(int stationIndex);
     const std::vector<Station>& getAllStations() const;
     FireTruck& getFireTruck(int fire_truck_id);
     const std::unordered_map<int, FireTruck>& getAllFireTrucks() const;
     void addStations(std::vector<Station> stations);
     Incident getEarliestUnresolvedIncident() const;
     std::unordered_map<int, Incident>& getActiveIncidents();
+    void updateStationMetrics(const std::string& metric);
+    std::vector<std::string> getStationMetrics() const;
+
+    // TODO: Improve this, ignored stations and incidents should be handled better
+    std::vector<int> ignoredStations;
+    std::vector<int> ignoredIncidents;
     
 private:
     std::time_t system_time_;
@@ -32,6 +38,7 @@ private:
     std::vector<Station> stations_;
     std::unordered_map<int, FireTruck> fire_trucks_;
     std::unordered_map<int, Incident> activeIncidents_;
+    std::vector<std::string> stationMetrics_;
 };
 
 #endif // STATE_H

@@ -11,6 +11,7 @@
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
 class Incident : public EventData {
 public:
+    int incidentIndex;
     int incident_id;
     double lat;
     double lon;
@@ -26,11 +27,12 @@ public:
     int totalApparatusRequired;
     int currentApparatusCount;
 
-    Incident(int id, double latitude, double longitude,
+    Incident(int index, int id, double latitude, double longitude,
              const std::string& type, IncidentLevel level,
              time_t report_time);
     Incident()
-        : incident_id(-1),
+        : incidentIndex(-1),
+          incident_id(-1),
           lat(0.0),
           lon(0.0),
           incident_type(""),

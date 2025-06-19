@@ -9,10 +9,10 @@
 #include "config/EnvLoader.h"
 #include "utils/constants.h"
 
-Incident::Incident(int id, double latitude, double longitude,
+Incident::Incident(int index, int id, double latitude, double longitude,
                    const std::string& type, IncidentLevel level,
                    time_t time)
-    : incident_id(id), lat(latitude), lon(longitude),
+    : incidentIndex(index), incident_id(id), lat(latitude), lon(longitude),
       incident_type(type), incident_level(level), reportTime(time) {
         responseTime = std::time(nullptr);
         resolvedTime = std::time(nullptr);
@@ -25,8 +25,8 @@ Incident::Incident(int id, double latitude, double longitude,
       }
 
 void Incident::printInfo() const {
-    spdlog::debug("Incident ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
-                incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
+    spdlog::debug("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
+                incidentIndex, incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
 }
 
 std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
@@ -48,7 +48,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
     std::unordered_set<int> seenIDs; // To track unique incident IDs
 
     int ignoredCount = 0; // Count of ignored incidents
-
+    int index = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string token;
@@ -102,7 +102,8 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
                 continue; // Skip if ID is already seen
             } else {
                 seenIDs.insert(id);
-                incidents.emplace_back(id, lat, lon, type, ilevel, unix_time);
+                incidents.emplace_back(index, id, lat, lon, type, ilevel, unix_time);
+                index++;
             }
         } else {
             spdlog::debug("Incident {} is out of bounds and will be ignored.", id);
