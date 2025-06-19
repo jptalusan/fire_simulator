@@ -99,10 +99,10 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
             dispatchAction.payload[constants::ENGINE_COUNT] = std::to_string(usedApparatusCount);
             totalApparatusDispatched += usedApparatusCount;
             actions.push_back(dispatchAction);
-            spdlog::info("[{}] Station {} is sending {} engines to incident {}, {:.2f} minutes away.", 
+            spdlog::info("[{}] Dispatching {} engines from {} to incident {}, {:.2f} minutes away.", 
                 formatTime(state.getSystemTime()), 
-                validStations[index].getAddress(),
                 usedApparatusCount,
+                validStations[index].getAddress(),
                 incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
         } else {

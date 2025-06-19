@@ -17,11 +17,11 @@ void Event::print() const {
 }
 
 // TODO: This might be entirely unnecessary, but it is here for now.
-FireStationEvent::FireStationEvent(const int& stationIndex, const int& enginesCount)
-    : stationIndex(stationIndex), enginesCount(enginesCount) {}
+FireStationEvent::FireStationEvent(const int& stationIndex, const int& incidentIndex, const int& enginesCount)
+    : stationIndex(stationIndex), incidentIndex(incidentIndex), enginesCount(enginesCount) {}
 
 void FireStationEvent::printInfo() const {
-    spdlog::debug(", Station Index: {}, Engines Count: {}", stationIndex, enginesCount);
+    spdlog::debug(", Station Index: {}, Incident Index: {}, Engines Count: {}", stationIndex, incidentIndex, enginesCount);
 }
 
 

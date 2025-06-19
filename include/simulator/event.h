@@ -27,9 +27,10 @@ public:
 class FireStationEvent : public EventData {
 public:
     int stationIndex;
+    int incidentIndex;
     int enginesCount; // Number of engines involved in the event
 
-    FireStationEvent(const int& stationIndex, const int& enginesCount);
+    FireStationEvent(const int& stationIndex, const int& incidentIndex, const int& enginesCount);
     void printInfo() const override;
 };
 

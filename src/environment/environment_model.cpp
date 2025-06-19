@@ -9,7 +9,7 @@
 
 // TODO: This needs models for computing travel times, resolution times etc... (during take action).
 void EnvironmentModel::handleEvent(State& state, const Event& event) {
-    spdlog::debug("[EnvironmentModel] Handling {} at time: {}", to_string(event.event_type), formatTime(event.event_time));
+    spdlog::debug("[{}] Handling {}", formatTime(event.event_time), to_string(event.event_type));
 
     switch (event.event_type) {
         case EventType::Incident: {
@@ -37,6 +37,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
                     spdlog::error("Resolution time for incident {} out of bounds: {}", incidentIndex, event.event_time);
                 } else {
                     incident.resolvedTime = event.event_time; // Update the resolved time of the incident
+                    spdlog::info("[{}] Resolving incident {}",formatTime(event.event_time), incidentIndex);
                 }
             } else {
                 // handle missing key
@@ -51,13 +52,14 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
         case EventType::StationAction: {
             auto payload = std::dynamic_pointer_cast<FireStationEvent>(event.payload);
             int stationIndex = payload->stationIndex;
+            int incidentIndex = payload->incidentIndex;
             int enginesCount = payload->enginesCount; // Number of engines involved in the event
             
             Station& station = state.getStation(stationIndex);
             station.setNumFireTrucks(station.getNumFireTrucks() + enginesCount);
 
-            spdlog::info("[{}] {} fire trucks returned to station ID: {}", 
-                         formatTime(event.event_time), enginesCount, station.getAddress());
+            spdlog::info("[{}] {} fire trucks returned from incident {} to station ID {}", 
+                         formatTime(event.event_time), enginesCount, incidentIndex, station.getAddress());
             break;
         }
 
@@ -136,20 +138,26 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     }
 
     // TODO: can put this in a single updateIncident function
-    incident.responseTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
-    incident.hasBeenRespondedTo = true; // Mark the incident as responded to
-    incident.stationIndex = stationIndex; // Set the station index that responded to the incident
-    incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
-    incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
-    // Remove the incident if it has been fully addressed
-    // TODO: For now we start resolution event even if the incident is not fully addressed.
-    time_t resolutionTime = generateIncidentResolutionEvent(state, incident, newEvents); // Generate a resolution event for the incident
-    incident.timeToResolve = resolutionTime; // Set the time to resolve the incident
-    generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
+    // If at least one engine has been dispatched, start resolve countdown.
+    if (totalApparatusDispatched > 0) {
+        incident.responseTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
+        incident.hasBeenRespondedTo = true; // Mark the incident as responded to
+        incident.stationIndex = stationIndex; // Set the station index that responded to the incident
+        incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
+        incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
+        // Remove the incident if it has been fully addressed
+        // TODO: For now we start resolution event even if the incident is not fully addressed.
+        time_t resolutionTime = generateIncidentResolutionEvent(state, incident, newEvents); // Generate a resolution event for the incident
+        double timeLeft = resolutionTime - state.getSystemTime(); // Calculate the time left for the incident to be resolved
+        spdlog::debug("[{}] Inserting incident resolution event for {} in {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, timeLeft / constants::SECONDS_IN_MINUTE);
+        incident.timeToResolve = resolutionTime; // Set the time to resolve the incident
+        generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
 
-    if (incident.currentApparatusCount >= incident.totalApparatusRequired) {
-        state.getIncidentQueue().pop();
-        state.getActiveIncidents().insert({incident.incidentIndex, incident});
+        // TODO: This requires that we have enough engines for the incident with the max required apparatus count.
+        if (incident.currentApparatusCount >= incident.totalApparatusRequired) {
+            state.getIncidentQueue().pop();
+            state.getActiveIncidents().insert({incident.incidentIndex, incident});
+        }
     }
 
     // spdlog::debug("[EnvironmentModel] Action taken: {}", action.toString());
@@ -174,9 +182,10 @@ void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t e
 
 time_t EnvironmentModel::generateIncidentResolutionEvent(State& state, const Incident& incident, std::vector<Event>& newEvents) {
     // Create a new IncidentResolutionEvent
+    double oneWayTravelTimeTo = incident.oneWayTravelTimeTo; // Get the travel time to the incident
     IncidentResolutionEvent resolutionEvent(incident.incidentIndex, incident.stationIndex);
-    double resolutionTime = 1800;
-    time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime); // Set the resolution time based on the incident's time to resolve
+    double resolutionTime = incident.timeToResolve;
+    time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime) + static_cast<time_t>(oneWayTravelTimeTo); // Calculate the next event time
 
     // Add the event to the new events vector
     newEvents.push_back(Event(EventType::IncidentResolution, nextEventTime, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
@@ -231,7 +240,7 @@ void EnvironmentModel::generateStationEvents(State& state,
         // Fire Engine Idle Event creation
         // TODO: Add how many engines were sent out.
         nextEventTime += static_cast<time_t>(travel_time); // Add travel time to resolution time
-        FireStationEvent fireEngineIdleEvent(stationIndex, enginesSendCount);
+        FireStationEvent fireEngineIdleEvent(stationIndex, incidentIndex, enginesSendCount);
 
         spdlog::debug("Inserting new events.");
         newEvents.push_back(Event(EventType::StationAction, nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent)));

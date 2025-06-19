@@ -163,7 +163,7 @@ int main() {
     std::vector<Incident> incidents = {};
     std::vector<Station> stations = {};
 
-    size_t chunk_size = 300;
+    size_t chunk_size = 500;
     preComputingMatrices(stations, incidents, chunk_size);
 
     #ifdef HAVE_SPDLOG_STOPWATCH
