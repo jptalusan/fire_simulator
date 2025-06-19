@@ -8,8 +8,20 @@
 
 class Station {
 public:
-    // TODO: Will result in garbage values. Add a default constructor
-    Station() = default; // Default constructor
+    Station()
+        : station_id(-1),
+          facility_name(""),
+          address(""),
+          city(""),
+          state(""),
+          zip_code(""),
+          lon(0.0),
+          lat(0.0),
+          num_fire_trucks(0),
+          num_ambulances(0),
+          max_ambulances(0),
+          max_fire_trucks(0)
+    {}
     Station(int station_id,
             const std::string& facility_name,
             const std::string& address,

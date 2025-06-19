@@ -13,7 +13,16 @@ Incident::Incident(int id, double latitude, double longitude,
                    const std::string& type, IncidentLevel level,
                    time_t time)
     : incident_id(id), lat(latitude), lon(longitude),
-      incident_type(type), incident_level(level), reportTime(time) {}
+      incident_type(type), incident_level(level), reportTime(time) {
+        responseTime = std::time(nullptr);
+        resolvedTime = std::time(nullptr);
+        oneWayTravelTimeTo = -1.0;
+        currentApparatusCount = 0;
+        stationIndex = -1;
+        hasBeenRespondedTo = false;
+        totalApparatusRequired = 0; // This can be set later based on the
+        timeToResolve = 0.0; // This can be set later based on the incident level
+      }
 
 void Incident::printInfo() const {
     spdlog::debug("Incident ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
