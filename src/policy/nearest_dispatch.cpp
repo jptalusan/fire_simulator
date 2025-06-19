@@ -22,6 +22,7 @@ NearestDispatch::NearestDispatch(const std::string& distanceMatrixPath, const st
     }
 
 NearestDispatch::~NearestDispatch() {
+    delete[] durationMatrix_; // Clean up the matrix if it was allocated
     delete[] distanceMatrix_; // Clean up the matrix if it was allocated
     spdlog::info("NearestDispatch policy destroyed.");
 }
