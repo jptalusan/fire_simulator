@@ -5,7 +5,9 @@
 #include "services/queries.h"
 #include "simulator/simulator.h"
 #include "policy/nearest_dispatch.h"
-// #include "spdlog/stopwatch.h"
+#ifdef HAVE_SPDLOG_STOPWATCH
+#include "spdlog/stopwatch.h"
+#endif
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "utils/helpers.h"
@@ -164,13 +166,9 @@ int main() {
     size_t chunk_size = 300;
     preComputingMatrices(stations, incidents, chunk_size);
 
-    // DEBUG
-    std::string duration_matrix_path = env.get("DURATION_MATRIX_PATH", "../data/stations.csv");
-    int width, height;
-    double* matrix = loadMatrixFromBinary(duration_matrix_path, height, width);
-    std::cout << matrix[6 * width + 896] << std::endl;
-
-    //spdlog::stopwatch sw;
+    #ifdef HAVE_SPDLOG_STOPWATCH
+    spdlog::stopwatch sw;
+    #endif
     std::vector<Event> events = generateEvents(incidents);
 
     sortEventsByTimeAndType(events);
@@ -190,7 +188,9 @@ int main() {
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
 
-    //spdlog::info("Simulation completed successfully in {:.3} s.", sw);
+    #ifdef HAVE_SPDLOG_STOPWATCH
+    spdlog::info("Simulation completed successfully in {:.3} s.", sw);
+    #endif
 
     writeReportToCSV(simulator.getCurrentState(), env);
     delete policy;

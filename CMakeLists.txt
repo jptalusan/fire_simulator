@@ -27,6 +27,14 @@ find_package(CURL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(spdlog REQUIRED)
 
+# Get the include directory from the imported target
+get_target_property(SPDLOG_INCLUDE_DIR spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
+
+# Check if the header exists in the include directory
+if(EXISTS "${SPDLOG_INCLUDE_DIR}/spdlog/stopwatch.h")
+    add_definitions(-DHAVE_SPDLOG_STOPWATCH)
+endif()
+
 # Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
