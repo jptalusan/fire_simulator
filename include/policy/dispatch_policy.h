@@ -10,7 +10,7 @@ public:
     virtual ~DispatchPolicy() = default;
 
     // Handle dispatching logic given the state and an event
-    virtual Action getAction(const State& state) = 0;
+    virtual std::vector<Action> getAction(const State& state) = 0;
 };
 
 #endif // DISPATCH_POLICY_H

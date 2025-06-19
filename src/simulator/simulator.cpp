@@ -13,7 +13,7 @@ Simulator::Simulator(State& initialState,
     : state_(initialState), events_(events), environment_(environmentModel), dispatchPolicy_(dispatchPolicy) {}
 
 void Simulator::run() {
-    spdlog::info("[Simulator] Starting simulation at system time: {}", state_.getSystemTime());
+    spdlog::info("[{}] Starting simulation.", formatTime(state_.getSystemTime()));
 
     // Use index-based loop to allow safe modification of events_
     // Avoiding invalidating iterators by always creating new events that are at least a minute in the future.
@@ -21,11 +21,11 @@ void Simulator::run() {
         const Event& event = events_[i];
 
         environment_.handleEvent(state_, event);
-        Action action = dispatchPolicy_.getAction(state_);
-        std::vector<Event> newEvents = environment_.takeAction(state_, action);
-        
+        std::vector<Action> actions = dispatchPolicy_.getAction(state_);
+        std::vector<Event> newEvents = environment_.takeActions(state_, actions);
+
         if (newEvents.empty()) {
-            spdlog::debug("[Simulator] No new events generated from action: {}", action.toString());
+            spdlog::debug("[Simulator] No new events generated from action: {}", actions[0].toString());
             continue; // Skip to the next iteration if no new events
         }
         // Add new events to the end of the vector (you should only either add an incident with a later time, or a resolution/station event with the same current time)
@@ -40,10 +40,8 @@ void Simulator::run() {
     // TODO: I probably just need the last state.
     // state_history_.push_back(state_);
 
-    spdlog::info("[Simulator] Number of events unresolved: {}", state_.getIncidentQueue().size());
-    spdlog::info("[Simulator] Number of events addressed: {}", state_.getActiveIncidents().size());
-    
-    spdlog::info("[Simulator] Final system time: {}", formatTime(state_.getSystemTime()));
+    spdlog::debug("Number of events unresolved: {}", state_.getIncidentQueue().size());
+    spdlog::debug("Number of events addressed: {}", state_.getActiveIncidents().size());
 }
 
 // TODO: Storing and saving activeIncidents may be expensive when there are many incidents.

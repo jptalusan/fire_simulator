@@ -10,7 +10,7 @@ class NearestDispatch : public DispatchPolicy {
 public:
     NearestDispatch(const std::string& distanceMatrixPath="", const std::string& durationMatrixPath="");
 
-    Action getAction(const State& state) override;
+    std::vector<Action> getAction(const State& state) override;
 
     ~NearestDispatch();
 private:

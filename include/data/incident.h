@@ -8,6 +8,7 @@
 #include "data/location.h"
 #include "simulator/event.h"
 
+// TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
 class Incident : public EventData {
 public:
     int incident_id;
@@ -19,10 +20,11 @@ public:
     time_t responseTime; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
     bool hasBeenRespondedTo; // Flag to indicate if the incident has been responded to
-    int engineCount; // Number of fire trucks dispatched to the incident
     int stationIndex; // Index of the station that responded to the incident
     double oneWayTravelTimeTo; // Travel time from the station to the incident location
-    double resolvedTimeDouble;
+    double timeToResolve;
+    int totalApparatusRequired;
+    int currentApparatusCount;
 
     Incident(int id, double latitude, double longitude,
              const std::string& type, IncidentLevel level,
@@ -37,10 +39,11 @@ public:
           responseTime(std::time(nullptr)),
           resolvedTime(std::time(nullptr)),
           hasBeenRespondedTo(false),
-          engineCount(0),
           stationIndex(-1),
           oneWayTravelTimeTo(0.0),
-          resolvedTimeDouble(0.0)
+          timeToResolve(0.0),
+          totalApparatusRequired(0),
+          currentApparatusCount(0)
     {}
 
     void printInfo() const override;

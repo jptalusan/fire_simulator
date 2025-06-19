@@ -103,3 +103,4 @@ test.ipynb
 *.log
 *.csv
 *.bin
+*.pbf

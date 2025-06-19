@@ -77,7 +77,7 @@ void writeReportToCSV(State& state, const std::string& filename) {
             << formatTime(incident.resolvedTime) << ","
             << incident.oneWayTravelTimeTo << ","
             << incident.stationIndex << ","
-            << incident.engineCount << "\n";
+            << incident.currentApparatusCount << "\n";
     }
     csv.close();
 }
@@ -90,6 +90,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     // Additional logic can be added here
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
+    std::string matrix_csv_path = env.get("MATRIX_CSV_PATH", "../logs/matrix.csv");
     std::string distance_matrix_path = env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin");
     std::string duration_matrix_path = env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin");
     std::string osrmUrl_ = env.get("BASE_OSRM_URL", "http://router.project-osrm.org");
@@ -122,7 +123,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
               << full_duration_matrix[0].size() << " destinations.\n";
     // print_matrix(full_duration_matrix, 5, 5);
     // For readability
-    // write_matrix_to_csv(full_matrix, matrix_path, 2, false);
+    write_matrix_to_csv(full_duration_matrix, matrix_csv_path, 2, false);
     save_matrix_binary(full_duration_matrix, duration_matrix_path);
     save_matrix_binary(full_distance_matrix, distance_matrix_path);
    // spdlog::info("Preprocessing completed successfully in {:.3} s.", sw);

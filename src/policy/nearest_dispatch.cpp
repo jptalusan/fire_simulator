@@ -5,6 +5,7 @@
 #include "utils/error.h"
 #include "utils/constants.h"
 #include "services/chunks.h"
+#include "utils/helpers.h"
 
 // TODO: This will become confusing, stationID and index are different.
 NearestDispatch::NearestDispatch(const std::string& distanceMatrixPath, const std::string& durationMatrixPath)
@@ -44,13 +45,13 @@ NearestDispatch::~NearestDispatch() {
  * @param state The current simulation state, containing incidents and stations.
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
  */
-Action NearestDispatch::getAction(const State& state) {
+std::vector<Action> NearestDispatch::getAction(const State& state) {
     // Get unresolved incident
     Incident i = state.getEarliestUnresolvedIncident();
     int incidentID = i.incident_id;
     if (incidentID < 0) {
         spdlog::debug("No unresolved incident found.");
-        return Action(StationActionType::DoNothing);
+        return { Action(StationActionType::DoNothing) };
     }
     
     // If matrix is loaded, use it instead of OSRM
@@ -65,28 +66,50 @@ Action NearestDispatch::getAction(const State& state) {
         spdlog::warn("No valid stations found or all durations are infinite.");
     }
 
+    int totalApparatusRequired = i.totalApparatusRequired;
+
     std::vector<Station> validStations = state.getAllStations();
+
+    std::vector<Action> actions;
+    actions.reserve(totalApparatusRequired);
+
+    int totalApparatusDispatched = 0;
+
     for (const auto& index : sortedIndices) {
+        if (totalApparatusDispatched == totalApparatusRequired)
+            break;
+
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
         if (numberOfFireTrucks > 0) {
-            spdlog::info("[DispatchPolicy] Nearest station to incident {} is {} with index {}, {} sec away.", incidentID, validStations[index].getAddress(), index, durations[index]);
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
-
+            int usedApparatusCount = 0;
             dispatchAction = Action(StationActionType::Dispatch, {
                 {constants::STATION_INDEX, std::to_string(index)},
-                {constants::ENGINE_COUNT, "1"}, // Assuming we dispatch one engine
                 {constants::INCIDENT_ID, std::to_string(incidentID)},
                 {constants::DISPATCH_TIME, std::to_string(state.getSystemTime())},
                 {constants::TRAVEL_TIME, std::to_string(durations[index])},
                 {constants::DISTANCE, std::to_string(distances[index])} //DEBUG
             });
-            break;
+            if ((totalApparatusRequired - totalApparatusDispatched) >= numberOfFireTrucks) {
+                usedApparatusCount = numberOfFireTrucks;
+            } else {
+                usedApparatusCount = totalApparatusRequired - totalApparatusDispatched;
+            }
+            dispatchAction.payload[constants::ENGINE_COUNT] = std::to_string(usedApparatusCount);
+            totalApparatusDispatched += usedApparatusCount;
+            actions.push_back(dispatchAction);
+            spdlog::info("[{}] Station {} is sending {} engines to incident {}, {:.2f} minutes away.", 
+                formatTime(state.getSystemTime()), 
+                validStations[index].getAddress(),
+                usedApparatusCount,
+                incidentID,
+                durations[index] / constants::SECONDS_IN_MINUTE);
         } else {
-            spdlog::warn("[DispatchPolicy] Station {} has no available fire trucks right now.", validStations[index].getAddress());
+            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getAddress());
         }
     }
     
-    return dispatchAction;
+    return actions;
 }
 
 /**
