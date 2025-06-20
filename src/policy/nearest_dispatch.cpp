@@ -52,9 +52,15 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     Incident i; // Initialize incident
     for (size_t index = 0; index < activeIncidents.size(); ++index) {
         i = activeIncidents.at(index);
+        if (state.resolvingIncidentIndex_.count(i.incidentIndex) > 0) {
+            continue;
+        }
+        if (i.resolvedTime <= state.getSystemTime()) {
+            continue;
+        }
         if (i.totalApparatusRequired > i.currentApparatusCount) {
             spdlog::debug("Found unresolved incident with index: {}", index);
-            incidentIndex = index; // Set the incidentIndex to the first unresolved incident found
+            incidentIndex = i.incidentIndex; // Set the incidentIndex to the first unresolved incident found
             break;
         }
     }
@@ -84,13 +90,21 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     actions.reserve(totalApparatusRequired);
 
     int totalApparatusDispatched = 0;
-
+    double timeToResolve = i.timeToResolve;
     for (const auto& index : sortedIndices) {
         if (totalApparatusDispatched == totalApparatusRequired)
             break;
 
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
         if (numberOfFireTrucks > 0) {
+            // These are for checking if subsequent fire trucks will even reach before it is extinguished.
+            if ((i.currentApparatusCount > 0) && ((durations[index] + constants::DISPATCH_BUFFER_SECONDS) >= timeToResolve)) {
+                spdlog::info("[{}] Engines from {} won't reach incident {} in time.", 
+                    formatTime(state.getSystemTime()), 
+                    validStations[index].getAddress(),
+                    incidentIndex);
+                continue;
+            }
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
             int usedApparatusCount = 0;
             dispatchAction = Action(StationActionType::Dispatch, {

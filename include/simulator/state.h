@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include "data/incident.h"
@@ -29,6 +30,7 @@ public:
     // TODO: Improve this, ignored stations and incidents should be handled better
     std::vector<int> ignoredStations;
     std::vector<int> ignoredIncidents;
+    std::unordered_set<int> resolvingIncidentIndex_; // Maps station index to incident index being resolved
     
 private:
     std::time_t system_time_;

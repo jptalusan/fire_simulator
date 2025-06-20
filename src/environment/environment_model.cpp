@@ -143,6 +143,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     }
 
     // TODO: can put this in a single updateIncident function
+    // CRITICAL Check if the incident has been given an incident resolution event already, if yes, do not generate a new one.
     // If at least one engine has been dispatched, start resolve countdown.
     if (totalApparatusDispatched > 0) {
         incident.timeRespondedTo = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
@@ -151,9 +152,9 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
         incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
         incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
         
+        // CRITICAL Compute a new resolution event based on updated number of trucks
         time_t resolutionTime = generateIncidentResolutionEvent(state, incident, newEvents); // Generate a resolution event for the incident
         double timeLeft = resolutionTime - state.getSystemTime(); // Calculate the time left for the incident to be resolved
-        spdlog::debug("[{}] Inserting incident resolution event for {} in next {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, timeLeft / constants::SECONDS_IN_MINUTE);
         incident.timeToResolve = timeLeft; // Set the time to resolve the incident
         generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
         state.getActiveIncidents()[incident.incidentIndex] = incident; // Insert the incident into the active incidents map
@@ -183,11 +184,19 @@ time_t EnvironmentModel::generateIncidentResolutionEvent(State& state, const Inc
     double oneWayTravelTimeTo = incident.oneWayTravelTimeTo; // Get the travel time to the incident
     IncidentResolutionEvent resolutionEvent(incident.incidentIndex, incident.stationIndex);
     double resolutionTime = incident.timeToResolve;
-    double apparatusRatio = static_cast<double>(incident.currentApparatusCount) / incident.totalApparatusRequired; // Calculate the ratio of apparatus dispatched to total required
-    resolutionTime /= apparatusRatio; // Adjust the resolution time based on the apparatus ratio
+    // double apparatusRatio = static_cast<double>(incident.currentApparatusCount) / incident.totalApparatusRequired; // Calculate the ratio of apparatus dispatched to total required
+    // resolutionTime /= (1 - apparatusRatio); // Adjust the resolution time based on the apparatus ratio
     time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime) + static_cast<time_t>(oneWayTravelTimeTo); // Calculate the next event time
     // Add the event to the new events vector
-    newEvents.push_back(Event(EventType::IncidentResolution, nextEventTime, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
+    if (state.resolvingIncidentIndex_.count(incident.incidentIndex) > 0) {
+        spdlog::warn("[EnvironmentModel] Incident {} is already being resolved, skipping resolution event creation.", incident.incidentIndex);
+        return nextEventTime; // Exit early if the incident is already being resolved
+    } else {
+        double _t = resolutionTime + oneWayTravelTimeTo;
+        spdlog::debug("[{}] Inserting incident resolution event for incident {} in next {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, _t / constants::SECONDS_IN_MINUTE);
+        newEvents.push_back(Event(EventType::IncidentResolution, nextEventTime, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
+        state.resolvingIncidentIndex_.insert(incident.incidentIndex);
+    }
     return nextEventTime;
 }
 
