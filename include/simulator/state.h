@@ -31,6 +31,7 @@ public:
     std::vector<int> ignoredStations;
     std::vector<int> ignoredIncidents;
     std::unordered_set<int> resolvingIncidentIndex_; // Maps station index to incident index being resolved
+    std::unordered_map<int, Incident> doneIncidents_;
     
 private:
     std::time_t system_time_;

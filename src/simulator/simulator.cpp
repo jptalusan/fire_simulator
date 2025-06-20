@@ -25,17 +25,11 @@ void Simulator::run() {
         std::vector<Event> newEvents = environment_.takeActions(state_, actions);
 
         events_.insert(events_.end(), handleEvents.begin(), handleEvents.end());
-        // Add new events to the end of the vector (you should only either add an incident with a later time, or a resolution/station event with the same current time)
-        // This is important to avoid modifying the vector while iterating over it.
         events_.insert(events_.end(), newEvents.begin(), newEvents.end());
-        // CRITICAL Update the resolveEvents if there are duplicates
-        // Optionally, sort if you want to keep events_ ordered by event_time
+        
         sortEventsByTimeAndType(events_);
     }
 
-    // Store the current state for historical tracking
-    // TODO: I probably just need the last state.
-    // state_history_.push_back(state_);
     spdlog::debug("Number of events addressed: {}", state_.getActiveIncidents().size());
 }
 

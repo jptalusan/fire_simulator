@@ -49,23 +49,23 @@ NearestDispatch::~NearestDispatch() {
 std::vector<Action> NearestDispatch::getAction(const State& state) {
     const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
     int incidentIndex = -1; // Initialize incident index
-    Incident i; // Initialize incident
-    for (size_t index = 0; index < activeIncidents.size(); ++index) {
-        i = activeIncidents.at(index);
-        if (state.resolvingIncidentIndex_.count(i.incidentIndex) > 0) {
+    const Incident* i = nullptr; // Pointer to the incident
+    for (const auto& [id, incident] : activeIncidents) {
+        if (state.resolvingIncidentIndex_.count(incident.incidentIndex) > 0) {
             continue;
         }
-        if (i.resolvedTime <= state.getSystemTime()) {
+        if (incident.resolvedTime <= state.getSystemTime()) {
             continue;
         }
-        if (i.totalApparatusRequired > i.currentApparatusCount) {
-            spdlog::debug("Found unresolved incident with index: {}", index);
-            incidentIndex = i.incidentIndex; // Set the incidentIndex to the first unresolved incident found
+        if (incident.totalApparatusRequired > incident.currentApparatusCount) {
+            spdlog::debug("Found unresolved incident with index: {}", id);
+            incidentIndex = incident.incidentIndex; // Set the incidentIndex to the first unresolved incident found
+            i = &incident; // Store the incident details as a pointer
             break;
         }
     }
 
-    if (incidentIndex < 0) {
+    if (incidentIndex < 0 || i == nullptr) {
         spdlog::debug("No unresolved incident found in the active incidents.");
         return { Action(StationActionType::DoNothing) }; // No action needed
     }
@@ -82,7 +82,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
         spdlog::warn("No valid stations found or all durations are infinite.");
     }
 
-    int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
+    int totalApparatusRequired = i->totalApparatusRequired - i->currentApparatusCount;
 
     std::vector<Station> validStations = state.getAllStations();
 

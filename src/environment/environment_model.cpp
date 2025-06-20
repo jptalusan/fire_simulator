@@ -37,13 +37,13 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
                     spdlog::error("[EnvironmentModel] Incident ID mismatch: {} vs {}", incidentIndex, incident.incidentIndex);
                     throw MismatchError(); // Throw an error if the incident ID does not match
                 }
-                if (event.event_time < 0 || event.event_time > 2147483647) {
-                    spdlog::error("Resolution time for incident {} out of bounds: {}", incidentIndex, event.event_time);
-                } else {
-                    incident.resolvedTime = event.event_time; // Update the resolved time of the incident
-                    incident.status = IncidentStatus::hasBeenResolved; // Update the status of the incident
-                    spdlog::info("[{}] Resolving incident {}",formatTime(event.event_time), incidentIndex);
-                }
+                incident.resolvedTime = event.event_time; // Update the resolved time of the incident
+                incident.status = IncidentStatus::hasBeenResolved; // Update the status of the incident
+                spdlog::info("[{}] Resolving incident {}",formatTime(event.event_time), incidentIndex);
+                // Suppose you want to move the element with key incidentIndex
+                state.doneIncidents_.emplace(it->first, std::move(it->second));
+                // Remove from the original map
+                state.getActiveIncidents().erase(it);
             }
             break;
         }
@@ -51,8 +51,12 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
         case EventType::ApparatusArrivalAtIncident: {
             auto payload = std::dynamic_pointer_cast<FireStationEvent>(event.payload);
             int incidentIndex = payload->incidentIndex;
-            Incident& incident = state.getActiveIncidents().at(incidentIndex); // Get the incident from the active incidents map
-            incident.status = IncidentStatus::isBeingResolved; // Update the status of the incident to being resolved
+            auto& map = state.getActiveIncidents();
+            auto it = map.find(incidentIndex);
+            if (it != map.end()) {
+                Incident& incident = it->second; // Get the incident from the active incidents map
+                incident.status = IncidentStatus::isBeingResolved; // Update the status of the incident to being resolved
+            }
             break;
         }
         

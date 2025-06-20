@@ -17,7 +17,6 @@ Incident::Incident(int index, int id, double latitude, double longitude,
         timeRespondedTo = std::time(nullptr);
         resolvedTime = std::time(nullptr);
         currentApparatusCount = 0;
-        stationIndex = -1;
         totalApparatusRequired = 0; // This can be set later based on the
         status = IncidentStatus::hasBeenReported; // Initially, the incident is not resolved
       }

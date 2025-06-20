@@ -20,7 +20,6 @@ public:
     time_t reportTime;
     time_t timeRespondedTo; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
-    int stationIndex; // Index of the station that responded to the incident
     int totalApparatusRequired;
     int currentApparatusCount;
     IncidentStatus status;
@@ -39,7 +38,6 @@ public:
           reportTime(std::time(nullptr)),
           timeRespondedTo(std::time(nullptr)),
           resolvedTime(std::time(nullptr)),
-          stationIndex(-1),
           totalApparatusRequired(0),
           currentApparatusCount(0),
           status(IncidentStatus::hasBeenReported)

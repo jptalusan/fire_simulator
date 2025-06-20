@@ -69,6 +69,10 @@ void setupLogger(EnvLoader& env) {
 
 void writeReportToCSV(State& state, const EnvLoader& env) {
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
+    std::unordered_map<int, Incident>& doneIncidents = state.doneIncidents_;
+
+    // Insert all elements from doneIncidents into activeIncidents
+    activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
 
     std::string report_path = env.get("REPORT_CSV_PATH", "../logs/incident_report.csv");
     std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
