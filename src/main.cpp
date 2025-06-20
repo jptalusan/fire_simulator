@@ -34,7 +34,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::info);
+        console_sink->set_level(spdlog::level::err);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::debug);
@@ -174,10 +174,6 @@ int main() {
 
     sortEventsByTimeAndType(events);
 
-    for (const auto& event : events) {
-        event.payload->printInfo(); // Dispatches to correct derived class print method
-    }
-
     State initial_state;
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
@@ -193,7 +189,7 @@ int main() {
     simulator.run();
 
     #ifdef HAVE_SPDLOG_STOPWATCH
-    spdlog::info("Simulation completed successfully in {:.3} s.", sw);
+    spdlog::error("Simulation completed successfully in {:.3} s.", sw);
     #endif
 
     writeReportToCSV(simulator.getCurrentState(), env);

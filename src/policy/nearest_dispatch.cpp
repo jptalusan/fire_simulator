@@ -47,12 +47,21 @@ NearestDispatch::~NearestDispatch() {
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
  */
 std::vector<Action> NearestDispatch::getAction(const State& state) {
-    // Get unresolved incident
-    Incident i = state.getEarliestUnresolvedIncident();
-    int incidentIndex = i.incidentIndex;
+    const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
+    int incidentIndex = -1; // Initialize incident index
+    Incident i; // Initialize incident
+    for (size_t index = 0; index < activeIncidents.size(); ++index) {
+        i = activeIncidents.at(index);
+        if (i.totalApparatusRequired > i.currentApparatusCount) {
+            spdlog::debug("Found unresolved incident with index: {}", index);
+            incidentIndex = index; // Set the incidentIndex to the first unresolved incident found
+            break;
+        }
+    }
+
     if (incidentIndex < 0) {
-        spdlog::debug("No unresolved incident found.");
-        return { Action(StationActionType::DoNothing) };
+        spdlog::debug("No unresolved incident found in the active incidents.");
+        return { Action(StationActionType::DoNothing) }; // No action needed
     }
     
     // If matrix is loaded, use it instead of OSRM
@@ -67,7 +76,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
         spdlog::warn("No valid stations found or all durations are infinite.");
     }
 
-    int totalApparatusRequired = i.totalApparatusRequired;
+    int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
 
     std::vector<Station> validStations = state.getAllStations();
 

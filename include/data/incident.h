@@ -18,7 +18,7 @@ public:
     std::string incident_type;
     IncidentLevel incident_level;
     time_t reportTime;
-    time_t responseTime; // Time when the incident was responded to
+    time_t timeRespondedTo; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
     bool hasBeenRespondedTo; // Flag to indicate if the incident has been responded to
     int stationIndex; // Index of the station that responded to the incident
@@ -38,7 +38,7 @@ public:
           incident_type(""),
           incident_level(IncidentLevel::Invalid),
           reportTime(std::time(nullptr)),
-          responseTime(std::time(nullptr)),
+          timeRespondedTo(std::time(nullptr)),
           resolvedTime(std::time(nullptr)),
           hasBeenRespondedTo(false),
           stationIndex(-1),

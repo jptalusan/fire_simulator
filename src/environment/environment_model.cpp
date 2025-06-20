@@ -41,12 +41,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
                     incident.resolvedTime = event.event_time; // Update the resolved time of the incident
                     spdlog::info("[{}] Resolving incident {}",formatTime(event.event_time), incidentIndex);
                 }
-            } else {
-                // handle missing key
-                spdlog::error("Incident {} not found", incidentIndex);
             }
-
-
             break;
         }
 
@@ -78,10 +73,18 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
 
 std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector<Action>& actions) {
     // Obtained to make sure that the incident we are addressing downstream matches the earliest incident in the queue.
-    Incident incident = state.getEarliestUnresolvedIncident();
+    if (actions.size() == 0 || actions[0].type == StationActionType::DoNothing) {
+        spdlog::warn("[EnvironmentModel] No actions provided, returning empty vector.");
+        return {}; // Return an empty vector if no actions are provided
+    }
+
+    std::unordered_map<std::string, std::string> payload = actions[0].payload;
+    std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
+    int incidentIndex = std::stoi(payload[constants::INCIDENT_INDEX]);
+    Incident incident = activeIncidents.at(incidentIndex);
     if (incident.incidentIndex < 0) {
-        spdlog::debug("[EnvironmentModel] No unresolved incident found");
-        return {};
+        spdlog::debug("[EnvironmentModel] No unresolved incident found in active incidents");
+        return {}; // Return an empty vector if no unresolved incident is found
     }
     
     std::vector<Event> newEvents;
@@ -102,7 +105,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 
                 int incidentIndex = std::stoi(payload[constants::INCIDENT_INDEX]);
                 if (incidentIndex != incident.incidentIndex) {
-                    spdlog::error("[EnvironmentModel] Incident ID does not match queued incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
+                    spdlog::error("[EnvironmentModel] Incident ID does not match target incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
                     throw MismatchError(); // Throw an error if the incident ID does not match
                 }
 
@@ -147,31 +150,13 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
         incident.stationIndex = stationIndex; // Set the station index that responded to the incident
         incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
         incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
-        // Remove the incident if it has been fully addressed
-        // TODO: For now we start resolution event even if the incident is not fully addressed.
-        /*
-        What we can do is compute a probability of resolving the incident based on the number of engines dispatched,
-        the incident level, and the time since it was reported. If the probability is high enough, we can generate a resolution event.
-        If the incident is not resolved, we can keep it in the queue for further processing.
-        This way, we can simulate the resolution of incidents based on the actions taken by the fire stations and the resources available.
-        This is a placeholder for the logic that generates a resolution event for the incident.
-        */
+        
         time_t resolutionTime = generateIncidentResolutionEvent(state, incident, newEvents); // Generate a resolution event for the incident
         double timeLeft = resolutionTime - state.getSystemTime(); // Calculate the time left for the incident to be resolved
-        spdlog::debug("[{}] Inserting incident resolution event for {} in {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, timeLeft / constants::SECONDS_IN_MINUTE);
-        incident.timeToResolve = resolutionTime; // Set the time to resolve the incident
+        spdlog::debug("[{}] Inserting incident resolution event for {} in next {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, timeLeft / constants::SECONDS_IN_MINUTE);
+        incident.timeToResolve = timeLeft; // Set the time to resolve the incident
         generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
-
-        // TODO: This requires that we have enough engines for the incident with the max required apparatus count.
-        /* 
-        We can also just put the incident into the activeIncidents without popping from incidentQueue.
-        This might trigger another dispatch event and action with resolution. 
-        We just need to update existing resolution event with the new time (if it exists).
-        */
-        if (incident.currentApparatusCount >= incident.totalApparatusRequired) {
-            state.getIncidentQueue().pop();
-            state.getActiveIncidents().insert({incident.incidentIndex, incident});
-        }
+        state.getActiveIncidents()[incident.incidentIndex] = incident; // Insert the incident into the active incidents map
     }
 
     // spdlog::debug("[EnvironmentModel] Action taken: {}", action.toString());
@@ -188,10 +173,9 @@ void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t e
                  to_string(incident.incident_level), 
                  totalApparatusRequired, 
                  timeToResolve / constants::SECONDS_IN_MINUTE);
-    // Example logic: add the incident to the queue
     incident.totalApparatusRequired = totalApparatusRequired; // Set the number of fire trucks needed for the incident
     incident.timeToResolve = timeToResolve;
-    state.addToQueue(incident);
+    state.getActiveIncidents().insert({incident.incidentIndex, incident}); // Add the incident to the active incidents map
 }
 
 time_t EnvironmentModel::generateIncidentResolutionEvent(State& state, const Incident& incident, std::vector<Event>& newEvents) {
@@ -199,8 +183,9 @@ time_t EnvironmentModel::generateIncidentResolutionEvent(State& state, const Inc
     double oneWayTravelTimeTo = incident.oneWayTravelTimeTo; // Get the travel time to the incident
     IncidentResolutionEvent resolutionEvent(incident.incidentIndex, incident.stationIndex);
     double resolutionTime = incident.timeToResolve;
+    double apparatusRatio = static_cast<double>(incident.currentApparatusCount) / incident.totalApparatusRequired; // Calculate the ratio of apparatus dispatched to total required
+    resolutionTime /= apparatusRatio; // Adjust the resolution time based on the apparatus ratio
     time_t nextEventTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(resolutionTime) + static_cast<time_t>(oneWayTravelTimeTo); // Calculate the next event time
-
     // Add the event to the new events vector
     newEvents.push_back(Event(EventType::IncidentResolution, nextEventTime, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
     return nextEventTime;
@@ -228,13 +213,11 @@ void EnvironmentModel::generateStationEvents(State& state,
         spdlog::error("[EnvironmentModel] Invalid incident ID: {}", incidentIndex);
         throw InvalidIncidentError(); // Throw an error for invalid incident IDs
     }
-    Incident incident = state.getEarliestUnresolvedIncident();
 
-    if (incident.incidentIndex != incidentIndex) {
-        spdlog::error("[EnvironmentModel] Incident ID does not match the unresolved incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
-        throw MismatchError(); // Throw an error if the incident ID does not match
-    }
-    time_t timeToResolve = incident.timeToResolve;
+    const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
+    Incident incident = activeIncidents.at(incidentIndex);
+
+    double timeToResolve = incident.timeToResolve;
 
     // IncidentLevel incidentLevel = incident.incident_level;
     for (const auto& action : actions) {

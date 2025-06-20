@@ -97,7 +97,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
                 ilevel = IncidentLevel::Invalid; // Handle invalid levels
             }
             if (seenIDs.count(id)) {
-                spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
+                // spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
                 ignoredCount++;
                 continue; // Skip if ID is already seen
             } else {
@@ -106,7 +106,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
                 index++;
             }
         } else {
-            spdlog::debug("Incident {} is out of bounds and will be ignored.", id);
+            // spdlog::debug("Incident {} is out of bounds and will be ignored.", id);
             ignoredCount++;
         }
         

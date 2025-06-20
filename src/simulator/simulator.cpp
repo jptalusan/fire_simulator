@@ -39,8 +39,6 @@ void Simulator::run() {
     // Store the current state for historical tracking
     // TODO: I probably just need the last state.
     // state_history_.push_back(state_);
-
-    spdlog::debug("Number of events unresolved: {}", state_.getIncidentQueue().size());
     spdlog::debug("Number of events addressed: {}", state_.getActiveIncidents().size());
 }
 

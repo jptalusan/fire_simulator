@@ -8,16 +8,8 @@ void State::advanceTime(std::time_t new_time) {
     // Optionally, update truck timers here.
 }
 
-void State::addToQueue(Incident incident) {
-    incidentQueue_.push(incident);
-}
-
 std::time_t State::getSystemTime() const {
     return system_time_;
-}
-
-std::queue<Incident>& State::getIncidentQueue() {
-    return incidentQueue_;
 }
 
 Station& State::getStation(int stationIndex) {
@@ -58,18 +50,6 @@ const std::unordered_map<int, FireTruck>& State::getAllFireTrucks() const {
 
 void State::addStations(std::vector<Station> stations) {
     stations_ = std::move(stations);
-}
-
-Incident State::getEarliestUnresolvedIncident() const {
-/*
-This function retrieves the next unresolved incident from the queue.
-*/
-    if (!incidentQueue_.empty()) {
-        Incident next = incidentQueue_.front();
-        return next;
-    }
-    // Handle the case where the queue is empty (could throw, return default, or handle as needed)
-    return Incident();
 }
 
 void State::updateStationMetrics(const std::string& metric) {

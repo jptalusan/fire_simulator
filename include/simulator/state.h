@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 #include <memory>
-#include <queue>
 #include "data/incident.h"
 #include "data/station.h"
 #include "data/fire_truck.h"
@@ -15,9 +14,7 @@ public:
     State();
 
     void advanceTime(std::time_t new_time);
-    void addToQueue(Incident incident);
     std::time_t getSystemTime() const;
-    std::queue<Incident>& getIncidentQueue();
     Station& getStation(int stationIndex);
     const std::vector<Station>& getAllStations() const;
     FireTruck& getFireTruck(int fire_truck_id);
@@ -35,7 +32,6 @@ public:
     
 private:
     std::time_t system_time_;
-    std::queue<Incident> incidentQueue_;
     std::vector<Station> stations_;
     std::unordered_map<int, FireTruck> fire_trucks_;
     std::unordered_map<int, Incident> activeIncidents_;
