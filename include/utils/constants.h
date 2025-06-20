@@ -15,10 +15,11 @@ namespace constants {
     inline constexpr const char* RESOLUTION_TIME = "RESOLUTION_TIME";
 
     // Numeric constants
-    inline constexpr int DEFAULT_NUM_FIRE_TRUCKS = 4;
+    inline constexpr int DEFAULT_NUM_FIRE_TRUCKS = 2;
     inline constexpr int DEFAULT_NUM_AMBULANCES = 0;
     inline constexpr double EARTH_RADIUS_KM = 6371.0;
     inline constexpr double SECONDS_IN_MINUTE = 60.0;
+    inline constexpr double RESPOND_DELAY_SECONDS = 30.0;
     inline constexpr double DISPATCH_BUFFER_SECONDS = 600.0;
 
     // Incident Levels

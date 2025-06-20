@@ -5,10 +5,10 @@
 
 enum class EventType {
     Incident,
-    IncidentResolution,
+    CheckIncident,
     ApparatusArrivalAtIncident,
-    ApparatusReturnToStation,
-    CheckIncident
+    IncidentResolution,
+    ApparatusReturnToStation
 };
 
 enum class StationActionType {

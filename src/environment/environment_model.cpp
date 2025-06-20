@@ -73,7 +73,7 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
             Station& station = state.getStation(stationIndex);
             station.setNumFireTrucks(station.getNumFireTrucks() + numberOfApparatus); // Increase the number of fire trucks at the station
             spdlog::info("[{}] {} fire trucks returned to station ID {} from incident {}", 
-                            formatTime(state.getSystemTime()), numberOfApparatus, station.getAddress(), incidentIndex);
+                            formatTime(event.event_time), numberOfApparatus, station.getAddress(), incidentIndex);
             break;
         }
 
@@ -101,7 +101,7 @@ void EnvironmentModel::checkIncidentStatus(State& state, time_t eventTime, std::
             bool isIncidentResolved = fireModel_.computeResolutionTime(state, incident);
             if (isIncidentResolved) {
                 IncidentResolutionEvent resolutionEvent(incident.incidentIndex);
-                newEvents.push_back(Event(EventType::IncidentResolution, eventTime + constants::SECONDS_IN_MINUTE, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
+                newEvents.push_back(Event(EventType::IncidentResolution, eventTime + constants::RESPOND_DELAY_SECONDS, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
                 state.resolvingIncidentIndex_.insert(incident.incidentIndex);
 
                 // Sending back each vehicle.
@@ -112,7 +112,7 @@ void EnvironmentModel::checkIncidentStatus(State& state, time_t eventTime, std::
                     const double& travelTime = std::get<2>(item);
 
                     FireStationEvent fireEngineIdleEvent(stationIndex, incidentIndex, numberOfApparatus);
-                    time_t nextEventTime = eventTime + static_cast<time_t>(travelTime) + constants::SECONDS_IN_MINUTE; // Calculate the next event time
+                    time_t nextEventTime = eventTime + static_cast<time_t>(travelTime) + constants::RESPOND_DELAY_SECONDS; // Calculate the next event time
                     newEvents.push_back(Event(EventType::ApparatusReturnToStation, nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent)));
                 }
             }
@@ -139,6 +139,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     std::vector<Event> newEvents = {};
     int totalApparatusDispatched = 0;
     
+    incident.timeRespondedTo = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
     for (const auto& action : actions) {
         std::unordered_map<std::string, std::string> payload = action.payload;
         switch (action.type) {
@@ -159,7 +160,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 // Writing to metrics
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(2);
-                oss << formatTime(state.getSystemTime()) << ",";
+                oss << formatTime(incident.timeRespondedTo) << ",";
                 oss << station.getStationId() << ",";
                 oss << station.getStationIndex() << ",";
                 oss << numberOfFireTrucksToDispatch << ",";
@@ -189,7 +190,6 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
         }
     }
 
-    incident.timeRespondedTo = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
     incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
 
     state.getActiveIncidents()[incident.incidentIndex] = incident; // Insert the incident into the active incidents map
@@ -240,36 +240,11 @@ void EnvironmentModel::generateStationEvents(State& state,
         int enginesSendCount = std::stoi(action.payload.at(constants::ENGINE_COUNT)); // Get engine count from action payload
 
         Station station = state.getStation(stationIndex);
-        time_t timeToArriveAtIncident = state.getSystemTime() + constants::SECONDS_IN_MINUTE + static_cast<time_t>(travel_time); // Add travel time to resolution time
+        time_t timeToArriveAtIncident = state.getSystemTime() + constants::RESPOND_DELAY_SECONDS + static_cast<time_t>(travel_time); // Add travel time to resolution time
         FireStationEvent apparatusArrival(stationIndex, incidentIndex, enginesSendCount);
         spdlog::debug("Inserting new events.");
         newEvents.push_back(Event(EventType::ApparatusArrivalAtIncident, timeToArriveAtIncident, std::make_shared<FireStationEvent>(apparatusArrival)));
     }
-}
-
-double EnvironmentModel::calculateResolutionTime(const Incident& incident) {
-    double resolutionTime = 0; // Placeholder for resolution time, should be calculated based on incident type and other factors
-
-    IncidentLevel incidentLevel = incident.incident_level;
-    switch (incidentLevel) {
-        case IncidentLevel::Low:
-            resolutionTime = 10 * constants::SECONDS_IN_MINUTE; // Example resolution time for low-level incidents
-            break;
-        case IncidentLevel::Moderate:
-            resolutionTime = 30 * constants::SECONDS_IN_MINUTE; // Example resolution time for moderate-level incidents
-            break;
-        case IncidentLevel::High:
-            resolutionTime = 60 * constants::SECONDS_IN_MINUTE; // Example resolution time for high-level incidents
-            break;
-        case IncidentLevel::Critical:
-            resolutionTime = 90 * constants::SECONDS_IN_MINUTE; // Example resolution time for critical-level incidents
-            break;
-        default:
-            spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
-            throw UnknownValueError(); // Throw an error for unknown incident levels
-    }
-    
-    return resolutionTime;
 }
 
 int EnvironmentModel::calculateApparatusCount(const Incident& incident) {
