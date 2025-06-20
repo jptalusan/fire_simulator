@@ -16,16 +16,14 @@ Incident::Incident(int index, int id, double latitude, double longitude,
       incident_type(type), incident_level(level), reportTime(time) {
         timeRespondedTo = std::time(nullptr);
         resolvedTime = std::time(nullptr);
-        oneWayTravelTimeTo = -1.0;
         currentApparatusCount = 0;
         stationIndex = -1;
-        hasBeenRespondedTo = false;
         totalApparatusRequired = 0; // This can be set later based on the
-        timeToResolve = 0.0; // This can be set later based on the incident level
+        status = IncidentStatus::hasBeenReported; // Initially, the incident is not resolved
       }
 
 void Incident::printInfo() const {
-    spdlog::debug("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
+    spdlog::error("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
                 incidentIndex, incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
 }
 

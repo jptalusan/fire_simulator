@@ -15,7 +15,6 @@ public:
         DispatchPolicy& dispatchPolicy
     );
     void run();
-    void replay();
     const std::vector<State>& getStateHistory() const;
     State& getCurrentState();
 

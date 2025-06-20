@@ -20,14 +20,11 @@ void Simulator::run() {
     for (size_t i = 0; i < events_.size(); ++i) {
         const Event& event = events_[i];
 
-        environment_.handleEvent(state_, event);
+        std::vector<Event> handleEvents = environment_.handleEvent(state_, event);
         std::vector<Action> actions = dispatchPolicy_.getAction(state_);
         std::vector<Event> newEvents = environment_.takeActions(state_, actions);
 
-        if (newEvents.empty()) {
-            spdlog::debug("[Simulator] No new events generated from action: {}", actions[0].toString());
-            continue; // Skip to the next iteration if no new events
-        }
+        events_.insert(events_.end(), handleEvents.begin(), handleEvents.end());
         // Add new events to the end of the vector (you should only either add an incident with a later time, or a resolution/station event with the same current time)
         // This is important to avoid modifying the vector while iterating over it.
         events_.insert(events_.end(), newEvents.begin(), newEvents.end());
@@ -40,23 +37,6 @@ void Simulator::run() {
     // TODO: I probably just need the last state.
     // state_history_.push_back(state_);
     spdlog::debug("Number of events addressed: {}", state_.getActiveIncidents().size());
-}
-
-// TODO: Storing and saving activeIncidents may be expensive when there are many incidents.
-void Simulator::replay() {
-    spdlog::info("[Simulator] Replaying simulation...");
-    State state = state_history_.back();
-    std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
-    for (const auto& [id, incident] : activeIncidents) {
-        spdlog::info("Incident ID: {}, Reported: {}, Responded: {}, Resolved: {}, TravelTime: {}", 
-                     incident.incidentIndex, 
-                     formatTime(incident.reportTime), 
-                     formatTime(incident.timeRespondedTo), 
-                     formatTime(incident.resolvedTime),
-                     incident.oneWayTravelTimeTo);
-    }
-
-    spdlog::info("[Simulator] Replay complete.");
 }
 
 const std::vector<State>& Simulator::getStateHistory() const {

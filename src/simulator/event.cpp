@@ -25,9 +25,9 @@ void FireStationEvent::printInfo() const {
 }
 
 
-IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentIndex, const int& stationIndex)
-    : incidentIndex(incidentIndex), stationIndex(stationIndex) {}
+IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentIndex)
+    : incidentIndex(incidentIndex) {}
 
 void IncidentResolutionEvent::printInfo() const {
-    spdlog::debug("Incident Index: {}, Station Index: {}", incidentIndex, stationIndex);
+    spdlog::debug("Incident Index: {}", incidentIndex);
 }

@@ -37,9 +37,8 @@ public:
 class IncidentResolutionEvent : public EventData {
 public:
     int incidentIndex;
-    int stationIndex;
 
-    IncidentResolutionEvent(const int& incidentIndex, const int& stationIndex);
+    IncidentResolutionEvent(const int& incidentIndex);
     void printInfo() const override;
 };
 

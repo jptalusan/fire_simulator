@@ -32,9 +32,6 @@ public:
 
     // Function to compute the resolution time for a fire incident
     double computeResolutionTime(State& state, const Incident& incident) override;
-    double computeIndividualResolutionTime(const Incident& incident, double probability);
-    double computeIncidentResolutionProbability(const Incident& incident, time_t currentTime);
-
 private:
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;

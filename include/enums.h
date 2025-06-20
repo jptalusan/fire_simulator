@@ -6,7 +6,9 @@
 enum class EventType {
     Incident,
     IncidentResolution,
-    StationAction
+    ApparatusArrivalAtIncident,
+    ApparatusReturnToStation,
+    CheckIncident
 };
 
 enum class StationActionType {
@@ -22,12 +24,20 @@ enum class IncidentLevel {
     Critical
 };
 
+enum class IncidentStatus {
+    hasBeenReported,
+    hasBeenRespondedTo,
+    isBeingResolved,
+    hasBeenResolved
+};
+
 // to_string for EventType
 inline std::string to_string(EventType type) {
     switch (type) {
         case EventType::Incident: return "Incident";
         case EventType::IncidentResolution: return "IncidentResolution";
-        case EventType::StationAction: return "StationAction";
+        case EventType::ApparatusArrivalAtIncident: return "ApparatusArrivalAtIncident";
+        case EventType::ApparatusReturnToStation: return "ApparatusReturnToStation";
         default: return "Unknown";
     }
 }
@@ -53,4 +63,13 @@ inline std::string to_string(IncidentLevel level) {
     }
 }
 
+inline const char* to_string(IncidentStatus status) {
+    switch (status) {
+        case IncidentStatus::hasBeenRespondedTo:    return "hasBeenRespondedTo";
+        case IncidentStatus::hasBeenReported:       return "hasBeenReported";
+        case IncidentStatus::isBeingResolved:       return "isBeingResolved";
+        case IncidentStatus::hasBeenResolved:       return "hasBeenResolved";
+        default:                                    return "Invalid";
+    }
+}
 #endif // ENUMS_H

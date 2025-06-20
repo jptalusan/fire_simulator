@@ -23,11 +23,26 @@ std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
         Event e(EventType::Incident, incident.reportTime, inc_ptr);
         events.push_back(e);
     }
+
+    // HACK: Add a last event that is 1 day after the latest actual incident. will probably if the last real incident takes forever to solve.
+    // Otherwise, the simulator ends prematurely.
+    if (!incidents.empty()) {
+        auto last_incident = incidents.back();
+        last_incident.incident_id = last_incident.incident_id + 1; // Increment ID for the synthetic incident
+        last_incident.incidentIndex = last_incident.incidentIndex + 1; // Increment ID for the synthetic incident
+        last_incident.incident_level = IncidentLevel::Low;
+        auto inc_ptr = std::make_shared<Incident>(last_incident);
+        auto last_time = std::chrono::system_clock::from_time_t(last_incident.reportTime);
+        auto new_time = last_time + std::chrono::hours(2); // Add 24 hours (86400 seconds) to the last incident time
+        Event e(EventType::Incident, std::chrono::system_clock::to_time_t(new_time), inc_ptr);
+        events.push_back(e);
+    }
+
     return events;
 }
 
 void setupLogger(EnvLoader& env) {
-    std::string logs_path = env.get("LOGS_PATH", "../logs/basic-log.log");
+    std::string logs_path = env.get("LOGS_PATH", "../logs/output.log");
 
     try 
     {
@@ -37,7 +52,7 @@ void setupLogger(EnvLoader& env) {
         console_sink->set_level(spdlog::level::err);
         console_sink->set_pattern("[%^%l%$] %v");
 
-        file_sink->set_level(spdlog::level::debug);
+        file_sink->set_level(spdlog::level::info);
         file_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
 
         // Create a logger with both sinks
@@ -59,7 +74,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
     
     std::ofstream csv(report_path);
-    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,TravelTime,StationIndex,EngineCount\n";
+    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Status\n";
 
     // Copy incidents to a vector and sort by reportTime if desired
     // Can be expensive, but its already at the end of the run
@@ -73,7 +88,9 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             return a.reportTime < b.reportTime;
         });
 
-    for (const auto& incident : sortedIncidents) {
+    // HACK: Ignores the last incident generated above (see generateEvents function)
+    for (size_t i = 0; i < sortedIncidents.size() - 1; ++i) {
+        const auto& incident = sortedIncidents[i];
         if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
             spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
             continue; // Skip this incident
@@ -83,9 +100,8 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             << formatTime(incident.reportTime) << ","
             << formatTime(incident.timeRespondedTo) << ","
             << formatTime(incident.resolvedTime) << ","
-            << incident.oneWayTravelTimeTo << ","
-            << incident.stationIndex << ","
-            << incident.currentApparatusCount << "\n";
+            << incident.currentApparatusCount << ","
+            << to_string(incident.status) << "\n";
     }
     csv.close();
 
@@ -93,8 +109,9 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     std::string stationMetricHeader = "DispatchTime,StationID,StationIndex,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
     std::ofstream station_csv(station_report_path);
     station_csv << stationMetricHeader << "\n";
-    for (const auto& stationMetric : state.getStationMetrics()) {
-        station_csv << stationMetric << "\n";
+    // HACK: Ignore the last incident generated above (see generateEvents function)
+    for (size_t i = 0; i < state.getStationMetrics().size() - 1; ++i) {
+        station_csv << state.getStationMetrics()[i] << "\n";
     }
     station_csv.close();
 }
@@ -181,7 +198,7 @@ int main() {
     DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
                                                  env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
-    int seed = 1011;
+    int seed = std::stoi(env.get("RANDOM_SEED", "42"));
     FireModel* fireModel = new HardCodedFireModel(seed);
 
     EnvironmentModel environment_model(*fireModel);
