@@ -31,6 +31,11 @@ const std::vector<Station>& State::getAllStations() const {
 std::unordered_map<int, Incident>& State::getActiveIncidents() {
     return activeIncidents_;
 }
+
+const std::unordered_map<int, Incident>& State::getActiveIncidentsConst() const {
+    return activeIncidents_;
+}
+
 /*
 You are default-constructing a FireTruck
 (e.g., FireTruck truck; or std::unordered_map<int, FireTruck> fire_trucks_; 

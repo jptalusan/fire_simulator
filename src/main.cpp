@@ -13,6 +13,7 @@
 #include "utils/helpers.h"
 #include "services/chunks.h"
 #include "utils/error.h"
+#include "models/fire.h"
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
@@ -80,7 +81,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
         csv << incident.incidentIndex << ","
             << incident.incident_id << ","
             << formatTime(incident.reportTime) << ","
-            << formatTime(incident.responseTime) << ","
+            << formatTime(incident.timeRespondedTo) << ","
             << formatTime(incident.resolvedTime) << ","
             << incident.oneWayTravelTimeTo << ","
             << incident.stationIndex << ","
@@ -184,7 +185,10 @@ int main() {
     DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
                                                  env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
-    EnvironmentModel environment_model;
+    int seed = 1011;
+    FireModel* fireModel = new HardCodedFireModel(seed);
+
+    EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
 
@@ -194,5 +198,6 @@ int main() {
 
     writeReportToCSV(simulator.getCurrentState(), env);
     delete policy;
+    delete fireModel;
     return 0;
 }

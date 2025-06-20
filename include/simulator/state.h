@@ -27,6 +27,7 @@ public:
     std::unordered_map<int, Incident>& getActiveIncidents();
     void updateStationMetrics(const std::string& metric);
     std::vector<std::string> getStationMetrics() const;
+    const std::unordered_map<int, Incident>& getActiveIncidentsConst() const;
 
     // TODO: Improve this, ignored stations and incidents should be handled better
     std::vector<int> ignoredStations;

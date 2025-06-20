@@ -4,10 +4,11 @@
 #include "simulator/event.h"
 #include "simulator/state.h"
 #include "simulator/action.h"
+#include "models/fire.h"
 
 class EnvironmentModel {
 public:
-    EnvironmentModel() = default;
+    EnvironmentModel(FireModel& fireModel);
 
     // Handle an event and update state
     void handleEvent(State& state, const Event& event);
@@ -18,6 +19,9 @@ public:
     int calculateApparatusCount(const Incident& incident);
     double calculateResolutionTime(const Incident& incident);
     void handleIncident(State& state, Incident& incident, time_t eventTime);
+
+private:
+    FireModel& fireModel_;
 };
 
 #endif // ENVIRONMENT_MODEL_H

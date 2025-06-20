@@ -53,7 +53,7 @@ void Simulator::replay() {
         spdlog::info("Incident ID: {}, Reported: {}, Responded: {}, Resolved: {}, TravelTime: {}", 
                      incident.incidentIndex, 
                      formatTime(incident.reportTime), 
-                     formatTime(incident.responseTime), 
+                     formatTime(incident.timeRespondedTo), 
                      formatTime(incident.resolvedTime),
                      incident.oneWayTravelTimeTo);
     }

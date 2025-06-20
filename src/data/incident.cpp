@@ -14,7 +14,7 @@ Incident::Incident(int index, int id, double latitude, double longitude,
                    time_t time)
     : incidentIndex(index), incident_id(id), lat(latitude), lon(longitude),
       incident_type(type), incident_level(level), reportTime(time) {
-        responseTime = std::time(nullptr);
+        timeRespondedTo = std::time(nullptr);
         resolvedTime = std::time(nullptr);
         oneWayTravelTimeTo = -1.0;
         currentApparatusCount = 0;

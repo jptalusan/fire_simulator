@@ -4,8 +4,10 @@
 #include "data/incident.h"
 #include "simulator/event.h"
 #include "utils/constants.h"
-#include "utils/error.h"
 #include "utils/helpers.h"
+
+EnvironmentModel::EnvironmentModel(FireModel& fireModel)
+    : fireModel_(fireModel) {}
 
 // TODO: This needs models for computing travel times, resolution times etc... (during take action).
 void EnvironmentModel::handleEvent(State& state, const Event& event) {
@@ -70,7 +72,7 @@ void EnvironmentModel::handleEvent(State& state, const Event& event) {
             break;
         }
     }
-
+    
     state.advanceTime(event.event_time); // Update system time in state
 }
 
@@ -140,13 +142,20 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     // TODO: can put this in a single updateIncident function
     // If at least one engine has been dispatched, start resolve countdown.
     if (totalApparatusDispatched > 0) {
-        incident.responseTime = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
+        incident.timeRespondedTo = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
         incident.hasBeenRespondedTo = true; // Mark the incident as responded to
         incident.stationIndex = stationIndex; // Set the station index that responded to the incident
         incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
         incident.oneWayTravelTimeTo = travelTime; // Set the travel time to the incident
         // Remove the incident if it has been fully addressed
         // TODO: For now we start resolution event even if the incident is not fully addressed.
+        /*
+        What we can do is compute a probability of resolving the incident based on the number of engines dispatched,
+        the incident level, and the time since it was reported. If the probability is high enough, we can generate a resolution event.
+        If the incident is not resolved, we can keep it in the queue for further processing.
+        This way, we can simulate the resolution of incidents based on the actions taken by the fire stations and the resources available.
+        This is a placeholder for the logic that generates a resolution event for the incident.
+        */
         time_t resolutionTime = generateIncidentResolutionEvent(state, incident, newEvents); // Generate a resolution event for the incident
         double timeLeft = resolutionTime - state.getSystemTime(); // Calculate the time left for the incident to be resolved
         spdlog::debug("[{}] Inserting incident resolution event for {} in {:.2f} min.", formatTime(state.getSystemTime()), incident.incidentIndex, timeLeft / constants::SECONDS_IN_MINUTE);
@@ -154,6 +163,11 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
         generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
 
         // TODO: This requires that we have enough engines for the incident with the max required apparatus count.
+        /* 
+        We can also just put the incident into the activeIncidents without popping from incidentQueue.
+        This might trigger another dispatch event and action with resolution. 
+        We just need to update existing resolution event with the new time (if it exists).
+        */
         if (incident.currentApparatusCount >= incident.totalApparatusRequired) {
             state.getIncidentQueue().pop();
             state.getActiveIncidents().insert({incident.incidentIndex, incident});
