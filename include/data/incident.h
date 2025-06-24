@@ -24,6 +24,7 @@ public:
     int currentApparatusCount;
     IncidentStatus status;
     std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
+    std::string zone;
 
     Incident(int index, int id, double latitude, double longitude,
              const std::string& type, IncidentLevel level,
@@ -40,7 +41,8 @@ public:
           resolvedTime(std::time(nullptr)),
           totalApparatusRequired(0),
           currentApparatusCount(0),
-          status(IncidentStatus::hasBeenReported)
+          status(IncidentStatus::hasBeenReported),
+          zone(nullptr)
     {}
 
     void printInfo() const override;

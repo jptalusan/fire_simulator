@@ -19,11 +19,16 @@ Incident::Incident(int index, int id, double latitude, double longitude,
         currentApparatusCount = 0;
         totalApparatusRequired = 0; // This can be set later based on the
         status = IncidentStatus::hasBeenReported; // Initially, the incident is not resolved
+        zone = "";
       }
 
 void Incident::printInfo() const {
     spdlog::error("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
                 incidentIndex, incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
+}
+
+Location Incident::getLocation() const {
+    return Location(lat, lon);
 }
 
 std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
@@ -48,6 +53,7 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
     int index = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
+        ss.precision(6); // Set precision for floating-point numbers
         std::string token;
 
         int id;
@@ -112,8 +118,4 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
     spdlog::info("Loaded {} incidents from CSV file.", incidents.size());
     spdlog::warn("Ignored {} incidents that are out of bounds.", ignoredCount);
     return incidents;
-}
-
-Location Incident::getLocation() const {
-    return Location(lat, lon);
 }

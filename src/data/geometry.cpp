@@ -76,3 +76,115 @@ std::vector<Location> loadPolygonFromGeoJSON(const std::string& filename)
     }
     return polygon;
 }
+
+std::vector<std::optional<size_t>> getPointToPolygonIndices(
+    const std::vector<Point>& points,
+    const std::vector<Polygon>& polygons
+) {
+    // Build R-tree from bounding boxes
+    std::vector<RTreeEntry> index_data;
+    for (size_t i = 0; i < polygons.size(); ++i) {
+        bg::model::box<Point> box;
+        bg::envelope(polygons[i], box);
+        index_data.emplace_back(box, i);
+    }
+
+    bgi::rtree<RTreeEntry, bgi::quadratic<16>> rtree(index_data.begin(), index_data.end());
+
+    std::vector<std::optional<size_t>> result;
+    result.reserve(points.size());
+
+    for (const auto& pt : points) {
+        std::vector<RTreeEntry> candidates;
+        rtree.query(bgi::intersects(pt), std::back_inserter(candidates));  // changed here
+
+        std::optional<size_t> containing_polygon = std::nullopt;
+
+        for (const auto& [box, idx] : candidates) {
+            if (bg::covered_by(pt, polygons[idx])) {  // or use covered_by if you want boundary inclusive
+                containing_polygon = idx;
+                break;
+            }
+        }
+
+        result.push_back(containing_polygon);
+    }
+    return result;
+}
+
+std::vector<std::pair<std::string, Polygon>>  loadBoostPolygonsFromGeoJSON(const std::string& filename) {
+    std::ifstream file(filename);
+    nlohmann::json j;
+    file >> j;
+
+    std::vector<std::pair<std::string, Polygon>> polygons;
+
+    if (j["type"] != "FeatureCollection") {
+        throw std::runtime_error("Only FeatureCollection GeoJSON supported");
+    }
+
+    for (const auto& feature : j["features"]) {
+        if (feature["geometry"]["type"] == "Polygon") {
+            Polygon poly;
+            std::string name = feature["properties"]["NAME"];
+
+            for (const auto& ring : feature["geometry"]["coordinates"]) {
+                std::vector<Point> points;
+                for (const auto& coord : ring) {
+                    double lon = coord[0];
+                    double lat = coord[1];
+                    points.emplace_back(lon, lat);
+                }
+                // The first ring is the outer ring
+                if (&ring == &feature["geometry"]["coordinates"][0]) {
+                    bg::append(poly.outer(), points);
+                } else {
+                    poly.inners().emplace_back();
+                    bg::append(poly.inners().back(), points);
+                }
+            }
+            bg::correct(poly);
+
+            if (!bg::is_valid(poly)) {
+                std::string reason;
+                bg::validity_failure_type failure;
+                bg::is_valid(poly, failure);
+                    std::cerr << "Polygon from MultiPolygon '" << name << "' is invalid poly!\n";
+            }
+            polygons.push_back({name, poly});
+        } 
+        else if (feature["geometry"]["type"] == "MultiPolygon") {
+            std::string name = feature["properties"]["NAME"];
+
+            for (const auto& polygon_coords : feature["geometry"]["coordinates"]) {
+                Polygon poly;
+
+                for (size_t r = 0; r < polygon_coords.size(); ++r) {
+                    const auto& ring = polygon_coords[r];
+                    std::vector<Point> points;
+                    for (const auto& coord : ring) {
+                        double lon = coord[0];
+                        double lat = coord[1];
+                        points.emplace_back(lon, lat);
+                    }
+
+                    if (r == 0) {
+                        bg::append(poly.outer(), points);
+                    } else {
+                        poly.inners().emplace_back();
+                        bg::append(poly.inners().back(), points);
+                    }
+                }
+                bg::correct(poly);
+
+                if (!bg::is_valid(poly)) {
+                    std::cerr << "Polygon from MultiPolygon '" << name << "' is invalid multipoly!\n";
+                }
+                bg::correct(poly);
+                polygons.push_back({name, poly}); // You might want to rename with suffix
+            }
+        }
+    }
+
+    return polygons;
+}

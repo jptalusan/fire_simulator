@@ -14,6 +14,8 @@
 #include "services/chunks.h"
 #include "utils/error.h"
 #include "models/fire.h"
+#include "utils/util.h"
+#include "data/geometry.h"
 
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
@@ -78,7 +80,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
     
     std::ofstream csv(report_path);
-    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Status\n";
+    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Zone,Status\n";
 
     // Copy incidents to a vector and sort by reportTime if desired
     // Can be expensive, but its already at the end of the run
@@ -99,12 +101,16 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
             continue; // Skip this incident
         }
+        csv << std::fixed << std::setprecision(6);
         csv << incident.incidentIndex << ","
             << incident.incident_id << ","
             << formatTime(incident.reportTime) << ","
             << formatTime(incident.timeRespondedTo) << ","
             << formatTime(incident.resolvedTime) << ","
             << incident.currentApparatusCount << ","
+            // << incident.lat << ","
+            // << incident.lon << ","
+            << incident.zone << ","
             << to_string(incident.status) << "\n";
     }
     csv.close();
@@ -142,6 +148,32 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
 
     stations = loadStationsFromCSV(stations_path);
     incidents = loadIncidentsFromCSV(incidents_path);
+    
+    // START Adding zones per incident (maybe costly?)
+    std::vector<std::pair<std::string, Polygon>> polygons_with_names = loadBoostPolygonsFromGeoJSON("../data/beats_shpfile.geojson");
+    std::vector<Polygon> polygons;
+    polygons.reserve(polygons_with_names.size());
+    for (const auto& pair : polygons_with_names) {
+        polygons.push_back(pair.second);
+    }
+    std::vector<Point> points;
+    for (auto& incident : incidents) {
+        points.push_back(Point(incident.lon, incident.lat));
+    }
+    auto results = getPointToPolygonIndices(points, polygons);
+    int notThere = 0;
+    for (size_t i = 0; i < results.size(); ++i) {
+        if (results[i]) {
+            std::string zone = polygons_with_names.at(*results[i]).first;
+            incidents.at(i).zone = zone;
+        } else {
+            notThere++;
+        }
+    }
+    spdlog::error("There are {} incidents that are not in any polygon.", notThere);
+    spdlog::error("There are {} incidents in polygon.", results.size() - notThere);
+    // END Adding zones per incident (maybe costly?)
+
     std::vector<Location> sources;
     sources.reserve(stations.size());  // Preallocate memory for efficiency
     for (const auto& station : stations) {

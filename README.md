@@ -28,11 +28,12 @@ brew install curl
 brew install googletest
 brew install nlohmann-json
 brew install spdlog
+brew install boost
 xcode-select --install
 
 # For unix
 sudo apt update
-sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb
+sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb libboost-all-dev
 sudo apt install nlohmann-json3-dev libspdlog-dev
 ```
 
@@ -85,3 +86,8 @@ make clean
 ## Development
 Don't forget to create test cases. Place them inside `test/` and run `./test_simulator` after make.
 > `gdb` does not work on `arm`-based macOS devices right now. Use Linux to build and debug code.
+
+### Dispatch Policies
+
+* Nearest
+* FireBeats
