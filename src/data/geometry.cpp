@@ -112,7 +112,7 @@ std::vector<std::optional<size_t>> getPointToPolygonIndices(
     return result;
 }
 
-std::vector<std::pair<std::string, Polygon>>  loadBoostPolygonsFromGeoJSON(const std::string& filename) {
+std::vector<std::pair<std::string, Polygon>>  loadServiceZonesFromGeojson(const std::string& filename) {
     std::ifstream file(filename);
     nlohmann::json j;
     file >> j;
@@ -126,7 +126,14 @@ std::vector<std::pair<std::string, Polygon>>  loadBoostPolygonsFromGeoJSON(const
     for (const auto& feature : j["features"]) {
         if (feature["geometry"]["type"] == "Polygon") {
             Polygon poly;
-            std::string name = feature["properties"]["NAME"];
+            std::string name;
+            if (feature["properties"].contains("NAME")) {
+                name = feature["properties"]["NAME"];
+            } else if (feature["properties"].contains("name")) {
+                name = feature["properties"]["name"];
+            } else {
+                throw std::runtime_error("Geojson feature is missing 'NAME' or 'name' property.");
+            }
 
             for (const auto& ring : feature["geometry"]["coordinates"]) {
                 std::vector<Point> points;
@@ -152,37 +159,8 @@ std::vector<std::pair<std::string, Polygon>>  loadBoostPolygonsFromGeoJSON(const
                     std::cerr << "Polygon from MultiPolygon '" << name << "' is invalid poly!\n";
             }
             polygons.push_back({name, poly});
-        } 
-        else if (feature["geometry"]["type"] == "MultiPolygon") {
-            std::string name = feature["properties"]["NAME"];
-
-            for (const auto& polygon_coords : feature["geometry"]["coordinates"]) {
-                Polygon poly;
-
-                for (size_t r = 0; r < polygon_coords.size(); ++r) {
-                    const auto& ring = polygon_coords[r];
-                    std::vector<Point> points;
-                    for (const auto& coord : ring) {
-                        double lon = coord[0];
-                        double lat = coord[1];
-                        points.emplace_back(lon, lat);
-                    }
-
-                    if (r == 0) {
-                        bg::append(poly.outer(), points);
-                    } else {
-                        poly.inners().emplace_back();
-                        bg::append(poly.inners().back(), points);
-                    }
-                }
-                bg::correct(poly);
-
-                if (!bg::is_valid(poly)) {
-                    std::cerr << "Polygon from MultiPolygon '" << name << "' is invalid multipoly!\n";
-                }
-                bg::correct(poly);
-                polygons.push_back({name, poly}); // You might want to rename with suffix
-            }
+        } else if (feature["geometry"]["type"] == "MultiPolygon") {
+            throw std::runtime_error("Geojson for zones should only have Polygons, not multipolygons.");
         }
     }
 

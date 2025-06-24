@@ -49,6 +49,10 @@ const std::unordered_map<int, FireTruck>& State::getAllFireTrucks() const {
 }
 
 void State::addStations(std::vector<Station> stations) {
+    // TODO: Clean this up, unnecessary loops maybe?
+    for (const auto& station : stations) {
+        stationIndexMap_.emplace(station.getFacilityName(), station.getStationIndex());
+    }
     stations_ = std::move(stations);
 }
 

@@ -161,7 +161,6 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(2);
                 oss << formatTime(incident.timeRespondedTo) << ",";
-                oss << station.getStationId() << ",";
                 oss << station.getStationIndex() << ",";
                 oss << numberOfFireTrucksToDispatch << ",";
                 oss << (station.getNumFireTrucks()) << ",";

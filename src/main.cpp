@@ -5,6 +5,7 @@
 #include "services/queries.h"
 #include "simulator/simulator.h"
 #include "policy/nearest_dispatch.h"
+#include "policy/firebeats_dispatch.h"
 #ifdef HAVE_SPDLOG_STOPWATCH
 #include "spdlog/stopwatch.h"
 #endif
@@ -51,7 +52,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::err);
+        console_sink->set_level(spdlog::level::info);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::info);
@@ -116,7 +117,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     csv.close();
 
     // Writing station report
-    std::string stationMetricHeader = "DispatchTime,StationID,StationIndex,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
+    std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
     std::ofstream station_csv(station_report_path);
     station_csv << stationMetricHeader << "\n";
     // HACK: Ignore the last incident generated above (see generateEvents function)
@@ -137,6 +138,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     std::string matrix_csv_path = env.get("MATRIX_CSV_PATH", "../logs/matrix.csv");
     std::string distance_matrix_path = env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin");
     std::string duration_matrix_path = env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin");
+    std::string beats_shapefile_path = env.get("BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson");
     std::string osrmUrl_ = env.get("BASE_OSRM_URL", "http://router.project-osrm.org");
 
     if (checkOSRM(osrmUrl_)) {
@@ -150,7 +152,7 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     incidents = loadIncidentsFromCSV(incidents_path);
     
     // START Adding zones per incident (maybe costly?)
-    std::vector<std::pair<std::string, Polygon>> polygons_with_names = loadBoostPolygonsFromGeoJSON("../data/beats_shpfile.geojson");
+    std::vector<std::pair<std::string, Polygon>> polygons_with_names = loadServiceZonesFromGeojson(beats_shapefile_path);
     std::vector<Polygon> polygons;
     polygons.reserve(polygons_with_names.size());
     for (const auto& pair : polygons_with_names) {
@@ -170,8 +172,8 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
             notThere++;
         }
     }
-    spdlog::error("There are {} incidents that are not in any polygon.", notThere);
-    spdlog::error("There are {} incidents in polygon.", results.size() - notThere);
+    spdlog::error("There are {} incidents that are not in any service zone.", notThere);
+    spdlog::error("There are {} incidents in service zones.", results.size() - notThere);
     // END Adding zones per incident (maybe costly?)
 
     std::vector<Location> sources;
@@ -231,8 +233,14 @@ int main() {
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
 
-    DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-                                                 env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+    //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+
+    DispatchPolicy* policy = new FireBeatsDispatch(
+        env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+        env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+        env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin")
+    );
 
     int seed = std::stoi(env.get("RANDOM_SEED", "42"));
     FireModel* fireModel = new HardCodedFireModel(seed);
