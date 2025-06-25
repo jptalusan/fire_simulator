@@ -11,8 +11,9 @@
 // Check the preprocess notebook for a list of beats that I have no idea what they mean (DSOP,BAR,HQ, etc.)
 FireBeatsDispatch::FireBeatsDispatch(const std::string& distanceMatrixPath, 
                                      const std::string& durationMatrixPath,
-                                     const std::string& fireBeatsMatrixPath)
-    : queries_(), distanceMatrix_(nullptr), durationMatrix_(nullptr) {
+                                     const std::string& fireBeatsMatrixPath,
+                                     const std::string& zoneIDToNameMapPath)
+    : queries_(), distanceMatrix_(nullptr), durationMatrix_(nullptr), fireBeatsMatrix_(nullptr) {
         // Validate the URL
         std::ifstream file(distanceMatrixPath);
         if (file) {
@@ -31,61 +32,46 @@ FireBeatsDispatch::FireBeatsDispatch(const std::string& distanceMatrixPath,
             spdlog::error("FireBeats matrix file not found: {}", fireBeatsMatrixPath);
             throw std::runtime_error("FireBeats matrix file not found: " + fireBeatsMatrixPath);
         }
+
+        beatsIndexToNameMap_ = readZoneIndexToNameMapCSV(zoneIDToNameMapPath);
     }
 
 FireBeatsDispatch::~FireBeatsDispatch() {
     delete[] durationMatrix_; // Clean up the matrix if it was allocated
     delete[] distanceMatrix_; // Clean up the matrix if it was allocated
+    delete[] fireBeatsMatrix_; // Clean up the fire beats data if it was allocated
     spdlog::info("FireBeatsDispatch policy destroyed.");
 }
 
 // Relies on the preprocessed bin, if its not correct then the key suddenly has the string "Station" that means it failed.
-std::unordered_map<std::string, std::vector<std::string>> FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, int& width) const {
-
+int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, int& width) const {
+    // Open the file for reading
     std::ifstream in(filename, std::ios::binary);
     if (!in) {
         std::cerr << "Failed to open file for reading: " << filename << "\n";
-        return {};
+        return nullptr;
     }
 
     in.read(reinterpret_cast<char*>(&width), sizeof(int));
     in.read(reinterpret_cast<char*>(&height), sizeof(int));
+    std::cout << "FireBeats matrix width: " << width << ", height: " << height << std::endl;
+    if (width <= 0 || height <= 0 || width > 10000 || height > 10000) {
+        std::cerr << "Invalid matrix dimensions!" << std::endl;
+        return nullptr;
+}
 
-    std::unordered_map<std::string, std::vector<std::string>> result;
-
-    for (int row = 0; row < height; ++row) {
-        std::string key;
-        std::vector<std::string> values;
-
-        for (int col = 0; col < width; ++col) {
-            int len = 0;
-            in.read(reinterpret_cast<char*>(&len), sizeof(int));
-
-            if (len <= 0) {
-                std::cerr << "Invalid string length at row " << row << ", col " << col << "\n";
-                continue;
-            }
-
-            std::string str(len, '\0');
-            in.read(&str[0], len);
-
-            if (col == 0) {
-                if (str.find("Station") != std::string::npos) {
-                    spdlog::error("Key contains 'Station', indicating a potential error in the FireBeats matrix.");
-                    throw std::runtime_error("Invalid key found in FireBeats matrix: " + str);
-                }
-                key = std::move(str);
-
-            } else {
-                values.push_back(std::move(str));
-            }
-        }
-
-        result[key] = std::move(values);
+    // Allocate memory for the fire beats data
+    int* fireBeatsData = new int[width * height];
+    if (!fireBeatsData) {
+        std::cerr << "Failed to allocate memory for fire beats data.\n";
+        return nullptr;
     }
 
+    // Read the fire beats data from the file
+    in.read(reinterpret_cast<char*>(fireBeatsData), sizeof(int) * width * height);
+
     in.close();
-    return result;
+    return fireBeatsData;
 }
 
  /**
@@ -136,24 +122,9 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
     
     Action dispatchAction = Action(StationActionType::DoNothing);
-
-    std::string zone = i->zone.empty() ? "Unknown" : i->zone;
-    std::vector<std::string> beats = fireBeatsMatrix_.count(zone) > 0 ? fireBeatsMatrix_[zone] : std::vector<std::string>{};
-    
-    std::vector<int> beatIndices;
-    beatIndices.reserve(beats.size());
-
-    for (const auto& key : beats) {
-        auto it = state.stationIndexMap_.find(key);
-        if (it != state.stationIndexMap_.end()) {
-            beatIndices.push_back(it->second);
-        } else {
-            // Optional: handle missing key (e.g. push_back a default or error code)
-            if (key != "None") {
-                spdlog::error("Key not found: {}", key);
-            }
-        }
-    }
+    int zoneIndex = i->zoneIndex;
+    std::vector<int> beatStationIndices = getColumn(fireBeatsMatrix_, fireBeatsWidth_, fireBeatsHeight_, zoneIndex);
+    // std::vector<int> beatStationIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; // Placeholder for actual beat station indices
 
     int totalApparatusRequired = i->totalApparatusRequired - i->currentApparatusCount;
 
@@ -163,7 +134,11 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     actions.reserve(totalApparatusRequired);
 
     int totalApparatusDispatched = 0;
-    for (const auto& index : beatIndices) {
+    for (const auto& index : beatStationIndices) {
+        if (index < 0 || index >= static_cast<int>(validStations.size())) {
+            spdlog::warn("Skipping invalid station index {} in beatStationIndices.", index);
+            continue;
+        }
         if (totalApparatusDispatched == totalApparatusRequired)
             break;
 
@@ -251,4 +226,43 @@ std::vector<double> FireBeatsDispatch::getColumn(double* matrix, int width, int 
     }
 
     return column;
+}
+
+std::vector<int> FireBeatsDispatch::getColumn(int* matrix, int width, int height, int col_index) const {
+    std::vector<int> column;
+    column.reserve(height); // optional: preallocate memory for performance
+    for (int row = 0; row < height; ++row) {
+        column.push_back(matrix[row * width + col_index]);
+    }
+    return column;
+}
+
+std::unordered_map<int, std::string> FireBeatsDispatch::readZoneIndexToNameMapCSV(const std::string& filename) const {
+    std::unordered_map<int, std::string> zoneMap;
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filename << "\n";
+        return zoneMap;
+    }
+
+    std::string line;
+    // Skip the header
+    std::getline(file, line);
+
+    while (std::getline(file, line)) {
+        std::istringstream ss(line);
+        std::string token;
+
+        // Read ZoneID
+        std::getline(ss, token, ',');
+        int zoneID = std::stoi(token);
+
+        // Read Zone Name
+        std::getline(ss, token);
+        std::string zoneName = token;
+
+        zoneMap[zoneID] = zoneName;
+    }
+
+    return zoneMap;
 }

@@ -52,7 +52,7 @@ void setupLogger(EnvLoader& env) {
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logs_path, true);
 
-        console_sink->set_level(spdlog::level::info);
+        console_sink->set_level(spdlog::level::err);
         console_sink->set_pattern("[%^%l%$] %v");
 
         file_sink->set_level(spdlog::level::info);
@@ -111,7 +111,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             << incident.currentApparatusCount << ","
             // << incident.lat << ","
             // << incident.lon << ","
-            << incident.zone << ","
+            << incident.zoneIndex << ","
             << to_string(incident.status) << "\n";
     }
     csv.close();
@@ -152,10 +152,10 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     incidents = loadIncidentsFromCSV(incidents_path);
     
     // START Adding zones per incident (maybe costly?)
-    std::vector<std::pair<std::string, Polygon>> polygons_with_names = loadServiceZonesFromGeojson(beats_shapefile_path);
+    std::vector<std::pair<int, Polygon>> polygonWithZoneID = loadServiceZonesFromGeojson(beats_shapefile_path);
     std::vector<Polygon> polygons;
-    polygons.reserve(polygons_with_names.size());
-    for (const auto& pair : polygons_with_names) {
+    polygons.reserve(polygonWithZoneID.size());
+    for (const auto& pair : polygonWithZoneID) {
         polygons.push_back(pair.second);
     }
     std::vector<Point> points;
@@ -166,9 +166,9 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     int notThere = 0;
     for (size_t i = 0; i < results.size(); ++i) {
         if (results[i]) {
-            std::string zone = polygons_with_names.at(*results[i]).first;
-            incidents.at(i).zone = zone;
-        } else {
+            int zoneIndex = polygonWithZoneID.at(*results[i]).first;
+            incidents.at(i).zoneIndex = zoneIndex;
+        } else {    
             notThere++;
         }
     }
@@ -239,7 +239,8 @@ int main() {
     DispatchPolicy* policy = new FireBeatsDispatch(
         env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
         env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-        env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin")
+        env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+        env.get("ZONE_MAP_PATH", "../data/zones.csv")
     );
 
     int seed = std::stoi(env.get("RANDOM_SEED", "42"));

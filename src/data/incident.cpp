@@ -19,7 +19,7 @@ Incident::Incident(int index, int id, double latitude, double longitude,
         currentApparatusCount = 0;
         totalApparatusRequired = 0; // This can be set later based on the
         status = IncidentStatus::hasBeenReported; // Initially, the incident is not resolved
-        zone = "";
+        zoneIndex = -1;
       }
 
 void Incident::printInfo() const {

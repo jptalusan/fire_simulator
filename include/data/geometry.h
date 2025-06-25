@@ -20,5 +20,5 @@ std::vector<std::optional<size_t>> getPointToPolygonIndices(
     const std::vector<Point>& points,
     const std::vector<Polygon>& polygons
 );
-std::vector<std::pair<std::string, Polygon>> loadServiceZonesFromGeojson(const std::string& filename);
+std::vector<std::pair<int, Polygon>> loadServiceZonesFromGeojson(const std::string& filename);
 #endif // GEOMETRY_H

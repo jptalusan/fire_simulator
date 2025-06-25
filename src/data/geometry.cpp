@@ -112,12 +112,12 @@ std::vector<std::optional<size_t>> getPointToPolygonIndices(
     return result;
 }
 
-std::vector<std::pair<std::string, Polygon>>  loadServiceZonesFromGeojson(const std::string& filename) {
+std::vector<std::pair<int, Polygon>>  loadServiceZonesFromGeojson(const std::string& filename) {
     std::ifstream file(filename);
     nlohmann::json j;
     file >> j;
 
-    std::vector<std::pair<std::string, Polygon>> polygons;
+    std::vector<std::pair<int, Polygon>> polygons;
 
     if (j["type"] != "FeatureCollection") {
         throw std::runtime_error("Only FeatureCollection GeoJSON supported");
@@ -126,13 +126,14 @@ std::vector<std::pair<std::string, Polygon>>  loadServiceZonesFromGeojson(const 
     for (const auto& feature : j["features"]) {
         if (feature["geometry"]["type"] == "Polygon") {
             Polygon poly;
-            std::string name;
-            if (feature["properties"].contains("NAME")) {
-                name = feature["properties"]["NAME"];
-            } else if (feature["properties"].contains("name")) {
-                name = feature["properties"]["name"];
+            int zoneIndex = -1;
+            if (feature["properties"].contains("ZONE_ID")) {
+                zoneIndex = feature["properties"]["ZONE_ID"];
             } else {
-                throw std::runtime_error("Geojson feature is missing 'NAME' or 'name' property.");
+                throw std::runtime_error("Geojson feature is missing 'ZONE_ID' property.");
+            }
+            if (zoneIndex < 0) {
+                throw std::runtime_error("Geojson feature has invalid 'ZONE_ID' property.");
             }
 
             for (const auto& ring : feature["geometry"]["coordinates"]) {
@@ -156,9 +157,9 @@ std::vector<std::pair<std::string, Polygon>>  loadServiceZonesFromGeojson(const 
                 std::string reason;
                 bg::validity_failure_type failure;
                 bg::is_valid(poly, failure);
-                    std::cerr << "Polygon from MultiPolygon '" << name << "' is invalid poly!\n";
+                    std::cerr << "Polygon from MultiPolygon '" << zoneIndex << "' is invalid poly!\n";
             }
-            polygons.push_back({name, poly});
+            polygons.push_back({zoneIndex, poly});
         } else if (feature["geometry"]["type"] == "MultiPolygon") {
             throw std::runtime_error("Geojson for zones should only have Polygons, not multipolygons.");
         }

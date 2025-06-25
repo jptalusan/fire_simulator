@@ -10,7 +10,8 @@ class FireBeatsDispatch : public DispatchPolicy {
 public:
     FireBeatsDispatch(const std::string& distanceMatrixPath="", 
                       const std::string& durationMatrixPath="",
-                      const std::string& fireBeatsMatrixPath="");
+                      const std::string& fireBeatsMatrixPath="",
+                      const std::string& zoneIDToNameMapPath="");
 
     std::vector<Action> getAction(const State& state) override;
 
@@ -26,15 +27,18 @@ private:
     int height_;
     // FireBeats matrix
     std::string fireBeatsMatrixPath_;
-    std::unordered_map<std::string, std::vector<std::string>> fireBeatsMatrix_;
+    int* fireBeatsMatrix_;
     int fireBeatsWidth_;
     int fireBeatsHeight_;
+    std::unordered_map<int, std::string> beatsIndexToNameMap_;
 
     // Helper function to extract incident from the event
     int findMinIndex(const std::vector<double>& durations);
     std::vector<int> getSortedIndicesByDuration(const std::vector<double>& durations);
     std::vector<double> getColumn(double* matrix, int width, int height, int col_index) const;
-    std::unordered_map<std::string, std::vector<std::string>> getFireBeats(const std::string& filename, int& height, int& width) const;
+    std::vector<int> getColumn(int* matrix, int width, int height, int col_index) const;
+    int* getFireBeats(const std::string& filename, int& height, int& width) const;
+    std::unordered_map<int, std::string> readZoneIndexToNameMapCSV(const std::string& filename) const;
 };
 
 #endif // FIREBEATS_DISPATCH_H
