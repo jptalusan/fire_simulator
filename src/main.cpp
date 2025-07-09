@@ -21,9 +21,11 @@
 std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> events;
     events.reserve(incidents.size());  // Preallocate memory for efficiency
-    for (const auto& incident : incidents) {
+    int eventId = 0;
+    for (size_t i = 0; i < incidents.size(); ++i) {
+        const auto& incident = incidents[i];
         auto inc_ptr = std::make_shared<Incident>(incident);
-        Event e(EventType::Incident, incident.reportTime, inc_ptr);
+        Event e(EventType::Incident, incident.reportTime, inc_ptr, eventId++);
         events.push_back(e);
     }
 
@@ -106,8 +108,8 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
     std::ofstream station_csv(station_report_path);
     station_csv << stationMetricHeader << "\n";
-    // HACK: Ignore the last incident generated above (see generateEvents function)
-    for (size_t i = 0; i < state.getStationMetrics().size() - 1; ++i) {
+    
+    for (size_t i = 0; i < state.getStationMetrics().size(); ++i) {
         station_csv << state.getStationMetrics()[i] << "\n";
     }
     station_csv.close();
@@ -218,6 +220,7 @@ int main() {
     State initial_state;
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
+    initial_state.setLastEventId(events.back().eventId); // Set the last event ID
 
     DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
                                                  env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));

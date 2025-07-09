@@ -114,7 +114,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     // std::vector<int> beatStationIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; // Placeholder for actual beat station indices
 
     int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
-
+    time_t incidentResolutionTime = i.resolvedTime;
     std::vector<Station> validStations = state.getAllStations();
 
     std::vector<Action> actions;
@@ -131,6 +131,16 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
 
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
         if (numberOfFireTrucks > 0) {
+            time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
+            if (timeToReach >= incidentResolutionTime) {
+                // If the time to reach the incident is less than the resolution time, skip this station
+                spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
+                    formatTime(state.getSystemTime()), 
+                    validStations[index].getAddress(), 
+                    incidentIndex, 
+                    durations[index]);
+                continue;
+            }
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
             int usedApparatusCount = 0;
             dispatchAction = Action(StationActionType::Dispatch, {

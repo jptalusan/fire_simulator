@@ -69,6 +69,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     }
 
     int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
+    time_t incidentResolutionTime = i.resolvedTime;
 
     std::vector<Station> validStations = state.getAllStations();
 
@@ -83,6 +84,16 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
         if (numberOfFireTrucks > 0) {
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
+            time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
+            if (timeToReach >= incidentResolutionTime) {
+                // If the time to reach the incident is less than the resolution time, skip this station
+                spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
+                    formatTime(state.getSystemTime()), 
+                    validStations[index].getAddress(), 
+                    incidentIndex, 
+                    durations[index]);
+                continue;
+            }
             int usedApparatusCount = 0;
             dispatchAction = Action(StationActionType::Dispatch, {
                 {constants::STATION_INDEX, std::to_string(index)},

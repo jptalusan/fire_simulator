@@ -4,8 +4,8 @@
 #include "enums.h"
 #include "simulator/event.h"
 
-Event::Event(EventType type, time_t time, std::shared_ptr<EventData> data)
-    : event_type(type), event_time(time), payload(std::move(data)) {}
+Event::Event(EventType type, time_t time, std::shared_ptr<EventData> data, int id)
+    : event_type(type), event_time(time), payload(std::move(data)), eventId(id) {}
 
 void Event::print() const {
     spdlog::debug("Event Type: {}, Time: {}", static_cast<int>(event_type), event_time);
@@ -30,4 +30,10 @@ IncidentResolutionEvent::IncidentResolutionEvent(const int& incidentIndex)
 
 void IncidentResolutionEvent::printInfo() const {
     spdlog::debug("Incident Index: {}", incidentIndex);
+}
+
+// TODO: need to add an event id to all events.
+void Event::updateEventTime(int id, time_t time) {
+
+    return;
 }

@@ -33,6 +33,9 @@ public:
     std::unordered_set<int> resolvingIncidentIndex_; // Maps station index to incident index being resolved
     std::unordered_map<int, Incident> doneIncidents_;
     std::unordered_map<std::string, int> stationIndexMap_; // Maps station address to index
+
+    int getLastEventId() const;
+    void setLastEventId(int id);
     
 private:
     std::time_t system_time_;
@@ -40,6 +43,7 @@ private:
     std::unordered_map<int, FireTruck> fire_trucks_;
     std::unordered_map<int, Incident> activeIncidents_;
     std::vector<std::string> stationMetrics_;
+    int lastEventId = 0; // Used to generate unique event IDs
 };
 
 #endif // STATE_H

@@ -145,9 +145,12 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 incident.status = IncidentStatus::hasBeenRespondedTo; // Update the status of the incident to dispatched
 
                 double incidentResolutionTime = fireModel_.computeResolutionTime(state, incident);
+                time_t timeToResolveIncident = state.getSystemTime() + static_cast<time_t>(incidentResolutionTime) + constants::RESPOND_DELAY_SECONDS;
+                incident.resolvedTime = timeToResolveIncident; // Set the resolved time for the incident
                 IncidentResolutionEvent resolutionEvent(incident.incidentIndex);
-                newEvents.push_back(Event(EventType::IncidentResolution, state.getSystemTime() + static_cast<time_t>(incidentResolutionTime) + constants::RESPOND_DELAY_SECONDS, std::make_shared<IncidentResolutionEvent>(resolutionEvent)));
+                newEvents.push_back(Event(EventType::IncidentResolution, timeToResolveIncident, std::make_shared<IncidentResolutionEvent>(resolutionEvent), state.getLastEventId() + 1)); // Create a new resolution event with the calculated time
                 state.resolvingIncidentIndex_.insert(incident.incidentIndex);
+                state.setLastEventId(state.getLastEventId() + 1); // Increment the last event ID
 
                 // Sending back each vehicle.
                 for (const auto& item : incident.apparatusReceived) {
@@ -157,8 +160,15 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                     const double& travelTime = std::get<2>(item);
 
                     FireStationEvent fireEngineIdleEvent(stationIndex, incidentIndex, numberOfApparatus);
-                    time_t nextEventTime = state.getSystemTime() + static_cast<time_t>(incidentResolutionTime) + static_cast<time_t>(travelTime) + constants::RESPOND_DELAY_SECONDS; // Calculate the next event time
-                    newEvents.push_back(Event(EventType::ApparatusReturnToStation, nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent)));
+                    time_t nextEventTime = timeToResolveIncident + static_cast<time_t>(travelTime); // Calculate the next event time
+                    newEvents.push_back(
+                        Event(
+                            EventType::ApparatusReturnToStation, 
+                            nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent), 
+                            state.getLastEventId() + 1
+                        )
+                    ); // Create a new event for the fire truck returning to the station
+                    state.setLastEventId(state.getLastEventId() + 1); // Increment the last event ID
                 }
                 // Compute the resolution event here immediately based on the current status
                 // based on totalApparatusRequired and currentApparatusCount;

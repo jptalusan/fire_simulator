@@ -2,7 +2,6 @@
 #ifndef EVENT_H
 #define EVENT_H
 
-#include <string>
 #include <memory>
 #include <ctime>
 #include "enums.h"
@@ -19,9 +18,11 @@ public:
     EventType event_type;
     time_t event_time;
     std::shared_ptr<EventData> payload;
+    int eventId;
 
-    Event(EventType type, time_t time, std::shared_ptr<EventData> data);
+    Event(EventType type, time_t time, std::shared_ptr<EventData> data, int id = -1);
     void print() const;
+    void updateEventTime(int id, time_t time);
 };
 
 class FireStationEvent : public EventData {

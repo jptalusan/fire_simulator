@@ -17,9 +17,7 @@ int DispatchPolicy::getNextIncidentIndex(const State& state) const {
     const Incident* i = nullptr; // Pointer to the incident
     for (const auto& [reportTime, incident] : sortedIncidents) {
         int id = incident.incident_id; // Get the incident ID
-        if (state.resolvingIncidentIndex_.count(incident.incidentIndex) > 0) {
-            continue;
-        }
+        
         if (incident.resolvedTime <= state.getSystemTime()) {
             continue;
         }

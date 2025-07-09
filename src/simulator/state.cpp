@@ -28,6 +28,14 @@ const std::unordered_map<int, Incident>& State::getActiveIncidentsConst() const 
     return activeIncidents_;
 }
 
+void State::setLastEventId(int id) {
+    lastEventId = id;
+}
+
+int State::getLastEventId() const {
+    return lastEventId;
+}
+
 /*
 You are default-constructing a FireTruck
 (e.g., FireTruck truck; or std::unordered_map<int, FireTruck> fire_trucks_; 
