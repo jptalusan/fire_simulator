@@ -2,8 +2,6 @@
 #define FIRE_H
 
 #include <random>
-#include "utils/error.h"
-#include "utils/helpers.h"
 #include "simulator/state.h"
 
 // Create a parent class for all fire-related models

@@ -1,9 +1,9 @@
 #include "models/fire.h"
 #include "simulator/state.h"
 #include "utils/constants.h"
+#include "utils/error.h"
 #include <spdlog/spdlog.h>
 #include <random>
-#include <iostream>
 
 // TODO: All placeholders, not working yet.
 HardCodedFireModel::HardCodedFireModel(unsigned int seed)
@@ -28,25 +28,12 @@ double HardCodedFireModel::computeResolutionTime(State& state, const Incident& i
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
 
-    double elapsedTime = difftime(currentTime, reportTime);
-
-    // Don't even try to resolve before 50% of resolution time has elapsed
-    if (elapsedTime < 0.5 * estimatedResolutionTime) {
-        return false;
-    }
-
-    // Time factor (0.0 to 1.0) after minimum threshold
-    double timeFactor = std::min(1.0, elapsedTime / estimatedResolutionTime);
-
+    // TODO: Figure out how to factor in the apparatus ratio to this.
     // Apparatus factor (0.0 to 1.0)
-    double apparatusFactor = static_cast<double>(currentApparatusCount) / totalApparatusRequired;
-    apparatusFactor = std::clamp(apparatusFactor, 0.0, 1.0);
+    // double apparatusFactor = static_cast<double>(currentApparatusCount) / totalApparatusRequired;
+    // apparatusFactor = std::clamp(apparatusFactor, 0.0, 1.0);
 
-    // Weighted probability
-    double probability = 0.9 * timeFactor + 0.1 * apparatusFactor;
-
-    // Sample and compare
-    return shouldResolveIncident(probability);
+    return estimatedResolutionTime;
 }
 
 // Example: compute a probability and sample true/false

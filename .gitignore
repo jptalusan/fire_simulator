@@ -105,3 +105,4 @@ test.ipynb
 *.bin
 *.pbf
 *.png
+.cache/*

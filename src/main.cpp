@@ -27,20 +27,6 @@ std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
         events.push_back(e);
     }
 
-    // HACK: Add a last event that is 1 day after the latest actual incident. will probably if the last real incident takes forever to solve.
-    // Otherwise, the simulator ends prematurely.
-    if (!incidents.empty()) {
-        auto last_incident = incidents.back();
-        last_incident.incident_id = last_incident.incident_id + 1; // Increment ID for the synthetic incident
-        last_incident.incidentIndex = last_incident.incidentIndex + 1; // Increment ID for the synthetic incident
-        last_incident.incident_level = IncidentLevel::Low;
-        auto inc_ptr = std::make_shared<Incident>(last_incident);
-        auto last_time = std::chrono::system_clock::from_time_t(last_incident.reportTime);
-        auto new_time = last_time + std::chrono::hours(2); // Add 24 hours (86400 seconds) to the last incident time
-        Event e(EventType::Incident, std::chrono::system_clock::to_time_t(new_time), inc_ptr);
-        events.push_back(e);
-    }
-
     return events;
 }
 
@@ -233,15 +219,15 @@ int main() {
     initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
 
-    // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-    //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+                                                 env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
-    DispatchPolicy* policy = new FireBeatsDispatch(
-        env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-        env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-        env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-        env.get("ZONE_MAP_PATH", "../data/zones.csv")
-    );
+    // DispatchPolicy* policy = new FireBeatsDispatch(
+    //     env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+    //     env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+    //     env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+    //     env.get("ZONE_MAP_PATH", "../data/zones.csv")
+    // );
 
     int seed = std::stoi(env.get("RANDOM_SEED", "42"));
     FireModel* fireModel = new HardCodedFireModel(seed);

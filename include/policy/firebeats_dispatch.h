@@ -32,11 +32,6 @@ private:
     int fireBeatsHeight_;
     std::unordered_map<int, std::string> beatsIndexToNameMap_;
 
-    // Helper function to extract incident from the event
-    int findMinIndex(const std::vector<double>& durations);
-    std::vector<int> getSortedIndicesByDuration(const std::vector<double>& durations);
-    std::vector<double> getColumn(double* matrix, int width, int height, int col_index) const;
-    std::vector<int> getColumn(int* matrix, int width, int height, int col_index) const;
     int* getFireBeats(const std::string& filename, int& height, int& width) const;
     std::unordered_map<int, std::string> readZoneIndexToNameMapCSV(const std::string& filename) const;
 };

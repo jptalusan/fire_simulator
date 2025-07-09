@@ -21,11 +21,6 @@ private:
     double* durationMatrix_;
     int width_;
     int height_;
-
-    // Helper function to extract incident from the event
-    int findMinIndex(const std::vector<double>& durations);
-    std::vector<int> getSortedIndicesByDuration(const std::vector<double>& durations);
-    std::vector<double> getColumn(double* matrix, int width, int height, int col_index) const;
 };
 
 #endif // NEAREST_DISPATCH_H
