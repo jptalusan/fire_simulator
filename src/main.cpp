@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <spdlog/spdlog.h>
@@ -83,8 +84,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             return a.reportTime < b.reportTime;
         });
 
-    // HACK: Ignores the last incident generated above (see generateEvents function)
-    for (size_t i = 0; i < sortedIncidents.size() - 1; ++i) {
+    for (size_t i = 0; i < sortedIncidents.size(); ++i) {
         const auto& incident = sortedIncidents[i];
         if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
             spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
@@ -246,5 +246,17 @@ int main() {
     writeReportToCSV(simulator.getCurrentState(), env);
     delete policy;
     delete fireModel;
+
+    // Call Python script after simulation finishes
+    std::string python_path = env.get("PYTHON_PATH", "/opt/homebrew/bin/python3");
+
+    int status = std::system((python_path + " ../scripts/process_csv.py").c_str());
+
+    if (status == 0) {
+        std::cout << "GeoJSON generated successfully." << std::endl;
+    } else {
+        std::cerr << "Failed to run Python script." << std::endl;
+    }
+
     return 0;
 }

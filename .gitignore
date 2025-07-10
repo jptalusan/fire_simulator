@@ -106,3 +106,4 @@ test.ipynb
 *.pbf
 *.png
 .cache/*
+*.json
