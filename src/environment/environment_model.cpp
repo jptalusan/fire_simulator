@@ -152,25 +152,18 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 state.resolvingIncidentIndex_.insert(incident.incidentIndex);
                 state.setLastEventId(state.getLastEventId() + 1); // Increment the last event ID
 
-                // Sending back each vehicle.
-                for (const auto& item : incident.apparatusReceived) {
-                    // Access each element of the tuple by reference
-                    const int& stationIndex = std::get<0>(item);
-                    const int& numberOfApparatus = std::get<1>(item);
-                    const double& travelTime = std::get<2>(item);
+                FireStationEvent fireEngineIdleEvent(stationIndex, incident.incidentIndex, numberOfFireTrucksToDispatch);
+                time_t nextEventTime = timeToResolveIncident + static_cast<time_t>(travelTime); // Calculate the next event time
+                newEvents.push_back(
+                    Event(
+                        EventType::ApparatusReturnToStation, 
+                        nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent), 
+                        state.getLastEventId() + 1
+                    )
+                ); // Create a new event for the fire truck returning to the station
+                state.setLastEventId(state.getLastEventId() + 1); // Increment the last event ID
 
-                    FireStationEvent fireEngineIdleEvent(stationIndex, incidentIndex, numberOfApparatus);
-                    time_t nextEventTime = timeToResolveIncident + static_cast<time_t>(travelTime); // Calculate the next event time
-                    newEvents.push_back(
-                        Event(
-                            EventType::ApparatusReturnToStation, 
-                            nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent), 
-                            state.getLastEventId() + 1
-                        )
-                    ); // Create a new event for the fire truck returning to the station
-                    state.setLastEventId(state.getLastEventId() + 1); // Increment the last event ID
-                }
-                // Compute the resolution event here immediately based on the current status
+                    // Compute the resolution event here immediately based on the current status
                 // based on totalApparatusRequired and currentApparatusCount;
 
                 break;
