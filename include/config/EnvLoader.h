@@ -40,6 +40,9 @@ public:
         if (it != env_map.end()) return it->second;
         return default_val;
     }
+    void set(const std::string& key, const std::string& value) {
+        env_map[key] = value;
+    }
 
 private:
     std::unordered_map<std::string, std::string> env_map;

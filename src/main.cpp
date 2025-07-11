@@ -136,7 +136,15 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
         throw OSRMError();
     }
 
+    int engines_per_station = std::stoi(env.get("ENGINES_PER_STATION", "3"));
     stations = loadStationsFromCSV(stations_path);
+
+
+    for (auto& station : stations) {
+        station.setNumFireTrucks(engines_per_station);
+    }
+
+
     incidents = loadIncidentsFromCSV(incidents_path);
     
     // START Adding zones per incident (maybe costly?)
@@ -204,6 +212,7 @@ int main() {
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
 
+
     std::vector<Incident> incidents = {};
     std::vector<Station> stations = {};
 
@@ -214,6 +223,7 @@ int main() {
     spdlog::stopwatch sw;
     #endif
     std::vector<Event> events = generateEvents(incidents);
+    
 
     sortEventsByTimeAndType(events);
 
@@ -222,8 +232,31 @@ int main() {
     initial_state.addStations(stations);
     initial_state.setLastEventId(events.back().eventId); // Set the last event ID
 
-    DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-                                                 env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    std::string policy_type = env.get("POLICY", "nearest");
+    DispatchPolicy* policy = nullptr;
+    std::cout << "Using POLICY: " << policy_type << std::endl;
+
+    if (policy_type == "nearest") {
+        policy = new NearestDispatch(
+            env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+            env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin")
+        );
+    } else if (policy_type == "firebeats") {
+        policy = new FireBeatsDispatch(
+            env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+            env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+            env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+            env.get("ZONE_MAP_PATH", "../data/zones.csv")
+        );
+    } else {
+        spdlog::error("Unknown POLICY type: {}", policy_type);
+        return 1;
+    }
+
+    // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+    //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+
+    
 
     // DispatchPolicy* policy = new FireBeatsDispatch(
     //     env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
@@ -234,6 +267,16 @@ int main() {
 
     int seed = std::stoi(env.get("RANDOM_SEED", "42"));
     FireModel* fireModel = new HardCodedFireModel(seed);
+    int engines_per_station = std::stoi(env.get("ENGINES_PER_STATION", "3"));
+
+    std::stringstream dir_ss;
+    dir_ss << "../logs/"
+        << "incidents_" << incidents.size()
+        << "_stations_" << stations.size()
+        << "_trucks_" << engines_per_station;
+    
+    std::string run_dir = dir_ss.str();
+    std::filesystem::create_directories(run_dir);
 
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
@@ -242,6 +285,8 @@ int main() {
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::error("Simulation completed successfully in {:.3} s.", sw);
     #endif
+    env.set("REPORT_CSV_PATH", run_dir + "/incident_report.csv");
+    env.set("STATION_REPORT_CSV_PATH", run_dir + "/station_report.csv");
 
     writeReportToCSV(simulator.getCurrentState(), env);
     delete policy;
