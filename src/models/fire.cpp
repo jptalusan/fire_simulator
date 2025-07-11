@@ -11,10 +11,6 @@ HardCodedFireModel::HardCodedFireModel(unsigned int seed)
 
 // Example implementation for HardCodedFireModel
 double HardCodedFireModel::computeResolutionTime(State& state, const Incident& incident) {
-    int currentApparatusCount = incident.currentApparatusCount;
-    int totalApparatusRequired = incident.totalApparatusRequired;
-    time_t reportTime = incident.reportTime;
-    time_t currentTime = state.getSystemTime();
     IncidentLevel incidentLevel = incident.incident_level;
 
     double estimatedResolutionTime = 0.0;
@@ -27,11 +23,6 @@ double HardCodedFireModel::computeResolutionTime(State& state, const Incident& i
             spdlog::error("[HardCodedFireModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
-
-    // TODO: Figure out how to factor in the apparatus ratio to this.
-    // Apparatus factor (0.0 to 1.0)
-    // double apparatusFactor = static_cast<double>(currentApparatusCount) / totalApparatusRequired;
-    // apparatusFactor = std::clamp(apparatusFactor, 0.0, 1.0);
 
     return estimatedResolutionTime;
 }

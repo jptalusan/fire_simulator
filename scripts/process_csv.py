@@ -124,7 +124,8 @@ def process():
     merged = merged.merge(incident_report_df, on='IncidentID')
 
     merged['Resolved'] = pd.to_datetime(merged['Resolved'])
-
+    merged['direction'] = 'to_fire'
+    
     duplicated_df = []
     for _, row in merged.iterrows():
         travel_time_s = row['TravelTime']
@@ -136,6 +137,7 @@ def process():
         return_row['incident_lat'] = row['station_lat']
         return_row['incident_lon'] = row['station_lon']
         return_row['DispatchTime'] = row['Resolved']
+        return_row['direction'] = 'from_fire'
         duplicated_df.append(return_row)
         pass
     duplicated_df = pd.concat(duplicated_df, axis=1).T
@@ -145,34 +147,39 @@ def process():
     duplicated_df = add_routes_to_dataframe(duplicated_df, delay=0)
     duplicated_df['datetime'] = pd.to_datetime(duplicated_df['datetime'])
     duplicated_df['DispatchTime'] = pd.to_datetime(duplicated_df['DispatchTime'])
-    
+    duplicated_df = duplicated_df.sort_values(by='DispatchTime')
     print(duplicated_df[['DispatchTime', 'station_lat', 'station_lon', 'incident_lat', 'incident_lon', 'Resolved', 'StationID', 'IncidentID', 'datetime']])
     print(duplicated_df.shape)
 
     
     express_geo_json = dict(type="FeatureCollection", features=[])
 
-    for _stationID, station_df in duplicated_df.groupby("StationID"):
-        feature = dict(
-            type="Feature", geometry=None, properties=dict(station_id=str(_stationID))
-        )
-        data = []
-        timestamp = station_df.iloc[0]['DispatchTime']
-        timestamp = timestamp.timestamp()
-        for j, w in station_df.iterrows():
-            geom = w["route_geometry"]
-            coords = geom['coordinates']
-            duration = w["route_duration"]
-            coords = np.array(coords)
-            coords = coords[::10]
-            time_per_seg = duration / len(coords)
-            
-            for coord in coords:
-                timestamp += time_per_seg
-                data.append([coord[0], coord[1], 0, int(timestamp)])
-                # Create a new feature per row
-            feature["geometry"] = dict(type="LineString", coordinates=data)
-        express_geo_json["features"].append(feature)
+    for _incidentID, incident_df in duplicated_df.groupby("IncidentID"):
+        for _stationID, station_df in incident_df.groupby("StationID"):
+            for _direction, direction_df in station_df.groupby("direction"):
+                feature = dict(
+                    type="Feature", geometry=None, properties=dict(station_id=str(_stationID), 
+                                                                   incident_id=str(_incidentID), 
+                                                                   direction=str(_direction))
+                )
+                data = []
+                timestamp = direction_df.iloc[0]['DispatchTime']
+                print(timestamp, _stationID, _incidentID)
+                timestamp = timestamp.timestamp()
+                for j, w in direction_df.iterrows():
+                    geom = w["route_geometry"]
+                    coords = geom['coordinates']
+                    duration = w["route_duration"]
+                    coords = np.array(coords)
+                    # coords = coords[::10]
+                    time_per_seg = duration / len(coords)
+                    
+                    for coord in coords:
+                        timestamp += time_per_seg
+                        data.append([coord[0], coord[1], 0, int(timestamp)])
+                        # Create a new feature per row
+                    feature["geometry"] = dict(type="LineString", coordinates=data)
+                express_geo_json["features"].append(feature)
 
     # save geojson as json
     try:
