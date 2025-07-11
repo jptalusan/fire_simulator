@@ -201,7 +201,7 @@ double* loadMatrixFromBinary(const std::string& filename, int& height, int& widt
     return load_matrix_binary_flat(filename, height, width);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     EnvLoader env("../.env");
     setupLogger(env);
@@ -293,15 +293,20 @@ int main() {
     delete fireModel;
 
     // Call Python script after simulation finishes
-    std::string python_path = env.get("PYTHON_PATH", "/opt/homebrew/bin/python3");
+    if (argc > 1 && std::string(argv[1]) == "--run-python") {
+        std::string python_path = env.get("PYTHON_PATH", "/opt/homebrew/bin/python3");
 
-    int status = std::system((python_path + " ../scripts/process_csv.py").c_str());
+        int status = std::system((python_path + " ../scripts/process_csv.py").c_str());
 
-    if (status == 0) {
-        std::cout << "GeoJSON generated successfully." << std::endl;
+        if (status == 0) {
+            std::cout << "GeoJSON generated successfully." << std::endl;
+        } else {
+            std::cerr << "Failed to run Python script." << std::endl;
+        }
+
+        return 0;
     } else {
-        std::cerr << "Failed to run Python script." << std::endl;
+        spdlog::info("Skipping CSV generation as per command line argument.");
+        return 0;
     }
-
-    return 0;
 }
