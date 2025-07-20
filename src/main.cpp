@@ -24,12 +24,11 @@ EventQueue generateEvents(const std::vector<Incident>& incidents) {
     container.reserve(incidents.size());  // Preallocate memory for efficiency
     EventQueue events(std::greater<Event>(), std::move(container));
 
-    int eventId = 0;
     for (size_t i = 0; i < incidents.size(); ++i) {
-        const auto& incident = incidents[i];
-        auto inc_ptr = std::make_shared<Incident>(incident);
-        Event e(EventType::Incident, incident.reportTime, inc_ptr, eventId++);
-        events.push(e);
+        int incidentIndex = incidents[i].incidentIndex;
+        time_t reportTime = incidents[i].reportTime;
+        Event incidentEvent = Event::createIncidentEvent(reportTime, incidentIndex);
+        events.push(incidentEvent);
     }
 
     return events;
@@ -215,11 +214,11 @@ int main(int argc, char* argv[]) {
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
     #endif
+
     EventQueue events = generateEvents(incidents);
 
-    // sortEventsByTimeAndType(events);
-
     State initial_state;
+    initial_state.populateAllIncidents(incidents); // Populate all incidents in the state (only used for passing incidents cheaply)
     initial_state.advanceTime(events.top().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
     // initial_state.setLastEventId(events.back().eventId); // Set the last event ID

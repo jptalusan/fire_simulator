@@ -28,6 +28,18 @@ const std::unordered_map<int, Incident>& State::getActiveIncidentsConst() const 
     return activeIncidents_;
 }
 
+const std::unordered_map<int, Incident>& State::getAllIncidents() const {
+    return allIncidents_;
+}
+
+// Runs once to store all incidents for faster reference later.
+void State::populateAllIncidents(const std::vector<Incident>& incidents) {
+    allIncidents_.reserve(incidents.size()); // Preallocate memory for efficiency
+    for (const auto& incident : incidents) {
+        allIncidents_[incident.incidentIndex] = incident;
+    }
+}
+
 /*
 You are default-constructing a FireTruck
 (e.g., FireTruck truck; or std::unordered_map<int, FireTruck> fire_trucks_; 

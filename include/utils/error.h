@@ -32,3 +32,9 @@ public:
     explicit InvalidStationError(const std::string& msg="Invalid station error")
         : std::runtime_error(msg) {}
 };
+
+class IncidentAlreadyExistsError : public std::runtime_error {
+public:
+    explicit IncidentAlreadyExistsError(const std::string& msg="Incident already exists error")
+        : std::runtime_error(msg) {}
+};

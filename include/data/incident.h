@@ -9,7 +9,7 @@
 #include "simulator/event.h"
 
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
-class Incident : public EventData {
+class Incident {
 public:
     int incidentIndex;
     int incident_id;
@@ -45,7 +45,7 @@ public:
           zoneIndex(-1)
     {}
 
-    void printInfo() const override;
+    void printInfo() const;
     Location getLocation() const;
 };
 

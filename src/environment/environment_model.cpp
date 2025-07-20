@@ -17,17 +17,18 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
 
     switch (event.event_type) {
         case EventType::Incident: {
-            auto incident = std::dynamic_pointer_cast<Incident>(event.payload);
-            if (incident) {
+            int incidentIndex = event.incidentIndex;
+            if (incidentIndex >= 0) {
                 // spdlog::info("[{}] Incident: {} | Level: {}", formatTime(event.event_time), incident->incident_type, to_string(incident->incident_level));
-                handleIncident(state, *incident, event.event_time);
+                const Incident& incident = state.getAllIncidents().at(incidentIndex);
+                Incident modifiableIncident = incident;
+                handleIncident(state, modifiableIncident, event.event_time);
             }
             break;
         }
 
         case EventType::IncidentResolution: {
-            auto payload = std::dynamic_pointer_cast<IncidentResolutionEvent>(event.payload);
-            int incidentIndex = payload->incidentIndex;
+            int incidentIndex = event.incidentIndex;
             auto& map = state.getActiveIncidents();
             auto it = map.find(incidentIndex);
             if (it != map.end()) {
@@ -45,13 +46,13 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
                 // TODO: Move this erase to when we dispatch the vehicles
                 // If it meets the required apparatus count, remove it from active incidents
                 state.getActiveIncidents().erase(it);
+                state.inProgressIncidentIndices.remove(incidentIndex);
             }
             break;
         }
 
         case EventType::ApparatusArrivalAtIncident: {
-            auto payload = std::dynamic_pointer_cast<FireStationEvent>(event.payload);
-            int incidentIndex = payload->incidentIndex;
+            int incidentIndex = event.incidentIndex;
             auto& map = state.getActiveIncidents();
             auto it = map.find(incidentIndex);
             if (it != map.end()) {
@@ -67,14 +68,13 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
         }
 
         case EventType::ApparatusReturnToStation: {
-            auto payload = std::dynamic_pointer_cast<FireStationEvent>(event.payload);
-            int incidentIndex = payload->incidentIndex;
-            int numberOfApparatus = payload->enginesCount;
-            int stationIndex = payload->stationIndex;
+            int incidentIndex = event.incidentIndex;
+            int numberOfApparatus = event.enginesCount;
+            int stationIndex = event.stationIndex;
             Station& station = state.getStation(stationIndex);
             station.setNumFireTrucks(station.getNumFireTrucks() + numberOfApparatus); // Increase the number of fire trucks at the station
-            spdlog::info("[{}] {} fire trucks returned to station ID {} from incident {}", 
-                            formatTime(event.event_time), numberOfApparatus, station.getAddress(), incidentIndex);
+            spdlog::info("[{}] {} fire trucks returned to station ID [{}] {} from incident {}", 
+                            formatTime(event.event_time), numberOfApparatus, station.getStationId(), station.getAddress(), incidentIndex);
             break;
         }
 
@@ -100,7 +100,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     std::unordered_map<std::string, std::string> payload = actions[0].payload;
     std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
     int incidentIndex = std::stoi(payload[constants::INCIDENT_INDEX]);
-    Incident incident = activeIncidents.at(incidentIndex);
+    Incident& incident = activeIncidents.at(incidentIndex);
     if (incident.incidentIndex < 0) {
         spdlog::debug("[EnvironmentModel] No unresolved incident found in active incidents");
         return {}; // Return an empty vector if no unresolved incident is found
@@ -108,6 +108,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     
     std::vector<Event> newEvents = {};
     int totalApparatusDispatched = 0;
+    bool hasSentResolutionEvent = false;
     
     incident.timeRespondedTo = state.getSystemTime() + constants::SECONDS_IN_MINUTE; // Set the response time for the incident
     for (const auto& action : actions) {
@@ -149,19 +150,16 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
                 double incidentResolutionTime = fireModel_.computeResolutionTime(state, incident);
                 time_t timeToResolveIncident = state.getSystemTime() + static_cast<time_t>(incidentResolutionTime) + constants::RESPOND_DELAY_SECONDS;
                 incident.resolvedTime = timeToResolveIncident; // Set the resolved time for the incident
-                IncidentResolutionEvent resolutionEvent(incident.incidentIndex);
-                newEvents.push_back(Event(EventType::IncidentResolution, timeToResolveIncident, std::make_shared<IncidentResolutionEvent>(resolutionEvent), 0)); // Create a new resolution event with the calculated time
-                state.resolvingIncidentIndex_.insert(incident.incidentIndex);
-                
-                FireStationEvent fireEngineIdleEvent(stationIndex, incident.incidentIndex, numberOfFireTrucksToDispatch);
+                // HACK: We dont want to send multiple incident resolution events because we only want this to occur once, regardless of how many apparatus were sent.
+                if (!hasSentResolutionEvent) {
+                    hasSentResolutionEvent = true; // Ensure we only send one resolution event
+                    Event resolutionEvent = Event::createIncidentResolutionEvent(timeToResolveIncident, incident.incidentIndex);
+                    newEvents.push_back(resolutionEvent);
+                }
+
                 time_t nextEventTime = timeToResolveIncident + static_cast<time_t>(travelTime); // Calculate the next event time
-                newEvents.push_back(
-                    Event(
-                        EventType::ApparatusReturnToStation, 
-                        nextEventTime, std::make_shared<FireStationEvent>(fireEngineIdleEvent), 
-                        0
-                    )
-                ); // Create a new event for the fire truck returning to the station
+                Event fireEvent = Event::createApparatusReturnEvent(nextEventTime, stationIndex, incident.incidentIndex, numberOfFireTrucksToDispatch);
+                newEvents.push_back(fireEvent); // Create a new event for the fire truck returning to the station
 
                     // Compute the resolution event here immediately based on the current status
                 // based on totalApparatusRequired and currentApparatusCount;
@@ -182,10 +180,6 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 
     incident.currentApparatusCount += totalApparatusDispatched; // Set the number of fire trucks dispatched to the incident
 
-    if (incident.currentApparatusCount == totalApparatusDispatched) {
-        state.getActiveIncidents().erase(incident.incidentIndex); // Remove the incident from active incidents if all apparatus have been dispatched
-    }
-    
     // state.getActiveIncidents()[incident.incidentIndex] = incident; // Insert the incident into the active incidents map
     generateStationEvents(state, actions, newEvents); // Generate station events based on the actions taken
     // spdlog::debug("[EnvironmentModel] Action taken: {}", action.toString());
@@ -202,6 +196,7 @@ void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t e
                  totalApparatusRequired);
     incident.totalApparatusRequired = totalApparatusRequired; // Set the number of fire trucks needed for the incident
     state.getActiveIncidents().insert({incident.incidentIndex, incident}); // Add the incident to the active incidents map
+    state.inProgressIncidentIndices.push_back(incident.incidentIndex); // Add the incident index to the in-progress incidents list
 }
 
 // TODO: The above functions are placeholders and should be implemented with actual logic to create events.
@@ -235,9 +230,10 @@ void EnvironmentModel::generateStationEvents(State& state,
 
         Station station = state.getStation(stationIndex);
         time_t timeToArriveAtIncident = state.getSystemTime() + constants::RESPOND_DELAY_SECONDS + static_cast<time_t>(travel_time); // Add travel time to resolution time
-        FireStationEvent apparatusArrival(stationIndex, incidentIndex, enginesSendCount);
+        Event apparatusArrival = Event::createApparatusArrivalEvent(timeToArriveAtIncident, stationIndex, incidentIndex, enginesSendCount);
+
         spdlog::debug("Inserting new events.");
-        newEvents.push_back(Event(EventType::ApparatusArrivalAtIncident, timeToArriveAtIncident, std::make_shared<FireStationEvent>(apparatusArrival)));
+        newEvents.push_back(apparatusArrival);
     }
 }
 

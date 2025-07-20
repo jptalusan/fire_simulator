@@ -4,19 +4,13 @@
 #include <numeric>
 // TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
-    const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
-    // Extra loop to sort the incidents by reportTime
-    // This is necessary because we need to find the earliest unresolved incident
-    // and we want to avoid modifying the original map structure.
-    std::map<time_t, Incident> sortedIncidents;
-    for (const auto& [id, incident] : activeIncidents) {
-        sortedIncidents[incident.reportTime] = incident;
-    }
+    const std::list<int>& inProgressIncidents = state.inProgressIncidentIndices;
 
     // Having it in a priority queue, will stop this nonsense of redundant looping
     int incidentIndex = -1; // Initialize incident index
     const Incident* i = nullptr; // Pointer to the incident
-    for (const auto& [reportTime, incident] : sortedIncidents) {
+    for (int incidentId : inProgressIncidents) {
+        const Incident& incident = state.getActiveIncidentsConst().at(incidentId);
         int id = incident.incident_id; // Get the incident ID
         
         if (incident.resolvedTime <= state.getSystemTime()) {

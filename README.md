@@ -93,6 +93,7 @@ Policies that rely on travel time matrices use `OSRM`. To save time, we query th
 2. `logs/duration_matrix.bin`
 
 ### Dispatch Policies
+Current behavior: incidents are served on a **first-come, first-serve** basis. it will only be considered resolved when all required apparatus is met.
 Different dispatch policies affect which apparatus are sent to an incident.
 * Nearest: Send the nearest fire trucks based on travel time.
 * FireBeats: Send the fire trucks based on fire beats sequence.
@@ -116,7 +117,7 @@ Different dispatch policies affect which apparatus are sent to an incident.
 
 ## TODO:
 1. ~~Switch from vector of events to Priority Queue~~
-2. Clean up incident and station, remove function calls inside, put in a separate standalone function file.
-3. Clean up activeIncidents_, it should just be a priority queue (or even just a queue?)
+2. ~~~~Clean up incident and station, remove function calls inside, put in a separate standalone function file.~~
+3. ~~Clean up activeIncidents_, it should just be a priority queue (or even just a queue?)~~
 4. Change incidents so no 2 incidents have the same time (have at least a second of difference).
-5. Create a separate map of incidents. that i just look up O(1) when i need information about the incident. dont add them in the event.
+5. ~~Create a separate map of incidents. that i just look up O(1) when i need information about the incident. dont add them in the event.~~
