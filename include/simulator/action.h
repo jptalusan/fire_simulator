@@ -16,6 +16,7 @@ public:
     // The payload can be a dictionary of string keys to string values (customize as needed)
     std::unordered_map<std::string, std::string> payload;
 
+    // TODO: Can this be improved?
     Action() = default;
     Action(StationActionType type_, const std::unordered_map<std::string, std::string>& payload_ = {})
         : type(type_), payload(payload_) {}

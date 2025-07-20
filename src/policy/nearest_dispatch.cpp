@@ -89,7 +89,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
                 // If the time to reach the incident is less than the resolution time, skip this station
                 spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
                     formatTime(state.getSystemTime()), 
-                    validStations[index].getAddress(), 
+                    validStations[index].getStationId(), 
                     incidentIndex, 
                     durations[index]);
                 continue;
@@ -110,14 +110,14 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
             dispatchAction.payload[constants::ENGINE_COUNT] = std::to_string(usedApparatusCount);
             totalApparatusDispatched += usedApparatusCount;
             actions.push_back(dispatchAction);
-            spdlog::info("[{}] Dispatching {} engines from {} to incident {}, {:.2f} minutes away.", 
+            spdlog::info("[{}] Dispatching {} engines from station {} to incident {}, {:.2f} minutes away.", 
                 formatTime(state.getSystemTime()), 
                 usedApparatusCount,
-                validStations[index].getAddress(),
+                validStations[index].getStationId(),
                 incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
         } else {
-            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getAddress());
+            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
         }
     }
     

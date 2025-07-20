@@ -10,7 +10,7 @@
 EnvironmentModel::EnvironmentModel(FireModel& fireModel)
     : fireModel_(fireModel) {}
 
-// TODO: This needs models for computing travel times, resolution times etc... (during take action).
+// TODO: When a new incident needs to be generated, add it first to state.AllIncidents_
 std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& event) {
     std::vector<Event> newEvents = {};
     spdlog::debug("[{}] Handling {} for {}", formatTime(state.getSystemTime()), to_string(event.event_type), formatTime(event.event_time));
@@ -73,8 +73,8 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
             int stationIndex = event.stationIndex;
             Station& station = state.getStation(stationIndex);
             station.setNumFireTrucks(station.getNumFireTrucks() + numberOfApparatus); // Increase the number of fire trucks at the station
-            spdlog::info("[{}] {} fire trucks returned to station ID [{}] {} from incident {}", 
-                            formatTime(event.event_time), numberOfApparatus, station.getStationId(), station.getAddress(), incidentIndex);
+            spdlog::info("[{}] {} fire trucks returned to station {} from incident {}", 
+                            formatTime(event.event_time), numberOfApparatus, station.getStationId(), incidentIndex);
             break;
         }
 
@@ -229,8 +229,13 @@ void EnvironmentModel::generateStationEvents(State& state,
         int enginesSendCount = std::stoi(action.payload.at(constants::ENGINE_COUNT)); // Get engine count from action payload
 
         Station station = state.getStation(stationIndex);
+        // check if stationIndex and station.getStationIndex() are the same
+        if (stationIndex != station.getStationIndex()) {
+            spdlog::error("[EnvironmentModel] Station index mismatch: {} != {}", stationIndex, station.getStationIndex());
+            throw StationIndexMismatchError(); // Throw an error for station index mismatches
+        }
         time_t timeToArriveAtIncident = state.getSystemTime() + constants::RESPOND_DELAY_SECONDS + static_cast<time_t>(travel_time); // Add travel time to resolution time
-        Event apparatusArrival = Event::createApparatusArrivalEvent(timeToArriveAtIncident, stationIndex, incidentIndex, enginesSendCount);
+        Event apparatusArrival = Event::createApparatusArrivalEvent(timeToArriveAtIncident, station.getStationIndex(), incidentIndex, enginesSendCount);
 
         spdlog::debug("Inserting new events.");
         newEvents.push_back(apparatusArrival);

@@ -38,3 +38,9 @@ public:
     explicit IncidentAlreadyExistsError(const std::string& msg="Incident already exists error")
         : std::runtime_error(msg) {}
 };
+
+class StationIndexMismatchError : public std::runtime_error {
+public:
+    explicit StationIndexMismatchError(const std::string& msg="Station index mismatch error")
+        : std::runtime_error(msg) {}
+};
