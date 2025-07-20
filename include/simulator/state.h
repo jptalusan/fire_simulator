@@ -34,9 +34,6 @@ public:
     std::unordered_map<int, Incident> doneIncidents_;
     std::unordered_map<std::string, int> stationIndexMap_; // Maps station address to index
 
-    int getLastEventId() const;
-    void setLastEventId(int id);
-    
 private:
     std::time_t system_time_;
     std::vector<Station> stations_;

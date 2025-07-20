@@ -10,7 +10,7 @@
 class Simulator {
 public:
     Simulator(State& initialState, 
-        const std::vector<Event>& events, 
+        EventQueue& events, 
         EnvironmentModel& environmentModel,
         DispatchPolicy& dispatchPolicy
     );
@@ -20,7 +20,7 @@ public:
 
 private:
     State& state_;
-    std::vector<Event> events_;
+    EventQueue& events_;
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     std::vector<State> state_history_;

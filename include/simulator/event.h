@@ -5,7 +5,9 @@
 #include <memory>
 #include <ctime>
 #include "enums.h"
+#include <queue>
 
+// Needs to be changed to just structs and then with pq.
 class EventData {
 public:
     virtual ~EventData() = default;
@@ -23,6 +25,13 @@ public:
     Event(EventType type, time_t time, std::shared_ptr<EventData> data, int id = -1);
     void print() const;
     void updateEventTime(int id, time_t time);
+
+    bool operator>(const Event& other) const {
+        if (event_time != other.event_time)
+            return event_time > other.event_time;
+        
+        return event_type > other.event_type;
+    }
 };
 
 class FireStationEvent : public EventData {
@@ -42,5 +51,7 @@ public:
     IncidentResolutionEvent(const int& incidentIndex);
     void printInfo() const override;
 };
+
+using EventQueue = std::priority_queue<Event, std::vector<Event>, std::greater<Event>>;
 
 #endif // EVENT_H

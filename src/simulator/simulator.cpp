@@ -4,7 +4,7 @@
 #include "utils/helpers.h"
 #include <spdlog/spdlog.h>
 
-Simulator::Simulator(State &initialState, const std::vector<Event> &events,
+Simulator::Simulator(State &initialState, EventQueue &events,
                      EnvironmentModel &environmentModel,
                      DispatchPolicy &dispatchPolicy)
     : state_(initialState), events_(events), environment_(environmentModel),
@@ -15,20 +15,22 @@ void Simulator::run() {
 
   while (!events_.empty()) {
     // Process the first event in the sorted list
-    Event currentEvent = events_.front();
-    events_.erase(events_.begin());
+    Event currentEvent = events_.top();
 
     std::vector<Event> handleEvents =
         environment_.handleEvent(state_, currentEvent);
+
+    events_.pop();
     std::vector<Action> actions = dispatchPolicy_.getAction(state_);
 
     std::vector<Event> newEvents = environment_.takeActions(state_, actions);
 
-    events_.insert(events_.end(), handleEvents.begin(), handleEvents.end());
-    events_.insert(events_.end(), newEvents.begin(), newEvents.end());
-
-    // Sort events by time and type to ensure correct processing order
-    sortEventsByTimeAndType(events_);
+    for (const auto& event : handleEvents) {
+        events_.push(event);
+    }
+    for (const auto& event : newEvents) {
+        events_.push(event);
+    }
   }
 
   spdlog::debug("Number of events addressed: {}",

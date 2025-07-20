@@ -1,8 +1,8 @@
 #include "policy/dispatch_policy.h"
 #include <spdlog/spdlog.h>
 #include <map>
-
-// TODO: This might be expensive, but we need to sort the incident by reportTime
+#include <numeric>
+// TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
     const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
     // Extra loop to sort the incidents by reportTime
@@ -13,6 +13,7 @@ int DispatchPolicy::getNextIncidentIndex(const State& state) const {
         sortedIncidents[incident.reportTime] = incident;
     }
 
+    // Having it in a priority queue, will stop this nonsense of redundant looping
     int incidentIndex = -1; // Initialize incident index
     const Incident* i = nullptr; // Pointer to the incident
     for (const auto& [reportTime, incident] : sortedIncidents) {
@@ -55,17 +56,14 @@ int DispatchPolicy::findMinIndex(const std::vector<double>& durations) {
  * @return A vector of pairs (index, duration), sorted by duration.
  */
 std::vector<int> DispatchPolicy::getSortedIndicesByDuration(const std::vector<double>& durations) {
-    std::vector<std::pair<int, double>> indexed;
-    for (int i = 0; i < static_cast<int>(durations.size()); ++i) {
-        indexed.emplace_back(i, durations[i]);
-    }
-    std::sort(indexed.begin(), indexed.end(),
-              [](const auto& a, const auto& b) { return a.second < b.second; });
-
-    std::vector<int> indices;
-    for (const auto& pair : indexed) {
-        indices.push_back(pair.first);
-    }
+    std::vector<int> indices(durations.size());
+    std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+    
+    std::sort(indices.begin(), indices.end(), 
+              [&durations](int a, int b) { 
+                  return durations[a] < durations[b]; 
+              });
+    
     return indices;
 }
 

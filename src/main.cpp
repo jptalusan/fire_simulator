@@ -19,15 +19,17 @@
 #include "utils/util.h"
 #include "data/geometry.h"
 
-std::vector<Event> generateEvents(const std::vector<Incident>& incidents) {
-    std::vector<Event> events;
-    events.reserve(incidents.size());  // Preallocate memory for efficiency
+EventQueue generateEvents(const std::vector<Incident>& incidents) {
+    std::vector<Event> container;
+    container.reserve(incidents.size());  // Preallocate memory for efficiency
+    EventQueue events(std::greater<Event>(), std::move(container));
+
     int eventId = 0;
     for (size_t i = 0; i < incidents.size(); ++i) {
         const auto& incident = incidents[i];
         auto inc_ptr = std::make_shared<Incident>(incident);
         Event e(EventType::Incident, incident.reportTime, inc_ptr, eventId++);
-        events.push_back(e);
+        events.push(e);
     }
 
     return events;
@@ -213,14 +215,14 @@ int main(int argc, char* argv[]) {
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
     #endif
-    std::vector<Event> events = generateEvents(incidents);
+    EventQueue events = generateEvents(incidents);
 
-    sortEventsByTimeAndType(events);
+    // sortEventsByTimeAndType(events);
 
     State initial_state;
-    initial_state.advanceTime(events.front().event_time); // Set initial time to the first event's time
+    initial_state.advanceTime(events.top().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
-    initial_state.setLastEventId(events.back().eventId); // Set the last event ID
+    // initial_state.setLastEventId(events.back().eventId); // Set the last event ID
 
     DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
                                                  env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
