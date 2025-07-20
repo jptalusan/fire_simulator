@@ -184,7 +184,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 
 void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t eventTime) {
     // This should be the new event time already.
-    int totalApparatusRequired = calculateApparatusCount(incident);
+    int totalApparatusRequired = fireModel_.calculateApparatusCount(incident);
     spdlog::info("[{}] Incident {} | Level: {} | Requires: {} apparatus.", 
                  formatTime(eventTime), 
                  incident.incidentIndex, 
@@ -236,27 +236,4 @@ void EnvironmentModel::generateStationEvents(State& state,
         spdlog::debug("Inserting new events.");
         newEvents.push_back(apparatusArrival);
     }
-}
-
-int EnvironmentModel::calculateApparatusCount(const Incident& incident) {
-    int apparatusCount = 0; // Placeholder for apparatus count
-    IncidentLevel incidentLevel = incident.incident_level;
-    switch (incidentLevel) {
-        case IncidentLevel::Low:
-            apparatusCount = 1; // Example apparatus count for low-level incidents
-            break;
-        case IncidentLevel::Moderate:
-            apparatusCount = 2; // Example apparatus count for moderate-level incidents
-            break;
-        case IncidentLevel::High:
-            apparatusCount = 3; // Example apparatus count for high-level incidents
-            break;
-        case IncidentLevel::Critical:
-            apparatusCount = 4; // Example apparatus count for critical-level incidents
-            break;
-        default:
-            spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
-            throw UnknownValueError(); // Throw an error for unknown incident levels
-    }
-    return apparatusCount; // Return the calculated apparatus count
 }
