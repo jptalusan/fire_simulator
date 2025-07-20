@@ -15,6 +15,12 @@ public:
         : std::runtime_error(msg) {}
 };
 
+class InvalidValueError : public std::runtime_error {
+public:
+    explicit InvalidValueError(const std::string& msg="Invalid value error")
+        : std::runtime_error(msg) {}
+};
+
 class UnknownValueError : public std::runtime_error {
 public:
     explicit UnknownValueError(const std::string& msg="Unknown value error")

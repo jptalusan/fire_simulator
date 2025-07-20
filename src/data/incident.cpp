@@ -8,6 +8,7 @@
 #include "data/geometry.h"
 #include "config/EnvLoader.h"
 #include "utils/constants.h"
+#include "utils/error.h"
 
 Incident::Incident(int index, int id, double latitude, double longitude,
                    IncidentType type, IncidentLevel level,
@@ -61,7 +62,12 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         std::string type, level, datetime_str;
 
         std::getline(ss, token, ',');
-        id = std::stoi(token);
+        try {
+            id = std::stoi(token);
+        } catch (...) {
+            spdlog::error("Invalid incident ID: {}", token);
+            throw InvalidIncidentError("Invalid incident ID in CSV file: " + token);
+        }
 
         std::getline(ss, token, ',');
         lat = std::stod(token);
