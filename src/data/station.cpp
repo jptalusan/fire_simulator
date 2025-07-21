@@ -142,7 +142,9 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
         std::getline(ss, token, ',');
         double lon = std::stod(token);
 
-        int num_fire_trucks = constants::DEFAULT_NUM_FIRE_TRUCKS; // Default value, can be updated later
+        int engines_per_station = std::stoi(env.get("ENGINES_PER_STATION", "3"));
+
+        int num_fire_trucks = engines_per_station;
         int num_ambulances = constants::DEFAULT_NUM_AMBULANCES;  // Default value, can be updated later
 
         if (isPointInPolygon(polygon, Location(lon, lat))) {
