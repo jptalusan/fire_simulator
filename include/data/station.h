@@ -11,11 +11,6 @@ public:
     Station()
         : stationIndex(-1),
           station_id(-1),
-          facility_name(""),
-          address(""),
-          city(""),
-          state(""),
-          zip_code(""),
           lon(0.0),
           lat(0.0),
           num_fire_trucks(0),
@@ -25,11 +20,6 @@ public:
     {}
     Station(int stationIndex,
             int station_id,
-            const std::string& facility_name,
-            const std::string& address,
-            const std::string& city,
-            const std::string& state,
-            const std::string& zip_code,
             double lon,
             double lat,
             int num_fire_trucks,
@@ -37,17 +27,12 @@ public:
 
     // Getters
     int getStationIndex() const;
-    int getStationId() const;
-    std::string getFacilityName() const;
-    std::string getAddress() const;
-    std::string getCity() const;
-    std::string getState() const;
-    std::string getZipCode() const;
-    double getLon() const;
-    double getLat() const;
-    Location getLocation() const;
-    int getNumFireTrucks() const;
-    int getNumAmbulances() const;
+    int getStationId() const noexcept;
+    double getLon() const noexcept;
+    double getLat() const noexcept;
+    Location getLocation() const noexcept;
+    int getNumFireTrucks() const noexcept;
+    int getNumAmbulances() const noexcept;
 
     // Setters
     void setNumFireTrucks(int n);
@@ -59,11 +44,6 @@ public:
 private:
     int stationIndex;
     int station_id;
-    std::string facility_name;
-    std::string address;
-    std::string city;
-    std::string state;
-    std::string zip_code;
     double lon;
     double lat;
     int num_fire_trucks;

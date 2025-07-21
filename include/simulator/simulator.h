@@ -10,20 +10,22 @@
 class Simulator {
 public:
     Simulator(State& initialState, 
-        const std::vector<Event>& events, 
+        EventQueue& events, 
         EnvironmentModel& environmentModel,
         DispatchPolicy& dispatchPolicy
     );
     void run();
     const std::vector<State>& getStateHistory() const;
+    const std::vector<Action>& getActionHistory() const;
     State& getCurrentState();
 
 private:
     State& state_;
-    std::vector<Event> events_;
+    EventQueue& events_;
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     std::vector<State> state_history_;
+    std::vector<Action> action_history_;
 };
 
 #endif // SIMULATOR_H

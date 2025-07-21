@@ -51,7 +51,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
 
     if (incidentIndex < 0) {
         spdlog::debug("No unresolved incident found in the active incidents.");
-        return { Action(StationActionType::DoNothing) }; // No action needed
+        return { Action::createDoNothingAction() }; // No action needed
     }
 
     Incident i = state.getActiveIncidentsConst().at(incidentIndex);
@@ -60,7 +60,6 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentIndex);
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
     
-    Action dispatchAction = Action(StationActionType::DoNothing);
     // int nearestStationIndex = findMinIndex(durations);
     std::vector<int> sortedIndices = getSortedIndicesByDuration(durations);
 
@@ -71,7 +70,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
     time_t incidentResolutionTime = i.resolvedTime;
 
-    std::vector<Station> validStations = state.getAllStations();
+    const std::vector<Station>& validStations = state.getAllStations();
 
     std::vector<Action> actions;
     actions.reserve(totalApparatusRequired);
@@ -82,42 +81,40 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
             break;
 
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
-        if (numberOfFireTrucks > 0) {
+        if (numberOfFireTrucks > 0) [[likely]] {
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
             time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
             if (timeToReach >= incidentResolutionTime) {
                 // If the time to reach the incident is less than the resolution time, skip this station
                 spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
                     formatTime(state.getSystemTime()), 
-                    validStations[index].getAddress(), 
+                    validStations[index].getStationId(), 
                     incidentIndex, 
                     durations[index]);
                 continue;
             }
             int usedApparatusCount = 0;
-            dispatchAction = Action(StationActionType::Dispatch, {
-                {constants::STATION_INDEX, std::to_string(index)},
-                {constants::INCIDENT_INDEX, std::to_string(incidentIndex)},
-                {constants::DISPATCH_TIME, std::to_string(state.getSystemTime())},
-                {constants::TRAVEL_TIME, std::to_string(durations[index])},
-                {constants::DISTANCE, std::to_string(distances[index])} //DEBUG
-            });
             if ((totalApparatusRequired - totalApparatusDispatched) >= numberOfFireTrucks) {
                 usedApparatusCount = numberOfFireTrucks;
             } else {
                 usedApparatusCount = totalApparatusRequired - totalApparatusDispatched;
             }
-            dispatchAction.payload[constants::ENGINE_COUNT] = std::to_string(usedApparatusCount);
+            Action dispatchAction = Action::createDispatchAction(
+                validStations[index].getStationIndex(),
+                incidentIndex,
+                usedApparatusCount,
+                durations[index]
+            );
             totalApparatusDispatched += usedApparatusCount;
             actions.push_back(dispatchAction);
-            spdlog::info("[{}] Dispatching {} engines from {} to incident {}, {:.2f} minutes away.", 
+            spdlog::info("[{}] Dispatching {} engines from station{} to incident {}, {:.2f} minutes away.", 
                 formatTime(state.getSystemTime()), 
                 usedApparatusCount,
-                validStations[index].getAddress(),
+                validStations[index].getStationId(),
                 incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
-        } else {
-            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getAddress());
+        } else [[unlikely]] {
+            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
         }
     }
     

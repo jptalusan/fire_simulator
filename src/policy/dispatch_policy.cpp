@@ -1,21 +1,16 @@
 #include "policy/dispatch_policy.h"
 #include <spdlog/spdlog.h>
 #include <map>
-
-// TODO: This might be expensive, but we need to sort the incident by reportTime
+#include <numeric>
+// TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
-    const std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidentsConst();
-    // Extra loop to sort the incidents by reportTime
-    // This is necessary because we need to find the earliest unresolved incident
-    // and we want to avoid modifying the original map structure.
-    std::map<time_t, Incident> sortedIncidents;
-    for (const auto& [id, incident] : activeIncidents) {
-        sortedIncidents[incident.reportTime] = incident;
-    }
+    const std::vector<int>& inProgressIncidents = state.inProgressIncidentIndices;
 
+    // Having it in a priority queue, will stop this nonsense of redundant looping
     int incidentIndex = -1; // Initialize incident index
     const Incident* i = nullptr; // Pointer to the incident
-    for (const auto& [reportTime, incident] : sortedIncidents) {
+    for (int incidentId : inProgressIncidents) {
+        const Incident& incident = state.getActiveIncidentsConst().at(incidentId);
         int id = incident.incident_id; // Get the incident ID
         
         if (incident.resolvedTime <= state.getSystemTime()) {
@@ -55,17 +50,14 @@ int DispatchPolicy::findMinIndex(const std::vector<double>& durations) {
  * @return A vector of pairs (index, duration), sorted by duration.
  */
 std::vector<int> DispatchPolicy::getSortedIndicesByDuration(const std::vector<double>& durations) {
-    std::vector<std::pair<int, double>> indexed;
-    for (int i = 0; i < static_cast<int>(durations.size()); ++i) {
-        indexed.emplace_back(i, durations[i]);
-    }
-    std::sort(indexed.begin(), indexed.end(),
-              [](const auto& a, const auto& b) { return a.second < b.second; });
-
-    std::vector<int> indices;
-    for (const auto& pair : indexed) {
-        indices.push_back(pair.first);
-    }
+    std::vector<int> indices(durations.size());
+    std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+    
+    std::sort(indices.begin(), indices.end(), 
+              [&durations](int a, int b) { 
+                  return durations[a] < durations[b]; 
+              });
+    
     return indices;
 }
 
@@ -83,8 +75,11 @@ std::vector<double> DispatchPolicy::getColumn(double* matrix, int width, int hei
     std::vector<double> column;
     column.reserve(height); // optional: preallocate memory for performance
 
+    // Use pointer arithmetic for better performance
+    double* col_ptr = matrix + col_index;
     for (int row = 0; row < height; ++row) {
-        column.push_back(matrix[row * width + col_index]);
+        column.push_back(*col_ptr);
+        col_ptr += width;
     }
 
     return column;
@@ -93,8 +88,10 @@ std::vector<double> DispatchPolicy::getColumn(double* matrix, int width, int hei
 std::vector<int> DispatchPolicy::getColumn(int* matrix, int width, int height, int col_index) const {
     std::vector<int> column;
     column.reserve(height); // optional: preallocate memory for performance
+    int* col_ptr = matrix + col_index;
     for (int row = 0; row < height; ++row) {
-        column.push_back(matrix[row * width + col_index]);
+        column.push_back(*col_ptr);
+        col_ptr += width;
     }
     return column;
 }

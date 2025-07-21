@@ -12,22 +12,12 @@
 // TODO: Need to change the name of the stationID to be unique and incrementally start from 0...N
 Station::Station(int stationIndex, //simulator internal ID, not the one from the CSV
                  int station_id,
-                 const std::string& facility_name,
-                 const std::string& address,
-                 const std::string& city,
-                 const std::string& state,
-                 const std::string& zip_code,
                  double lon,
                  double lat,
                  int num_fire_trucks,
                  int num_ambulances)
     : stationIndex(stationIndex),
       station_id(station_id),
-      facility_name(facility_name),
-      address(address),
-      city(city),
-      state(state),
-      zip_code(zip_code),
       lon(lon),
       lat(lat),
       num_fire_trucks(num_fire_trucks),
@@ -36,17 +26,12 @@ Station::Station(int stationIndex, //simulator internal ID, not the one from the
       max_fire_trucks(num_fire_trucks) {}
 
 int Station::getStationIndex() const { return stationIndex; }
-int Station::getStationId() const { return station_id; }
-std::string Station::getFacilityName() const { return facility_name; }
-std::string Station::getAddress() const { return address; }
-std::string Station::getCity() const { return city; }
-std::string Station::getState() const { return state; }
-std::string Station::getZipCode() const { return zip_code; }
-double Station::getLon() const { return lon; }
-double Station::getLat() const { return lat; }
-int Station::getNumFireTrucks() const { return num_fire_trucks; }
-int Station::getNumAmbulances() const { return num_ambulances; }
-Location Station::getLocation() const {
+int Station::getStationId() const noexcept { return station_id; }
+double Station::getLon() const noexcept { return lon; }
+double Station::getLat() const noexcept { return lat; }
+int Station::getNumFireTrucks() const noexcept { return num_fire_trucks; }
+int Station::getNumAmbulances() const noexcept { return num_ambulances; }
+Location Station::getLocation() const noexcept {
     return Location(lat, lon);
 }
 
@@ -71,8 +56,8 @@ void Station::setNumAmbulances(int n) {
 }
 
 void Station::printInfo() const {
-    spdlog::debug("Station ID: {}, Name: {}, Address: {}, City: {}, State: {}, Zip: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
-                station_id, facility_name, address, city, state, zip_code, lat, lon, num_fire_trucks, num_ambulances);
+    spdlog::debug("Station ID: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
+                station_id, lat, lon, num_fire_trucks, num_ambulances);
 }
 
 std::vector<Station> loadStationsFromCSV(const std::string& filename) {
@@ -111,25 +96,20 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
             throw InvalidStationError("Invalid station ID in CSV file: " + token);
         }
 
-        // Facility Name
+        // Skip Facility Name
         std::getline(ss, token, ',');
-        std::string facility_name = token;
 
-        // Address
-        std::string address;
-        std::getline(ss, address, ',');
+        // Skip Address
+        std::getline(ss, token, ',');
 
-        // City
-        std::string city;
-        std::getline(ss, city, ',');
+        // Skip City
+        std::getline(ss, token, ',');
 
-        // State
-        std::string state;
-        std::getline(ss, state, ',');
+        // Skip State
+        std::getline(ss, token, ',');
 
-        // Zip Code
-        std::string zip_code;
-        std::getline(ss, zip_code, ',');
+        // Skip Zip Code
+        std::getline(ss, token, ',');
 
         // Skip GLOBALID
         std::getline(ss, token, ',');
@@ -150,17 +130,12 @@ std::vector<Station> loadStationsFromCSV(const std::string& filename) {
         if (isPointInPolygon(polygon, Location(lon, lat))) {
             Station station(index,
                             station_id,
-                            facility_name,
-                            address,
-                            city,
-                            state,
-                            zip_code,
                             lon,
                             lat,
                             num_fire_trucks,
                             num_ambulances);
             stations.emplace_back(station);
-            spdlog::debug("Loaded station: {} - {} {}", station_id, facility_name, address);
+            spdlog::debug("Loaded station: {}", station_id);
             index++;
         } else {
             spdlog::debug("Station {} is out of bounds and will be ignored.", station_id);

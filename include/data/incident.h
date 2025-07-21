@@ -9,13 +9,13 @@
 #include "simulator/event.h"
 
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
-class Incident : public EventData {
+class Incident {
 public:
     int incidentIndex;
     int incident_id;
     double lat;
     double lon;
-    std::string incident_type;
+    IncidentType incident_type;
     IncidentLevel incident_level;
     time_t reportTime;
     time_t timeRespondedTo; // Time when the incident was responded to
@@ -27,14 +27,14 @@ public:
     int zoneIndex;
 
     Incident(int index, int id, double latitude, double longitude,
-             const std::string& type, IncidentLevel level,
+             IncidentType type, IncidentLevel level,
              time_t report_time);
     Incident()
         : incidentIndex(-1),
           incident_id(-1),
           lat(0.0),
           lon(0.0),
-          incident_type(""),
+          incident_type(IncidentType::Invalid),
           incident_level(IncidentLevel::Invalid),
           reportTime(std::time(nullptr)),
           timeRespondedTo(std::time(nullptr)),
@@ -45,7 +45,7 @@ public:
           zoneIndex(-1)
     {}
 
-    void printInfo() const override;
+    void printInfo() const;
     Location getLocation() const;
 };
 

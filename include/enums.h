@@ -24,12 +24,28 @@ enum class IncidentLevel {
     Critical
 };
 
+enum class IncidentType {
+    Fire,
+    Medical,
+    Invalid
+};
+
 enum class IncidentStatus {
     hasBeenReported,
     hasBeenRespondedTo,
     isBeingResolved,
     hasBeenResolved
 };
+
+// to_string for IncidentType
+inline std::string to_string(IncidentType type) {
+    switch (type) {
+        case IncidentType::Fire: return "Fire";
+        case IncidentType::Medical: return "Medical";
+        case IncidentType::Invalid: return "Invalid";
+        default: return "Unknown";
+    }
+}
 
 // to_string for EventType
 inline std::string to_string(EventType type) {

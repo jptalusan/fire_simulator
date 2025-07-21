@@ -30,12 +30,11 @@ public:
     // TODO: Improve this, ignored stations and incidents should be handled better
     std::vector<int> ignoredStations;
     std::vector<int> ignoredIncidents;
-    std::unordered_set<int> resolvingIncidentIndex_; // Maps station index to incident index being resolved
     std::unordered_map<int, Incident> doneIncidents_;
     std::unordered_map<std::string, int> stationIndexMap_; // Maps station address to index
-
-    int getLastEventId() const;
-    void setLastEventId(int id);
+    std::vector<int> inProgressIncidentIndices;
+    const std::unordered_map<int, Incident>& getAllIncidents() const;
+    void populateAllIncidents(const std::vector<Incident>& incidents);
     
 private:
     std::time_t system_time_;
@@ -44,6 +43,7 @@ private:
     std::unordered_map<int, Incident> activeIncidents_;
     std::vector<std::string> stationMetrics_;
     int lastEventId = 0; // Used to generate unique event IDs
+    std::unordered_map<int, Incident> allIncidents_; //policies should not access this
 };
 
 #endif // STATE_H

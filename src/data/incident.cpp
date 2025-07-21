@@ -8,9 +8,10 @@
 #include "data/geometry.h"
 #include "config/EnvLoader.h"
 #include "utils/constants.h"
+#include "utils/error.h"
 
 Incident::Incident(int index, int id, double latitude, double longitude,
-                   const std::string& type, IncidentLevel level,
+                   IncidentType type, IncidentLevel level,
                    time_t time)
     : incidentIndex(index), incident_id(id), lat(latitude), lon(longitude),
       incident_type(type), incident_level(level), reportTime(time) {
@@ -24,7 +25,7 @@ Incident::Incident(int index, int id, double latitude, double longitude,
 
 void Incident::printInfo() const {
     spdlog::error("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
-                incidentIndex, incident_id, incident_type, to_string(incident_level), lat, lon, reportTime);
+                incidentIndex, incident_id, to_string(incident_type), to_string(incident_level), lat, lon, reportTime);
 }
 
 Location Incident::getLocation() const {
@@ -61,7 +62,12 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
         std::string type, level, datetime_str;
 
         std::getline(ss, token, ',');
-        id = std::stoi(token);
+        try {
+            id = std::stoi(token);
+        } catch (...) {
+            spdlog::error("Invalid incident ID: {}", token);
+            throw InvalidIncidentError("Invalid incident ID in CSV file: " + token);
+        }
 
         std::getline(ss, token, ',');
         lat = std::stod(token);
@@ -99,13 +105,23 @@ std::vector<Incident> loadIncidentsFromCSV(const std::string& filename) {
             } else {
                 ilevel = IncidentLevel::Invalid; // Handle invalid levels
             }
+
+            IncidentType itype = IncidentType::Invalid; // Default to Invalid
+            if (type == "Fire") {
+                itype = IncidentType::Fire;
+            } else if (type == "Medical") {
+                itype = IncidentType::Medical;
+            } else {
+                itype = IncidentType::Invalid; // Handle invalid types
+            }
+
             if (seenIDs.count(id)) {
                 // spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
                 ignoredCount++;
                 continue; // Skip if ID is already seen
             } else {
                 seenIDs.insert(id);
-                incidents.emplace_back(index, id, lat, lon, type, ilevel, unix_time);
+                incidents.emplace_back(index, id, lat, lon, itype, ilevel, unix_time);
                 index++;
             }
         } else {

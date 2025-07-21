@@ -28,12 +28,16 @@ const std::unordered_map<int, Incident>& State::getActiveIncidentsConst() const 
     return activeIncidents_;
 }
 
-void State::setLastEventId(int id) {
-    lastEventId = id;
+const std::unordered_map<int, Incident>& State::getAllIncidents() const {
+    return allIncidents_;
 }
 
-int State::getLastEventId() const {
-    return lastEventId;
+// Runs once to store all incidents for faster reference later.
+void State::populateAllIncidents(const std::vector<Incident>& incidents) {
+    allIncidents_.reserve(incidents.size()); // Preallocate memory for efficiency
+    for (const auto& incident : incidents) {
+        allIncidents_[incident.incidentIndex] = incident;
+    }
 }
 
 /*
@@ -57,10 +61,6 @@ const std::unordered_map<int, FireTruck>& State::getAllFireTrucks() const {
 }
 
 void State::addStations(std::vector<Station> stations) {
-    // TODO: Clean this up, unnecessary loops maybe?
-    for (const auto& station : stations) {
-        stationIndexMap_.emplace(station.getFacilityName(), station.getStationIndex());
-    }
     stations_ = std::move(stations);
 }
 
