@@ -15,10 +15,10 @@ double HardCodedFireModel::computeResolutionTime(State& state, const Incident& i
 
     double estimatedResolutionTime = 0.0;
     switch (incidentLevel) {
-        case IncidentLevel::Low:        estimatedResolutionTime = 10 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::Moderate:   estimatedResolutionTime = 30 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::High:       estimatedResolutionTime = 60 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::Critical:   estimatedResolutionTime = 90 * constants::SECONDS_IN_MINUTE; break;
+        case IncidentLevel::Low:        estimatedResolutionTime = 60 * constants::SECONDS_IN_MINUTE; break;
+        case IncidentLevel::Moderate:   estimatedResolutionTime = 90 * constants::SECONDS_IN_MINUTE; break;
+        case IncidentLevel::High:       estimatedResolutionTime = 150 * constants::SECONDS_IN_MINUTE; break;
+        case IncidentLevel::Critical:   estimatedResolutionTime = 210 * constants::SECONDS_IN_MINUTE; break;
         default:
             spdlog::error("[HardCodedFireModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
