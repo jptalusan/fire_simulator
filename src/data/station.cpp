@@ -26,12 +26,12 @@ Station::Station(int stationIndex, //simulator internal ID, not the one from the
       max_fire_trucks(num_fire_trucks) {}
 
 int Station::getStationIndex() const { return stationIndex; }
-int Station::getStationId() const { return station_id; }
-double Station::getLon() const { return lon; }
-double Station::getLat() const { return lat; }
-int Station::getNumFireTrucks() const { return num_fire_trucks; }
-int Station::getNumAmbulances() const { return num_ambulances; }
-Location Station::getLocation() const {
+int Station::getStationId() const noexcept { return station_id; }
+double Station::getLon() const noexcept { return lon; }
+double Station::getLat() const noexcept { return lat; }
+int Station::getNumFireTrucks() const noexcept { return num_fire_trucks; }
+int Station::getNumAmbulances() const noexcept { return num_ambulances; }
+Location Station::getLocation() const noexcept {
     return Location(lat, lon);
 }
 

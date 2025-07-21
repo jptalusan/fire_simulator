@@ -27,12 +27,12 @@ public:
 
     // Getters
     int getStationIndex() const;
-    int getStationId() const;
-    double getLon() const;
-    double getLat() const;
-    Location getLocation() const;
-    int getNumFireTrucks() const;
-    int getNumAmbulances() const;
+    int getStationId() const noexcept;
+    double getLon() const noexcept;
+    double getLat() const noexcept;
+    Location getLocation() const noexcept;
+    int getNumFireTrucks() const noexcept;
+    int getNumAmbulances() const noexcept;
 
     // Setters
     void setNumFireTrucks(int n);

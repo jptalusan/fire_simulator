@@ -114,7 +114,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
 
     int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
     time_t incidentResolutionTime = i.resolvedTime;
-    std::vector<Station> validStations = state.getAllStations();
+    const std::vector<Station>& validStations = state.getAllStations();
 
     std::vector<Action> actions;
     actions.reserve(totalApparatusRequired);
@@ -129,7 +129,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
             break;
 
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
-        if (numberOfFireTrucks > 0) {
+        if (numberOfFireTrucks > 0) [[likely]] {
             time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
             if (timeToReach >= incidentResolutionTime) {
                 // If the time to reach the incident is less than the resolution time, skip this station
@@ -163,7 +163,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
                 validStations[index].getStationId(),
                 incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
-        } else {
+        } else [[unlikely]] {
             spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
         }
     }

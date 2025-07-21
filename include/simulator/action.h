@@ -2,15 +2,15 @@
 #define ACTION_H
 
 struct ActionPayload {
+    double travelTime = 0.0; // in seconds
     int stationIndex = -1;
     int incidentIndex = -1;
     int enginesCount = -1;
-    double travelTime = 0.0; // in seconds
     int priority = 0;
     
     ActionPayload() = default;
     ActionPayload(int station, int incident, int engines, double travel, int prio = 0)
-        : stationIndex(station), incidentIndex(incident), enginesCount(engines), travelTime(travel), priority(prio) {}
+        :  travelTime(travel), stationIndex(station), incidentIndex(incident), enginesCount(engines), priority(prio) {}
 };
 
 class Action {

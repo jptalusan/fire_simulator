@@ -19,7 +19,9 @@ public:
     double calculateResolutionTime(const Incident& incident);
     void handleIncident(State& state, Incident& incident, time_t eventTime);
     void checkIncidentStatus(State& state, time_t eventTime, std::vector<Event>& newEvents);
-    
+    void processDispatchAction(State& state, const Action& action, 
+                            Incident& incident, std::vector<Event>& newEvents,
+                            int& totalApparatusDispatched, bool& hasSentResolutionEvent);
 private:
     FireModel& fireModel_;
 };

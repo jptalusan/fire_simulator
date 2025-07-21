@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include "data/incident.h"
 #include "services/queries.h"
@@ -78,7 +79,7 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     std::vector<Incident> sortedIncidents;
     sortedIncidents.reserve(activeIncidents.size());  // Preallocate memory for efficiency
     for (const auto& [id, incident] : activeIncidents) {
-        sortedIncidents.push_back(incident);
+        sortedIncidents.emplace_back(incident);
     }
     std::sort(sortedIncidents.begin(), sortedIncidents.end(),
         [](const Incident& a, const Incident& b) {
@@ -104,16 +105,6 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             << to_string(incident.status) << "\n";
     }
     csv.close();
-
-    // Writing station report
-    std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
-    std::ofstream station_csv(station_report_path);
-    station_csv << stationMetricHeader << "\n";
-    
-    for (size_t i = 0; i < state.getStationMetrics().size(); ++i) {
-        station_csv << state.getStationMetrics()[i] << "\n";
-    }
-    station_csv.close();
 }
 
 // Debug tool
@@ -145,11 +136,12 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     std::vector<Polygon> polygons;
     polygons.reserve(polygonWithZoneID.size());
     for (const auto& pair : polygonWithZoneID) {
-        polygons.push_back(pair.second);
+        polygons.emplace_back(pair.second);
     }
     std::vector<Point> points;
+    points.reserve(incidents.size());  // Preallocate memory for efficiency
     for (auto& incident : incidents) {
-        points.push_back(Point(incident.lon, incident.lat));
+        points.emplace_back(Point(incident.lon, incident.lat));
     }
     auto results = getPointToPolygonIndices(points, polygons);
     int notThere = 0;
@@ -168,12 +160,12 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
     std::vector<Location> sources;
     sources.reserve(stations.size());  // Preallocate memory for efficiency
     for (const auto& station : stations) {
-        sources.push_back(station.getLocation());
+        sources.emplace_back(station.getLocation());
     }
     std::vector<Location> destinations;
     destinations.reserve(incidents.size());  // Preallocate memory for efficiency
     for (const auto& incident : incidents) {
-        destinations.push_back(incident.getLocation());
+        destinations.emplace_back(incident.getLocation());
     }
 
     auto result = generate_osrm_table_chunks(sources, destinations, chunk_size);
@@ -192,6 +184,44 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
 
 double* loadMatrixFromBinary(const std::string& filename, int& height, int& width) {
     return load_matrix_binary_flat(filename, height, width);
+}
+
+void writeActions(const Simulator& simulator, State& state) {
+    EnvLoader env("../.env");
+    std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
+
+    std::vector<Action> actionHistory = simulator.getActionHistory();
+
+    std::unordered_map<int, Incident>& activeIncidents = state.getActiveIncidents();
+    std::unordered_map<int, Incident>& doneIncidents = state.doneIncidents_;
+
+    // Insert all elements from doneIncidents into activeIncidents
+    activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
+    
+    std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
+    std::ofstream station_csv(station_report_path);
+    station_csv << stationMetricHeader << "\n";
+
+    for (const auto& action : actionHistory) {
+        if (action.type != StationActionType::Dispatch) {
+            continue; // Skip non-dispatch actions
+        }
+        std::string metrics;
+        metrics.reserve(128);
+
+        const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
+        const Station& station = state.getStation(action.payload.stationIndex);
+        int numberOfFireTrucksToDispatch = action.payload.enginesCount;
+        int fireTrucksRemainingAtTime = station.getNumFireTrucks() - numberOfFireTrucksToDispatch;
+        double travelTime = action.payload.travelTime;
+        fmt::format_to(std::back_inserter(metrics), 
+                    "{},{},{},{},{:.2f},{},{}",
+        formatTime(incident.timeRespondedTo), station.getStationIndex(), 
+        numberOfFireTrucksToDispatch, fireTrucksRemainingAtTime,
+        travelTime, incident.incident_id, incident.incidentIndex);
+        station_csv << metrics << "\n";
+    }
+    station_csv.close();
 }
 
 int main(int argc, char* argv[]) {
@@ -245,6 +275,7 @@ int main(int argc, char* argv[]) {
     #endif
 
     writeReportToCSV(simulator.getCurrentState(), env);
+    writeActions(simulator, simulator.getCurrentState());
     delete policy;
     delete fireModel;
 

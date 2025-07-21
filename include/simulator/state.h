@@ -2,7 +2,6 @@
 #define STATE_H
 
 #include <ctime>
-#include <list>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -33,10 +32,10 @@ public:
     std::vector<int> ignoredIncidents;
     std::unordered_map<int, Incident> doneIncidents_;
     std::unordered_map<std::string, int> stationIndexMap_; // Maps station address to index
-    std::list<int> inProgressIncidentIndices;
+    std::vector<int> inProgressIncidentIndices;
     const std::unordered_map<int, Incident>& getAllIncidents() const;
     void populateAllIncidents(const std::vector<Incident>& incidents);
-
+    
 private:
     std::time_t system_time_;
     std::vector<Station> stations_;

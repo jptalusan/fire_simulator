@@ -64,10 +64,10 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     target_compile_options(${PROGRAM_NAME} PRIVATE -g -Wall -Wextra)
 elseif(CMAKE_BUILD_TYPE MATCHES Release)
     target_compile_definitions(${PROGRAM_NAME} PRIVATE NDEBUG=1)
-    target_compile_options(${PROGRAM_NAME} PRIVATE -O2 -Wall -Wextra)
+    target_compile_options(${PROGRAM_NAME} PRIVATE -O3 -Wall -Wextra)
 
     target_compile_definitions(${TEST_NAME} PRIVATE NDEBUG=1)
-    target_compile_options(${TEST_NAME} PRIVATE -O2 -Wall -Wextra)
+    target_compile_options(${TEST_NAME} PRIVATE -O3 -Wall -Wextra)
 endif()
 
 # Set the output directory for the binary (These are optional)

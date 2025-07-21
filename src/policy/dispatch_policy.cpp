@@ -4,7 +4,7 @@
 #include <numeric>
 // TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
-    const std::list<int>& inProgressIncidents = state.inProgressIncidentIndices;
+    const std::vector<int>& inProgressIncidents = state.inProgressIncidentIndices;
 
     // Having it in a priority queue, will stop this nonsense of redundant looping
     int incidentIndex = -1; // Initialize incident index
@@ -75,8 +75,11 @@ std::vector<double> DispatchPolicy::getColumn(double* matrix, int width, int hei
     std::vector<double> column;
     column.reserve(height); // optional: preallocate memory for performance
 
+    // Use pointer arithmetic for better performance
+    double* col_ptr = matrix + col_index;
     for (int row = 0; row < height; ++row) {
-        column.push_back(matrix[row * width + col_index]);
+        column.push_back(*col_ptr);
+        col_ptr += width;
     }
 
     return column;
@@ -85,8 +88,10 @@ std::vector<double> DispatchPolicy::getColumn(double* matrix, int width, int hei
 std::vector<int> DispatchPolicy::getColumn(int* matrix, int width, int height, int col_index) const {
     std::vector<int> column;
     column.reserve(height); // optional: preallocate memory for performance
+    int* col_ptr = matrix + col_index;
     for (int row = 0; row < height; ++row) {
-        column.push_back(matrix[row * width + col_index]);
+        column.push_back(*col_ptr);
+        col_ptr += width;
     }
     return column;
 }

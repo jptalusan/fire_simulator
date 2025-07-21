@@ -16,6 +16,7 @@ public:
     );
     void run();
     const std::vector<State>& getStateHistory() const;
+    const std::vector<Action>& getActionHistory() const;
     State& getCurrentState();
 
 private:
@@ -24,6 +25,7 @@ private:
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     std::vector<State> state_history_;
+    std::vector<Action> action_history_;
 };
 
 #endif // SIMULATOR_H

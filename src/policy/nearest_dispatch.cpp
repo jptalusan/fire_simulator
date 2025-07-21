@@ -70,7 +70,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
     time_t incidentResolutionTime = i.resolvedTime;
 
-    std::vector<Station> validStations = state.getAllStations();
+    const std::vector<Station>& validStations = state.getAllStations();
 
     std::vector<Action> actions;
     actions.reserve(totalApparatusRequired);
@@ -81,7 +81,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
             break;
 
         int numberOfFireTrucks = validStations[index].getNumFireTrucks();
-        if (numberOfFireTrucks > 0) {
+        if (numberOfFireTrucks > 0) [[likely]] {
             // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
             time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
             if (timeToReach >= incidentResolutionTime) {
@@ -113,7 +113,7 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
                 validStations[index].getStationId(),
                 incidentIndex,
                 durations[index] / constants::SECONDS_IN_MINUTE);
-        } else {
+        } else [[unlikely]] {
             spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
         }
     }
