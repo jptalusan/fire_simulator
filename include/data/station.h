@@ -5,34 +5,37 @@
 #include <vector>
 #include <unordered_map>
 #include "data/location.h"
+#include "data/apparatus.h" // Assuming Apparatus is defined in this header
+#include "enums.h"
 
 class Station {
 public:
     Station()
         : stationIndex(-1),
           station_id(-1),
-          lon(0.0),
-          lat(0.0),
           num_fire_trucks(0),
           num_ambulances(0),
           max_ambulances(0),
-          max_fire_trucks(0)
+          max_fire_trucks(0),
+          lon(0.0),
+          lat(0.0)
     {}
     Station(int stationIndex,
             int station_id,
-            double lon,
-            double lat,
             int num_fire_trucks,
-            int num_ambulances);
+            int num_ambulances,
+            double lon,
+            double lat);
 
     // Getters
     int getStationIndex() const;
     int getStationId() const noexcept;
-    double getLon() const noexcept;
-    double getLat() const noexcept;
-    Location getLocation() const noexcept;
     int getNumFireTrucks() const noexcept;
     int getNumAmbulances() const noexcept;
+    double getLon() const noexcept;
+    double getLat() const noexcept;
+
+    Location getLocation() const noexcept;
 
     // Setters
     void setNumFireTrucks(int n);
@@ -41,17 +44,29 @@ public:
     // Helper function example
     void printInfo() const;
 
+    void initializeApparatusCount(std::vector<Apparatus>& all_apparatus);
+    int getAvailableCount(ApparatusType type) const;
+    int getTotalCount(ApparatusType type) const;
+    void returnApparatus(ApparatusType type, ApparatusStatus status);
+    void dispatchApparatus(ApparatusType type, ApparatusStatus status);
 private:
+    // Integers first (4 bytes each)
     int stationIndex;
     int station_id;
-    double lon;
-    double lat;
     int num_fire_trucks;
     int num_ambulances;
     int max_ambulances;
     int max_fire_trucks;
-};
 
-std::vector<Station> loadStationsFromCSV(const std::string& filename);
+    // Doubles next (8 bytes each)
+    double lon;
+    double lat;
+
+    // Maps for fast lookups
+    std::unordered_map<ApparatusType, int> available_count_; // Assuming ApparatusType is defined elsewhere
+    std::unordered_map<ApparatusType, int> total_count_;
+
+    void updateApparatusStatus(ApparatusType type, ApparatusStatus new_status);
+};
 
 #endif // STATION_H

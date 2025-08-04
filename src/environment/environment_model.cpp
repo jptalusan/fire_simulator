@@ -184,7 +184,9 @@ void EnvironmentModel::generateStationEvents(State& state,
     }
 }
 
-// Extract dispatch logic to separate method
+/* Extract dispatch logic to separate method 
+TODO: This is where the dispatched apparatus is subtracted from the total count at the station.
+*/
 void EnvironmentModel::processDispatchAction(State& state, const Action& action, 
                                            Incident& incident, std::vector<Event>& newEvents,
                                            int& totalApparatusDispatched, bool& hasSentResolutionEvent) {

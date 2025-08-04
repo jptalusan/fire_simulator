@@ -3,7 +3,7 @@
 
 #include <string>
 
-enum class EventType {
+enum class EventType : uint8_t {
     Incident,
     CheckIncident,
     ApparatusArrivalAtIncident,
@@ -11,12 +11,12 @@ enum class EventType {
     ApparatusReturnToStation
 };
 
-enum class StationActionType {
+enum class StationActionType : uint8_t {
     Dispatch,
     DoNothing
 };
 
-enum class IncidentLevel {
+enum class IncidentLevel : uint8_t {
     Invalid,
     Low,
     Moderate,
@@ -24,17 +24,41 @@ enum class IncidentLevel {
     Critical
 };
 
-enum class IncidentType {
+enum class IncidentType : uint8_t {
     Fire,
     Medical,
     Invalid
 };
 
-enum class IncidentStatus {
+enum class IncidentStatus : uint8_t {
     hasBeenReported,
     hasBeenRespondedTo,
     isBeingResolved,
     hasBeenResolved
+};
+
+enum class ApparatusStatus : uint8_t {
+    Available,
+    Dispatched,
+    EnRouteToIncident,
+    AtIncident,
+    ReturningToStation
+};
+
+enum class ApparatusType : uint8_t {
+    Pumper,
+    Engine,
+    Truck,
+    Rescue,
+    Hazard,
+    Chief,
+    Squad,
+    Fast,
+    Medic,
+    Brush,
+    Boat,
+    UTV,
+    Reach,
 };
 
 // to_string for IncidentType

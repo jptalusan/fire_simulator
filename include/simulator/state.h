@@ -3,12 +3,10 @@
 
 #include <ctime>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
-#include <memory>
 #include "data/incident.h"
 #include "data/station.h"
-#include "data/fire_truck.h"
+#include "data/apparatus.h"
 
 class State {
 public:
@@ -18,10 +16,8 @@ public:
     std::time_t getSystemTime() const;
     Station& getStation(int stationIndex);
     const std::vector<Station>& getAllStations() const;
-    FireTruck& getFireTruck(int fire_truck_id);
-    const std::unordered_map<int, FireTruck>& getAllFireTrucks() const;
+    std::vector<Apparatus>& getApparatusList();
     void addStations(std::vector<Station> stations);
-    Incident getEarliestUnresolvedIncident() const;
     std::unordered_map<int, Incident>& getActiveIncidents();
     void updateStationMetrics(const std::string& metric);
     std::vector<std::string> getStationMetrics() const;
@@ -39,7 +35,7 @@ public:
 private:
     std::time_t system_time_;
     std::vector<Station> stations_;
-    std::unordered_map<int, FireTruck> fire_trucks_;
+    std::vector<Apparatus> apparatusList_;
     std::unordered_map<int, Incident> activeIncidents_;
     std::vector<std::string> stationMetrics_;
     int lastEventId = 0; // Used to generate unique event IDs

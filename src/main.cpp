@@ -3,6 +3,7 @@
 #include <fstream>
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+#include "config/EnvLoader.h"
 #include "data/incident.h"
 #include "services/queries.h"
 #include "simulator/simulator.h"
@@ -19,6 +20,7 @@
 #include "models/fire.h"
 #include "utils/util.h"
 #include "data/geometry.h"
+#include "utils/loaders.h"
 
 EventQueue generateEvents(const std::vector<Incident>& incidents) {
     std::vector<Event> container;
@@ -69,7 +71,6 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
 
     std::string report_path = env.get("REPORT_CSV_PATH", "../logs/incident_report.csv");
-    std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
     
     std::ofstream csv(report_path);
     csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Zone,Status\n";
@@ -108,10 +109,13 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
 }
 
 // Debug tool
-void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>& incidents, size_t chunk_size = 100) {
+void preComputingMatrices(std::vector<Station>& stations, 
+                          std::vector<Incident>& incidents,
+                          std::vector<Apparatus>& apparatuses,
+                          EnvLoader& env,
+                          size_t chunk_size = 100) {
     spdlog::info("Starting Precomputation...");
     //spdlog::stopwatch sw;
-    EnvLoader env("../.env");
     // Additional logic can be added here
     std::string stations_path = env.get("STATIONS_CSV_PATH", "../data/stations.csv");
     std::string incidents_path = env.get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
@@ -128,16 +132,13 @@ void preComputingMatrices(std::vector<Station>& stations, std::vector<Incident>&
         throw OSRMError();
     }
 
-    int engines_per_station = std::stoi(env.get("ENGINES_PER_STATION", "3"));
-    stations = loadStationsFromCSV(stations_path);
-
+    stations = loadStationsFromCSV(env);
+    incidents = loadIncidentsFromCSV(env);
+    apparatuses = loadApparatusFromCSV(env);
 
     for (auto& station : stations) {
-        station.setNumFireTrucks(engines_per_station);
+        station.initializeApparatusCount(apparatuses);
     }
-
-
-    incidents = loadIncidentsFromCSV(incidents_path);
     
     // START Adding zones per incident (maybe costly?)
     std::vector<std::pair<int, Polygon>> polygonWithZoneID = loadServiceZonesFromGeojson(beats_shapefile_path);
@@ -194,8 +195,7 @@ double* loadMatrixFromBinary(const std::string& filename, int& height, int& widt
     return load_matrix_binary_flat(filename, height, width);
 }
 
-void writeActions(const Simulator& simulator, State& state) {
-    EnvLoader env("../.env");
+void writeActions(const Simulator& simulator, State& state, EnvLoader& env) {
     std::string station_report_path = env.get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
 
     std::vector<Action> actionHistory = simulator.getActionHistory();
@@ -232,6 +232,26 @@ void writeActions(const Simulator& simulator, State& state) {
     station_csv.close();
 }
 
+void matchApparatusesWithStations(std::vector<Station>& stations, 
+                                  std::vector<Apparatus>& apparatuses) {
+    // Initialize station apparatus counts
+    for (auto& station : stations) {
+        station.initializeApparatusCount(apparatuses);
+    }
+    
+    spdlog::info("Matched {} apparatus across {} stations", 
+                 apparatuses.size(), stations.size());
+    
+    // Log station summary
+    for (const auto& station : stations) {
+        spdlog::error("Station {}: {} engines, {} trucks, {} rescue units",
+                     station.getStationId(),
+                     station.getAvailableCount(ApparatusType::Engine),
+                     station.getAvailableCount(ApparatusType::Truck),
+                     station.getAvailableCount(ApparatusType::Rescue));
+    }
+}
+
 int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     EnvLoader env("../.env");
@@ -246,9 +266,11 @@ int main(int argc, char* argv[]) {
 
     std::vector<Incident> incidents = {};
     std::vector<Station> stations = {};
-
+    std::vector<Apparatus> apparatuses = {};
     size_t chunk_size = 500;
-    preComputingMatrices(stations, incidents, chunk_size);
+    preComputingMatrices(stations, incidents, apparatuses, env, chunk_size);
+
+    matchApparatusesWithStations(stations, apparatuses);
 
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
@@ -319,7 +341,7 @@ int main(int argc, char* argv[]) {
     env.set("STATION_REPORT_CSV_PATH", run_dir + "/station_report.csv");
 
     writeReportToCSV(simulator.getCurrentState(), env);
-    writeActions(simulator, simulator.getCurrentState());
+    writeActions(simulator, simulator.getCurrentState(), env);
     delete policy;
     delete fireModel;
 
