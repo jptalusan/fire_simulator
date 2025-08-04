@@ -12,25 +12,25 @@
 // TODO: Need to change the name of the stationID to be unique and incrementally start from 0...N
 Station::Station(int stationIndex, //simulator internal ID, not the one from the CSV
                  int station_id,
-                 double lon,
-                 double lat,
                  int num_fire_trucks,
-                 int num_ambulances)
+                 int num_ambulances,
+                 double lon,
+                 double lat)
     : stationIndex(stationIndex),
       station_id(station_id),
-      lon(lon),
-      lat(lat),
       num_fire_trucks(num_fire_trucks),
       num_ambulances(num_ambulances),
       max_ambulances(num_ambulances),
-      max_fire_trucks(num_fire_trucks) {}
+      max_fire_trucks(num_fire_trucks),
+      lon(lon),
+      lat(lat) {}
 
 int Station::getStationIndex() const { return stationIndex; }
 int Station::getStationId() const noexcept { return station_id; }
-double Station::getLon() const noexcept { return lon; }
-double Station::getLat() const noexcept { return lat; }
 int Station::getNumFireTrucks() const noexcept { return num_fire_trucks; }
 int Station::getNumAmbulances() const noexcept { return num_ambulances; }
+double Station::getLon() const noexcept { return lon; }
+double Station::getLat() const noexcept { return lat; }
 Location Station::getLocation() const noexcept {
     return Location(lat, lon);
 }
@@ -60,89 +60,58 @@ void Station::printInfo() const {
                 station_id, lat, lon, num_fire_trucks, num_ambulances);
 }
 
-std::vector<Station> loadStationsFromCSV(const std::string& filename) {
-    EnvLoader env("../.env");
-    std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
-    spdlog::info("Loading stations from CSV file: {}", filename);
-    std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
-
-    std::vector<Station> stations;
-    std::ifstream file(filename);
-    std::string line;
-
-    if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
-        return stations;
-    }
-
-    // Skip header line
-    std::getline(file, line);
-
-    int ignoredCount = 0; // Count of ignored stations
-    int index = 0;
-    while (std::getline(file, line)) {
-        std::istringstream ss(line);
-        std::string token;
-
-        // Skip OBJECTID
-        // How to ensure that these are string that can be converted to int?
-        std::getline(ss, token, ',');
-        int station_id = -1;
-        try {
-            station_id = std::stoi(token);
-        } catch (...) {
-            spdlog::error("Invalid station ID: {}", token);
-            throw InvalidStationError("Invalid station ID in CSV file: " + token);
-        }
-
-        // Skip Facility Name
-        std::getline(ss, token, ',');
-
-        // Skip Address
-        std::getline(ss, token, ',');
-
-        // Skip City
-        std::getline(ss, token, ',');
-
-        // Skip State
-        std::getline(ss, token, ',');
-
-        // Skip Zip Code
-        std::getline(ss, token, ',');
-
-        // Skip GLOBALID
-        std::getline(ss, token, ',');
-
-        // x
-        std::getline(ss, token, ',');
-        double lat = std::stod(token);
-
-        // y
-        std::getline(ss, token, ',');
-        double lon = std::stod(token);
-
-        int num_fire_trucks = constants::DEFAULT_NUM_FIRE_TRUCKS; // Default value, can be updated later
-        int num_ambulances = constants::DEFAULT_NUM_AMBULANCES;  // Default value, can be updated later
-
-        if (isPointInPolygon(polygon, Location(lon, lat))) {
-            Station station(index,
-                            station_id,
-                            lon,
-                            lat,
-                            num_fire_trucks,
-                            num_ambulances);
-            stations.emplace_back(station);
-            spdlog::debug("Loaded station: {}", station_id);
-            index++;
-        } else {
-            spdlog::debug("Station {} is out of bounds and will be ignored.", station_id);
-            ignoredCount++;
+void Station::initializeApparatusCount(std::vector<Apparatus>& all_apparatus) {
+    for (auto& apparatus : all_apparatus) {
+        if (apparatus.getStationIndex() == stationIndex) {
+            total_count_[apparatus.getType()]++;
+            if (apparatus.getStatus() == ApparatusStatus::Available) {
+                available_count_[apparatus.getType()]++;
+            }
         }
     }
-
-    file.close();
-    spdlog::info("Loaded {} stations from CSV file.", stations.size());
-    spdlog::warn("Ignored {} stations that are out of bounds.", ignoredCount);
-    return stations;
 }
+
+// Fast lookups - O(1)
+int Station::getAvailableCount(ApparatusType type) const {
+    auto it = available_count_.find(type);
+    return it != available_count_.end() ? it->second : 0;
+}
+
+int Station::getTotalCount(ApparatusType type) const {
+    auto it = total_count_.find(type);
+    return it != total_count_.end() ? it->second : 0;
+}
+
+// // Update counts when apparatus status changes
+// void Station::updateApparatusStatus(ApparatusType type, ApparatusStatus new_status) {
+//     if (old_status == ApparatusStatus::Available) {
+//         available_count_[type]--;
+//     }
+//     if (new_status == ApparatusStatus::Available) {
+//         available_count_[type]++;
+//     }
+// }
+
+// // TODO: handle apparatus returning
+// void Station::returnApparatus(ApparatusType type, int count) {
+//     int total_count = total_count_[type];
+//     int available_count = available_count_[type];
+    
+//     if (available_count + count <= total_count) {
+//         available_count_[type] += count;
+//         spdlog::debug("Returned {} {}(s) to station {}", count, type, station_id);
+//     } else {
+//         spdlog::error("Cannot return {} {}(s) to station {}: exceeds total count", count, type, station_id);
+//         throw 
+//     }
+
+// }
+
+// // TODO: handle sending apparatus
+// void Station::dispatchApparatus(ApparatusType type, ApparatusStatus status) {
+//     for (const auto& [type, count] : dispatchedCounts) {
+//         total_count_[type] -= count;
+//         available_count_[type] -= count;
+//     }
+// }
