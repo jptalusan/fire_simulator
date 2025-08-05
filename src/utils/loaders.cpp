@@ -96,10 +96,10 @@ std::vector<Station> loadStationsFromCSV(const EnvLoader& env) {
         if (isPointInPolygon(polygon, Location(lon, lat))) {
             Station station(index,
                             station_id,
-                            lon,
-                            lat,
                             num_fire_trucks,
-                            num_ambulances);
+                            num_ambulances,
+                            lon,
+                            lat);
             stations.emplace_back(station);
             spdlog::debug("Loaded station: {}", station_id);
             index++;
