@@ -222,7 +222,6 @@ void writeActions(const Simulator& simulator, State& state, EnvLoader& env) {
     std::ofstream station_csv(station_report_path);
     station_csv << stationMetricHeader << "\n";
 
-
     // TODO: Fix, this is totally wrong now because of apparatus count and type.
     for (const auto& action : actionHistory) {
         if (action.type != StationActionType::Dispatch) {
@@ -244,6 +243,17 @@ void writeActions(const Simulator& simulator, State& state, EnvLoader& env) {
         station_csv << metrics << "\n";
     }
     station_csv.close();
+}
+
+// Run on main to test Overpass
+/* Should be run for each incident, find worst-case building nearby and use that as basis.
+Overpass API Query: [out:json];(way(around:20, 36.145,-86.7933)["building"];node(around:20, 36.145,-86.7933)["building"];relation(around:20, 36.145,-86.7933)["building"];);out center;
+Found 2 elements
+Element 742727372 (way): Vanderbilt University : ISIS & ISDE | lat=36.144900, lon=-86.793202, building=office, levels=4, tourism=none
+Element 1073870768 (way):  | lat=36.145171, lon=-86.793097, building=retail, levels=1, tourism=none
+*/
+void testingOverpass(int argc, char* argv[]) {
+    queryOverpassAPI(Location(36.144951, -86.793274), 20.0);
 }
 
 int main(int argc, char* argv[]) {
@@ -273,7 +283,6 @@ int main(int argc, char* argv[]) {
     initial_state.advanceTime(events.top().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
     initial_state.setApparatusList(apparatuses);
-    // initial_state.setLastEventId(events.back().eventId); // Set the last event ID
 
     // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
     //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));

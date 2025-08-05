@@ -31,3 +31,7 @@ void save_matrix_binary(const std::vector<std::vector<double>>& matrix,
                         const std::string& filename);
 
 double* load_matrix_binary_flat(const std::string& filename, int& height, int& width);
+
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output);
+
+std::string queryOverpassAPI(Location center, double radius=20.0);

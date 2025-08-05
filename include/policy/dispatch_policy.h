@@ -14,9 +14,19 @@ public:
     
     // Dispatch apparatus by type priority (you can customize this order)
     std::vector<ApparatusType> dispatchOrder = {
+        ApparatusType::Pumper,
         ApparatusType::Engine,
-        ApparatusType::Truck, 
-        ApparatusType::Rescue
+        ApparatusType::Truck,
+        ApparatusType::Rescue,
+        ApparatusType::Hazard,
+        ApparatusType::Chief,
+        ApparatusType::Squad,
+        ApparatusType::Fast,
+        ApparatusType::Medic,
+        ApparatusType::Brush,
+        ApparatusType::Boat,
+        ApparatusType::UTV,
+        ApparatusType::Reach
     };
 
 protected:

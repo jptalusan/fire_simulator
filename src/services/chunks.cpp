@@ -266,3 +266,162 @@ double* load_matrix_binary_flat(const std::string& filename, int& height, int& w
     in.close();
     return matrix;
 }
+
+struct OverpassElement {
+    Location location;
+    bool building;
+    std::string buildingType;
+    std::string name;
+    int64_t id;
+    std::string elementType;
+    std::string tourism;
+    int building_levels;
+};
+
+std::vector<OverpassElement> parseOverpassResponse(const std::string& response) {
+    std::vector<OverpassElement> elements;
+    
+    try {
+        auto json_response = json::parse(response);
+        
+        if (!json_response.contains("elements")) {
+            std::cout << "No elements found in response" << std::endl;
+            return elements;
+        }
+        
+        std::cout << "Found " << json_response["elements"].size() << " elements" << std::endl;
+        
+        for (const auto& element : json_response["elements"]) {
+            OverpassElement overpass_element;
+            
+            // Get basic element info
+            overpass_element.id = element.value("id", 0);
+            overpass_element.elementType = element.value("type", "unknown");
+            
+            // Get coordinates
+            if (element.contains("center")) {
+                // For ways and relations with center output
+                overpass_element.location.lat = element["center"]["lat"];
+                overpass_element.location.lon = element["center"]["lon"];
+            } else if (element.contains("lat") && element.contains("lon")) {
+                // For nodes
+                overpass_element.location.lat = element["lat"];
+                overpass_element.location.lon = element["lon"];
+            } else {
+                std::cout << "Skipping element " << overpass_element.id 
+                          << " - no coordinates found" << std::endl;
+                continue;
+            }
+            
+            // Initialize building info
+            overpass_element.building = false;
+            overpass_element.buildingType = "none";
+            overpass_element.name = "";
+            overpass_element.tourism = "none";
+
+            // Parse tags
+            if (element.contains("tags")) {
+                const auto& tags = element["tags"];
+                
+                // Check for building tag
+                if (tags.contains("building")) {
+                    overpass_element.building = true;
+                    overpass_element.buildingType = tags["building"].get<std::string>();
+                }
+                
+                // Get name if available
+                if (tags.contains("name")) {
+                    overpass_element.name = tags["name"].get<std::string>();
+                }
+
+                // Check for tourism tag
+                if (tags.contains("tourism")) {
+                    overpass_element.tourism = tags["tourism"].get<std::string>();
+                }
+
+                // Check for building:levels tag
+                if (tags.contains("building:levels")) {
+                    try {
+                        overpass_element.building_levels = std::stoi(tags["building:levels"].get<std::string>());
+                    } catch (const std::invalid_argument&) {
+                        overpass_element.building_levels = 1; // Default if parsing fails
+                    }
+                } else {
+                    overpass_element.building_levels = 1; // Default if not present
+                }
+            }
+            
+            elements.push_back(overpass_element);
+            
+            // Log the parsed element
+            std::cout << "Element " << overpass_element.id 
+                      << " (" << overpass_element.elementType << "): "
+                      << overpass_element.name << " | "
+                      << "lat=" << std::fixed << std::setprecision(6) << overpass_element.location.lat
+                      << ", lon=" << overpass_element.location.lon
+                      << ", building=" << overpass_element.buildingType
+                      << ", levels=" << overpass_element.building_levels
+                      << ", tourism=" << overpass_element.tourism << std::endl;
+        }
+        
+    } catch (const json::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    }
+    
+    return elements;
+}
+
+std::string queryOverpassAPI(Location center, double radius) {
+    CURL* curl;
+    CURLcode res;
+    std::string readBuffer;
+
+    // The Overpass API endpoint
+    std::string url = "https://overpass.private.coffee/api/interpreter/";
+
+    // Define latitude and longitude parameters
+    double lat = center.lat;
+    double lon = center.lon;
+
+    // Use std::ostringstream to build the query
+    std::ostringstream queryStream;
+
+    queryStream << "[out:json];";
+    queryStream << "(";
+    queryStream << "way(around:" << radius << ", " << lat << "," << lon << ")[\"building\"];";
+    queryStream << "node(around:" << radius << ", " << lat << "," << lon << ")[\"building\"];";
+    queryStream << "relation(around:" << radius << ", " << lat << "," << lon << ")[\"building\"];";
+    queryStream << ");";
+    queryStream << "out center;";
+
+    // Get the constructed query as a string
+    std::string query = queryStream.str();
+    std::cout << "Overpass API Query: " << query << std::endl;
+
+    // Initialize CURL
+    curl = curl_easy_init();
+    if(curl) {
+        // Set options for the request
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, query.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL); // Optional: Set HTTP headers if needed
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        // Check for errors
+        if(res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+    } else {
+        std::cerr << "Failed to initialize CURL" << std::endl;
+    }
+
+    parseOverpassResponse(readBuffer);
+    return readBuffer;
+}

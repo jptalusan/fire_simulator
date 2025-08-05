@@ -26,8 +26,8 @@ public:
     IncidentStatus status;
 
     std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
-    std::unordered_map<ApparatusType, int> requiredApparatusMap; // Maps apparatus type to count
-    std::unordered_map<ApparatusType, int> currentApparatusMap;
+    std::unordered_map<ApparatusType, int> requiredApparatusMap; // How many apparatus is needed for this incident
+    std::unordered_map<ApparatusType, int> currentApparatusMap; // How many apparatus are currently at the incident (or have been assigned to the incident)
 
     Incident(int index, int id, double latitude, double longitude,
              IncidentType type, IncidentLevel level,
