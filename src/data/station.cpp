@@ -60,18 +60,6 @@ void Station::printInfo() const {
                 station_id, lat, lon, num_fire_trucks, num_ambulances);
 }
 
-
-void Station::initializeApparatusCount(std::vector<Apparatus>& all_apparatus) {
-    for (auto& apparatus : all_apparatus) {
-        if (apparatus.getStationIndex() == stationIndex) {
-            total_count_[apparatus.getType()]++;
-            if (apparatus.getStatus() == ApparatusStatus::Available) {
-                available_count_[apparatus.getType()]++;
-            }
-        }
-    }
-}
-
 // Fast lookups - O(1)
 int Station::getAvailableCount(ApparatusType type) const {
     auto it = available_count_.find(type);
@@ -83,35 +71,67 @@ int Station::getTotalCount(ApparatusType type) const {
     return it != total_count_.end() ? it->second : 0;
 }
 
-// // Update counts when apparatus status changes
-// void Station::updateApparatusStatus(ApparatusType type, ApparatusStatus new_status) {
-//     if (old_status == ApparatusStatus::Available) {
-//         available_count_[type]--;
-//     }
-//     if (new_status == ApparatusStatus::Available) {
-//         available_count_[type]++;
-//     }
-// }
+// Update counts when apparatus status changes
+void Station::updateApparatusStatus(ApparatusType type, ApparatusStatus old_status, ApparatusStatus new_status) {
+    if (old_status == ApparatusStatus::Available) {
+        available_count_[type]--;
+    }
+    if (new_status == ApparatusStatus::Available) {
+        available_count_[type]++;
+    }
+}
 
-// // TODO: handle apparatus returning
-// void Station::returnApparatus(ApparatusType type, int count) {
-//     int total_count = total_count_[type];
-//     int available_count = available_count_[type];
+// In station.cpp - cleaner implementation:
+bool Station::dispatchApparatus(ApparatusType type, int count) {
+    if (available_count_[type] < count) {
+        spdlog::warn("Station {} cannot dispatch {} {} apparatus - only {} available", 
+                    stationIndex, count, to_string(type), available_count_[type]);
+        return false;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        updateApparatusStatus(type, ApparatusStatus::Available, ApparatusStatus::Dispatched);
+    }
+    spdlog::debug("Station {} dispatched {} {} apparatus. Remaining: {}", 
+                 stationIndex, count, to_string(type), available_count_[type]);
+    return true;
+}
+
+void Station::returnApparatus(ApparatusType type, int count) {
+    // Ensure we don't exceed total capacity
+    int maxReturnable = total_count_[type] - available_count_[type];
+    int actualReturn = std::min(count, maxReturnable);
     
-//     if (available_count + count <= total_count) {
-//         available_count_[type] += count;
-//         spdlog::debug("Returned {} {}(s) to station {}", count, type, station_id);
-//     } else {
-//         spdlog::error("Cannot return {} {}(s) to station {}: exceeds total count", count, type, station_id);
-//         throw 
-//     }
+    if (actualReturn != count) {
+        spdlog::warn("Station {} can only accept {} of {} returning {} apparatus", 
+                    stationIndex, actualReturn, count, to_string(type));
+    }
 
-// }
+    for (int i = 0; i < actualReturn; ++i) {
+        updateApparatusStatus(type, ApparatusStatus::Dispatched, ApparatusStatus::Available);
+    }
+    spdlog::debug("Station {} received {} returning {} apparatus. Available: {}", 
+                 stationIndex, actualReturn, to_string(type), available_count_[type]);
+}
 
-// // TODO: handle sending apparatus
-// void Station::dispatchApparatus(ApparatusType type, ApparatusStatus status) {
-//     for (const auto& [type, count] : dispatchedCounts) {
-//         total_count_[type] -= count;
-//         available_count_[type] -= count;
-//     }
-// }
+bool Station::canDispatch(ApparatusType type, int count) const {
+    return available_count_.count(type) && available_count_.at(type) >= count;
+}
+
+void Station::updateTotalCount(ApparatusType type, int count) {
+    total_count_[type] += count;
+    if (total_count_[type] < 0) {
+        spdlog::error("Total count for {} at station {} cannot be negative. Resetting to 0.", 
+                      to_string(type), stationIndex);
+        total_count_[type] = 0;
+    }
+}
+
+void Station::updateAvailableCount(ApparatusType type, int count) {
+    available_count_[type] += count;
+    if (available_count_[type] < 0) {
+        spdlog::error("Available count for {} at station {} cannot be negative. Resetting to 0.", 
+                      to_string(type), stationIndex);
+        available_count_[type] = 0;
+    }
+}

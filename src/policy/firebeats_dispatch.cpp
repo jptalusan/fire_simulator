@@ -1,11 +1,11 @@
+#include "policy/firebeats_dispatch.h"
+#include "services/chunks.h"
+#include "services/queries.h"
+#include "utils/constants.h"
+#include "utils/error.h"
+#include "utils/helpers.h"
 #include <iostream>
 #include <spdlog/spdlog.h>
-#include "policy/firebeats_dispatch.h"
-#include "services/queries.h"
-#include "utils/error.h"
-#include "utils/constants.h"
-#include "services/chunks.h"
-#include "utils/helpers.h"
 
 // Firebeats naming convention is a bit confusing. and currently this is incomplete.
 // Check the preprocess notebook for a list of beats that I have no idea what they mean (DSOP,BAR,HQ, etc.)
@@ -102,76 +102,21 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
         return { Action::createDoNothingAction() }; // No action needed
     }
 
-    Incident i = state.getActiveIncidentsConst().at(incidentIndex);
+    const Incident& incident = state.getActiveIncidentsConst().at(incidentIndex);
     
     // If matrix is loaded, use it instead of OSRM
     std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentIndex);
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
     
-    int zoneIndex = i.zoneIndex;
+    int zoneIndex = incident.zoneIndex;
     std::vector<int> beatStationIndices = getColumn(fireBeatsMatrix_, fireBeatsWidth_, fireBeatsHeight_, zoneIndex);
-    // std::vector<int> beatStationIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; // Placeholder for actual beat station indices
 
-    int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
-    time_t incidentResolutionTime = i.resolvedTime;
-    const std::vector<Station>& validStations = state.getAllStations();
-
-    std::vector<Action> actions;
-    actions.reserve(totalApparatusRequired);
-
-    int totalApparatusDispatched = 0;
-    for (const auto& index : beatStationIndices) {
-        if (index < 0 || index >= static_cast<int>(validStations.size())) {
-            spdlog::warn("Skipping invalid station index {} in beatStationIndices.", index);
-            continue;
-        }
-        if (totalApparatusDispatched == totalApparatusRequired)
-            break;
-
-        int numberOfFireTrucks = validStations[index].getNumFireTrucks();
-        if (numberOfFireTrucks > 0) [[likely]] {
-            time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
-            if (timeToReach >= incidentResolutionTime) {
-                // If the time to reach the incident is less than the resolution time, skip this station
-                spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
-                    formatTime(state.getSystemTime()), 
-                    validStations[index].getStationId(), 
-                    incidentIndex, 
-                    durations[index]);
-                continue;
-            }
-            // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
-            int usedApparatusCount = 0;
-            if ((totalApparatusRequired - totalApparatusDispatched) >= numberOfFireTrucks) {
-                usedApparatusCount = numberOfFireTrucks;
-            } else {
-                usedApparatusCount = totalApparatusRequired - totalApparatusDispatched;
-            }
-            
-            Action dispatchAction = Action::createDispatchAction(
-                validStations[index].getStationIndex(),
-                incidentIndex,
-                usedApparatusCount,
-                durations[index]
-            );
-
-            totalApparatusDispatched += usedApparatusCount;
-            actions.push_back(dispatchAction);
-            spdlog::info("[{}] Dispatching {} engines from station {} to incident {}, {:.2f} minutes away.", 
-                formatTime(state.getSystemTime()), 
-                usedApparatusCount,
-                validStations[index].getStationId(),
-                incidentIndex,
-                durations[index] / constants::SECONDS_IN_MINUTE);
-        } else [[unlikely]] {
-            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
-        }
-    }
-    
-    return actions;
+    return getAction_(incident, state, beatStationIndices, durations);
 }
 
-std::unordered_map<int, std::string> FireBeatsDispatch::readZoneIndexToNameMapCSV(const std::string& filename) const {
+std::unordered_map<int, std::string>
+FireBeatsDispatch::readZoneIndexToNameMapCSV(
+    const std::string &filename) const {
     std::unordered_map<int, std::string> zoneMap;
     std::ifstream file(filename);
     if (!file.is_open()) {

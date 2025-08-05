@@ -47,8 +47,14 @@ public:
     void initializeApparatusCount(std::vector<Apparatus>& all_apparatus);
     int getAvailableCount(ApparatusType type) const;
     int getTotalCount(ApparatusType type) const;
-    void returnApparatus(ApparatusType type, ApparatusStatus status);
-    void dispatchApparatus(ApparatusType type, ApparatusStatus status);
+    void updateTotalCount(ApparatusType type, int count);
+    void updateAvailableCount(ApparatusType type, int count);
+    
+    bool dispatchApparatus(ApparatusType type, int count = 1);
+    void returnApparatus(ApparatusType type, int count = 1);
+    bool canDispatch(ApparatusType type, int count = 1) const;
+    
+
 private:
     // Integers first (4 bytes each)
     int stationIndex;
@@ -66,7 +72,7 @@ private:
     std::unordered_map<ApparatusType, int> available_count_; // Assuming ApparatusType is defined elsewhere
     std::unordered_map<ApparatusType, int> total_count_;
 
-    void updateApparatusStatus(ApparatusType type, ApparatusStatus new_status);
+    void updateApparatusStatus(ApparatusType type, ApparatusStatus old_status, ApparatusStatus new_status);
 };
 
 #endif // STATION_H

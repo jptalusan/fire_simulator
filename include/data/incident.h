@@ -11,45 +11,49 @@
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
 class Incident {
 public:
-    int incidentIndex;
-    int incident_id;
     double lat;
     double lon;
-    IncidentType incident_type;
-    IncidentLevel incident_level;
     time_t reportTime;
     time_t timeRespondedTo; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
-    int totalApparatusRequired;
-    int currentApparatusCount;
-    IncidentStatus status;
-    std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
+
+    int incidentIndex;
+    int incident_id;
     int zoneIndex;
+
+    IncidentType incident_type;
+    IncidentLevel incident_level;
+    IncidentStatus status;
+
+    std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
+    std::unordered_map<ApparatusType, int> requiredApparatusMap; // Maps apparatus type to count
+    std::unordered_map<ApparatusType, int> currentApparatusMap;
 
     Incident(int index, int id, double latitude, double longitude,
              IncidentType type, IncidentLevel level,
              time_t report_time);
+
+    // Default constructor
     Incident()
-        : incidentIndex(-1),
-          incident_id(-1),
-          lat(0.0),
+        : lat(0.0),
           lon(0.0),
-          incident_type(IncidentType::Invalid),
-          incident_level(IncidentLevel::Invalid),
           reportTime(std::time(nullptr)),
           timeRespondedTo(std::time(nullptr)),
           resolvedTime(std::time(nullptr)),
-          totalApparatusRequired(0),
-          currentApparatusCount(0),
-          status(IncidentStatus::hasBeenReported),
-          zoneIndex(-1)
+          incidentIndex(-1),
+          incident_id(-1),
+          zoneIndex(-1),
+          incident_type(IncidentType::Invalid),
+          incident_level(IncidentLevel::Invalid),
+          status(IncidentStatus::hasBeenReported)
     {}
 
     void printInfo() const;
     Location getLocation() const;
+    void setRequiredApparatusMap(const std::unordered_map<ApparatusType, int>& requiredApparatusMap);
+    void updateCurrentApparatusMap(const ApparatusType& type, int count);
+    int getCurrentApparatusCount() const;
+    int getTotalApparatusRequired() const;
 };
-
-// Declaration of the loading function
-std::vector<Incident> loadIncidentsFromCSV(const std::string& filename);
 
 #endif // INCIDENT_H

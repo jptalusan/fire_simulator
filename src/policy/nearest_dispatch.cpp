@@ -27,6 +27,7 @@ NearestDispatch::~NearestDispatch() {
     spdlog::info("NearestDispatch policy destroyed.");
 }
 
+// TODO: This is very similar to firebeats except for a couple of lines.
  /**
  * @brief Determines the best station to dispatch to an unresolved incident.
  *
@@ -54,8 +55,8 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
         return { Action::createDoNothingAction() }; // No action needed
     }
 
-    Incident i = state.getActiveIncidentsConst().at(incidentIndex);
-    
+    const Incident& incident = state.getActiveIncidentsConst().at(incidentIndex);
+
     // If matrix is loaded, use it instead of OSRM
     std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentIndex);
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
@@ -66,57 +67,6 @@ std::vector<Action> NearestDispatch::getAction(const State& state) {
     if (sortedIndices.empty()) {
         spdlog::warn("No valid stations found or all durations are infinite.");
     }
-
-    int totalApparatusRequired = i.totalApparatusRequired - i.currentApparatusCount;
-    time_t incidentResolutionTime = i.resolvedTime;
-
-    const std::vector<Station>& validStations = state.getAllStations();
-
-    std::vector<Action> actions;
-    actions.reserve(totalApparatusRequired);
-
-    int totalApparatusDispatched = 0;
-    for (const auto& index : sortedIndices) {
-        if (totalApparatusDispatched == totalApparatusRequired)
-            break;
-
-        int numberOfFireTrucks = validStations[index].getNumFireTrucks();
-        if (numberOfFireTrucks > 0) [[likely]] {
-            // spdlog::debug("Duration: {} seconds", (index >= 0 ? durations[index] : -1));
-            time_t timeToReach = state.getSystemTime() + static_cast<time_t>(durations[index]);
-            if (timeToReach >= incidentResolutionTime) {
-                // If the time to reach the incident is less than the resolution time, skip this station
-                spdlog::debug("[{}] Station {} cannot reach incident {} in time ({} seconds).", 
-                    formatTime(state.getSystemTime()), 
-                    validStations[index].getStationId(), 
-                    incidentIndex, 
-                    durations[index]);
-                continue;
-            }
-            int usedApparatusCount = 0;
-            if ((totalApparatusRequired - totalApparatusDispatched) >= numberOfFireTrucks) {
-                usedApparatusCount = numberOfFireTrucks;
-            } else {
-                usedApparatusCount = totalApparatusRequired - totalApparatusDispatched;
-            }
-            Action dispatchAction = Action::createDispatchAction(
-                validStations[index].getStationIndex(),
-                incidentIndex,
-                usedApparatusCount,
-                durations[index]
-            );
-            totalApparatusDispatched += usedApparatusCount;
-            actions.push_back(dispatchAction);
-            spdlog::info("[{}] Dispatching {} engines from station{} to incident {}, {:.2f} minutes away.", 
-                formatTime(state.getSystemTime()), 
-                usedApparatusCount,
-                validStations[index].getStationId(),
-                incidentIndex,
-                durations[index] / constants::SECONDS_IN_MINUTE);
-        } else [[unlikely]] {
-            spdlog::warn("[{}] Station {} has no available fire trucks right now.", formatTime(state.getSystemTime()),  validStations[index].getStationId());
-        }
-    }
     
-    return actions;
+    return getAction_(incident, state, sortedIndices, durations);
 }

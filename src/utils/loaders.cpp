@@ -320,62 +320,62 @@ std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
         spdlog::debug("Station Index: {}, Chief Count: {}", station_id, chief_count);
 
         // Loop through each apparatus type and create instances
-        if (engine_count > 0) {
+        for (int i = 0; i < engine_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Engine);
             apparatuses.emplace_back(a);
         }
 
-        if (truck_count > 0) {
+        for (int i = 0; i < truck_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Truck);
             apparatuses.emplace_back(a);
         }
 
-        if (rescue_count > 0) {
+        for (int i = 0; i < rescue_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Rescue);
             apparatuses.emplace_back(a);
         }
 
-        if (hazard_count > 0) {
+        for (int i = 0; i < hazard_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Hazard);
             apparatuses.emplace_back(a);
         }
 
-        if (squad_count > 0) {
+        for (int i = 0; i < squad_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Squad);
             apparatuses.emplace_back(a);
         }
 
-        if (fast_count > 0) {
+        for (int i = 0; i < fast_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Fast);
             apparatuses.emplace_back(a);
         }
 
-        if (medic_count > 0) {
+        for (int i = 0; i < medic_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Medic);
             apparatuses.emplace_back(a);
         }
 
-        if (brush_count > 0) {
+        for (int i = 0; i < brush_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Brush);
             apparatuses.emplace_back(a);
         }
 
-        if (boat_count > 0) {
+        for (int i = 0; i < boat_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Boat);
             apparatuses.emplace_back(a);
         }
 
-        if (utv_count > 0) {
+        for (int i = 0; i < utv_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::UTV);
             apparatuses.emplace_back(a);
         }
 
-        if (reach_count > 0) {
+        for (int i = 0; i < reach_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Reach);
             apparatuses.emplace_back(a);
         }
 
-        if (chief_count > 0) {
+        for (int i = 0; i < chief_count; i++) {
             Apparatus a = Apparatus(index++, station_id, ApparatusType::Chief);
             apparatuses.emplace_back(a);
         }
