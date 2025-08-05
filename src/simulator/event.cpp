@@ -17,13 +17,15 @@ void Event::print() const {
         case EventType::ApparatusArrivalAtIncident:
             std::cout << "Apparatus Arrival - StationIndex: " << stationIndex 
                       << ", IncidentIndex: " << incidentIndex 
-                      << ", EnginesCount: " << enginesCount;
+                      << ", ApparatusCount: " << apparatusCount
+                      << ", ApparatusType: " << to_string(apparatusType);
             break;
             
         case EventType::ApparatusReturnToStation:
             std::cout << "Apparatus Return - StationIndex: " << stationIndex 
                       << ", IncidentIndex: " << incidentIndex 
-                      << ", EnginesCount: " << enginesCount;
+                      << ", ApparatusCount: " << apparatusCount
+                      << ", ApparatusType: " << to_string(apparatusType);
             break;
             
         case EventType::IncidentResolution:

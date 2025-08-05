@@ -9,7 +9,7 @@ class FireModel {
 public:
     virtual ~FireModel() = default;
     virtual double computeResolutionTime(State& state, const Incident& incident) = 0;
-    virtual int calculateApparatusCount(const Incident& incident) = 0; // Calculate the number of apparatus needed for an incident
+    virtual std::unordered_map<ApparatusType, int> calculateApparatusCount(const Incident& incident) = 0; // Calculate the number of apparatus needed for an incident
 };
 
 /*
@@ -31,7 +31,7 @@ public:
 
     // Function to compute the resolution time for a fire incident
     double computeResolutionTime(State& state, const Incident& incident) override;
-    int calculateApparatusCount(const Incident& incident) override;
+    std::unordered_map<ApparatusType, int> calculateApparatusCount(const Incident& incident) override;
 private:
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;

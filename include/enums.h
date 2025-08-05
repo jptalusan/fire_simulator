@@ -59,6 +59,7 @@ enum class ApparatusType : uint8_t {
     Boat,
     UTV,
     Reach,
+    Invalid // Added for safety, should not be used in practice
 };
 
 // to_string for IncidentType
@@ -110,6 +111,26 @@ inline const char* to_string(IncidentStatus status) {
         case IncidentStatus::isBeingResolved:       return "isBeingResolved";
         case IncidentStatus::hasBeenResolved:       return "hasBeenResolved";
         default:                                    return "Invalid";
+    }
+}
+
+
+inline const char* to_string(ApparatusType type) {
+    switch (type) {
+        case ApparatusType::Pumper: return "Pumper";
+        case ApparatusType::Engine: return "Engine";
+        case ApparatusType::Truck: return "Truck";
+        case ApparatusType::Rescue: return "Rescue";
+        case ApparatusType::Hazard: return "Hazard";
+        case ApparatusType::Chief: return "Chief";
+        case ApparatusType::Squad: return "Squad";
+        case ApparatusType::Fast: return "Fast";
+        case ApparatusType::Medic: return "Medic";
+        case ApparatusType::Brush: return "Brush";
+        case ApparatusType::Boat: return "Boat";
+        case ApparatusType::UTV: return "UTV";
+        case ApparatusType::Reach: return "Reach";
+        default: return "Invalid";
     }
 }
 #endif // ENUMS_H

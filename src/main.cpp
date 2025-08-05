@@ -93,19 +93,33 @@ void writeReportToCSV(State& state, const EnvLoader& env) {
             spdlog::error("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
             continue; // Skip this incident
         }
+        // TODO: Fix apparatus count and add type.
         csv << std::fixed << std::setprecision(6);
         csv << incident.incidentIndex << ","
             << incident.incident_id << ","
             << formatTime(incident.reportTime) << ","
             << formatTime(incident.timeRespondedTo) << ","
             << formatTime(incident.resolvedTime) << ","
-            << incident.currentApparatusCount << ","
+            // << incident.currentApparatusCount << ","
             // << incident.lat << ","
             // << incident.lon << ","
             << incident.zoneIndex << ","
             << to_string(incident.status) << "\n";
     }
     csv.close();
+}
+
+void matchApparatusesWithStations(std::vector<Station>& stations, 
+                                  std::vector<Apparatus>& apparatuses) {
+    // Initialize station apparatus counts
+    for (auto& apparatus : apparatuses) {
+        int stationIndex = apparatus.getStationIndex();
+        Station& station = stations.at(stationIndex);
+        station.updateAvailableCount(apparatus.getType(), 1);
+        station.updateTotalCount(apparatus.getType(), 1);
+    }
+    spdlog::info("Matched {} apparatus across {} stations", 
+                 apparatuses.size(), stations.size());
 }
 
 // Debug tool
@@ -135,11 +149,9 @@ void preComputingMatrices(std::vector<Station>& stations,
     stations = loadStationsFromCSV(env);
     incidents = loadIncidentsFromCSV(env);
     apparatuses = loadApparatusFromCSV(env);
-
-    for (auto& station : stations) {
-        station.initializeApparatusCount(apparatuses);
-    }
     
+    matchApparatusesWithStations(stations, apparatuses);
+
     // START Adding zones per incident (maybe costly?)
     std::vector<std::pair<int, Polygon>> polygonWithZoneID = loadServiceZonesFromGeojson(beats_shapefile_path);
     std::vector<Polygon> polygons;
@@ -210,6 +222,8 @@ void writeActions(const Simulator& simulator, State& state, EnvLoader& env) {
     std::ofstream station_csv(station_report_path);
     station_csv << stationMetricHeader << "\n";
 
+
+    // TODO: Fix, this is totally wrong now because of apparatus count and type.
     for (const auto& action : actionHistory) {
         if (action.type != StationActionType::Dispatch) {
             continue; // Skip non-dispatch actions
@@ -219,37 +233,17 @@ void writeActions(const Simulator& simulator, State& state, EnvLoader& env) {
 
         const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
         const Station& station = state.getStation(action.payload.stationIndex);
-        int numberOfFireTrucksToDispatch = action.payload.enginesCount;
-        int fireTrucksRemainingAtTime = station.getNumFireTrucks() - numberOfFireTrucksToDispatch;
+        int apparatusCount = action.payload.apparatusCount;
+        int fireTrucksRemainingAtTime = station.getNumFireTrucks() - apparatusCount;
         double travelTime = action.payload.travelTime;
         fmt::format_to(std::back_inserter(metrics), 
                     "{},{},{},{},{:.2f},{},{}",
         formatTime(incident.timeRespondedTo), station.getStationIndex(), 
-        numberOfFireTrucksToDispatch, fireTrucksRemainingAtTime,
+        apparatusCount, fireTrucksRemainingAtTime,
         travelTime, incident.incident_id, incident.incidentIndex);
         station_csv << metrics << "\n";
     }
     station_csv.close();
-}
-
-void matchApparatusesWithStations(std::vector<Station>& stations, 
-                                  std::vector<Apparatus>& apparatuses) {
-    // Initialize station apparatus counts
-    for (auto& station : stations) {
-        station.initializeApparatusCount(apparatuses);
-    }
-    
-    spdlog::info("Matched {} apparatus across {} stations", 
-                 apparatuses.size(), stations.size());
-    
-    // Log station summary
-    for (const auto& station : stations) {
-        spdlog::error("Station {}: {} engines, {} trucks, {} rescue units",
-                     station.getStationId(),
-                     station.getAvailableCount(ApparatusType::Engine),
-                     station.getAvailableCount(ApparatusType::Truck),
-                     station.getAvailableCount(ApparatusType::Rescue));
-    }
 }
 
 int main(int argc, char* argv[]) {
@@ -268,9 +262,6 @@ int main(int argc, char* argv[]) {
     std::vector<Apparatus> apparatuses = {};
     size_t chunk_size = 500;
     preComputingMatrices(stations, incidents, apparatuses, env, chunk_size);
-
-    matchApparatusesWithStations(stations, apparatuses);
-
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
     #endif
@@ -281,17 +272,18 @@ int main(int argc, char* argv[]) {
     initial_state.populateAllIncidents(incidents); // Populate all incidents in the state (only used for passing incidents cheaply)
     initial_state.advanceTime(events.top().event_time); // Set initial time to the first event's time
     initial_state.addStations(stations);
+    initial_state.setApparatusList(apparatuses);
     // initial_state.setLastEventId(events.back().eventId); // Set the last event ID
 
-    DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-                                                 env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+    //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
-    // DispatchPolicy* policy = new FireBeatsDispatch(
-    //     env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-    //     env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-    //     env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-    //     env.get("ZONE_MAP_PATH", "../data/zones.csv")
-    // );
+    DispatchPolicy* policy = new FireBeatsDispatch(
+        env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+        env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+        env.get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+        env.get("ZONE_MAP_PATH", "../data/zones.csv")
+    );
 
     int seed = std::stoi(env.get("RANDOM_SEED", "42"));
     FireModel* fireModel = new HardCodedFireModel(seed);

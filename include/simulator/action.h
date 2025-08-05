@@ -5,12 +5,11 @@ struct ActionPayload {
     double travelTime = 0.0; // in seconds
     int stationIndex = -1;
     int incidentIndex = -1;
-    int enginesCount = -1;
+    int apparatusCount = -1;
     int priority = 0;
+    ApparatusType apparatusType;
     
     ActionPayload() = default;
-    ActionPayload(int station, int incident, int engines, double travel, int prio = 0)
-        :  travelTime(travel), stationIndex(station), incidentIndex(incident), enginesCount(engines), priority(prio) {}
 };
 
 class Action {
@@ -23,9 +22,16 @@ public:
         : type(type_), payload(payload_) {}
     
     // Factory methods for type safety
-    static Action createDispatchAction(int stationIndex, int incidentIndex, int enginesCount, double travelTime) {
-        return Action(StationActionType::Dispatch, 
-                     ActionPayload(stationIndex, incidentIndex, enginesCount, travelTime));
+    static Action createDispatchAction(int stationIndex, int incidentIndex, 
+                                       ApparatusType type, int count, double travelTime) {
+        Action action;
+        action.type = StationActionType::Dispatch;
+        action.payload.stationIndex = stationIndex;
+        action.payload.incidentIndex = incidentIndex;
+        action.payload.apparatusType = type;
+        action.payload.apparatusCount = count;
+        action.payload.travelTime = travelTime;
+        return action;
     }
     
     static Action createDoNothingAction() {

@@ -2,6 +2,9 @@
 #include <spdlog/spdlog.h>
 #include <map>
 #include <numeric>
+#include "utils/helpers.h"
+#include "utils/constants.h"
+
 // TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
     const std::vector<int>& inProgressIncidents = state.inProgressIncidentIndices;
@@ -16,7 +19,7 @@ int DispatchPolicy::getNextIncidentIndex(const State& state) const {
         if (incident.resolvedTime <= state.getSystemTime()) {
             continue;
         }
-        if (incident.totalApparatusRequired > incident.currentApparatusCount) {
+        if (incident.getTotalApparatusRequired() > incident.getCurrentApparatusCount()) {
             spdlog::debug("Found unresolved incident with index: {}", id);
             incidentIndex = incident.incidentIndex; // Set the incidentIndex to the first unresolved incident found
             i = &incident; // Store the incident details as a pointer
@@ -94,4 +97,114 @@ std::vector<int> DispatchPolicy::getColumn(int* matrix, int width, int height, i
         col_ptr += width;
     }
     return column;
+}
+
+// TODO: This is basically the same code as in nearest_dispatch and firebeats_dispatch, only difference is the stationOrder passed in.
+std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const State &state,
+                              const std::vector<int> &stationOrder,
+                              const std::vector<double> &durations) {
+    int incidentIndex = incident.incidentIndex;
+    
+    if (incidentIndex < 0) {
+        spdlog::debug("No unresolved incident found in the active incidents.");
+        return {Action::createDoNothingAction()}; // No action needed
+    }
+    const std::unordered_map<ApparatusType, int> &requiredApparatusMap =
+        incident.requiredApparatusMap;
+    if (requiredApparatusMap.empty()) {
+        spdlog::warn("Incident {} has no required apparatus defined.",
+                     incident.incident_id);
+        return {Action::createDoNothingAction()}; // No action needed
+    }
+
+    // Calculate remaining apparatus needed by type
+    std::unordered_map<ApparatusType, int> remainingNeeded;
+    for (const auto &[type, required] : requiredApparatusMap) {
+        int currentCount = 0;
+        auto currentIt = incident.currentApparatusMap.find(type);
+        if (currentIt != incident.currentApparatusMap.end()) {
+            currentCount = currentIt->second;
+        }
+
+        int remaining = required - currentCount;
+        if (remaining > 0) {
+            remainingNeeded[type] = remaining;
+        }
+    }
+
+    time_t incidentResolutionTime = incident.resolvedTime;
+    const std::vector<Station> &validStations = state.getAllStations();
+
+    std::vector<Action> actions;
+
+    for (ApparatusType type : dispatchOrder) {
+        auto neededIt = remainingNeeded.find(type);
+        if (neededIt == remainingNeeded.end()) {
+            spdlog::debug("No remaining apparatus needed for type: {}",
+                          to_string(type));
+            continue; // No apparatus of this type needed
+        }
+
+        int neededCount = neededIt->second;
+        int dispatchedCount = 0;
+
+        // Try each station in order of proximity
+        for (int stationIndex : stationOrder) {
+            if (dispatchedCount >= neededCount) {
+                break; // Already dispatched enough of this type
+            }
+
+            const Station &station = validStations[stationIndex];
+            int availableCount = station.getAvailableCount(type);
+            if (availableCount <= 0) {
+                spdlog::debug("Station {} has no available {} apparatus.",
+                              station.getStationId(), to_string(type));
+                continue; // No available apparatus of this type
+            }
+
+            // Check if station can reach incident in time
+            time_t timeToReach = state.getSystemTime() +
+                                 static_cast<time_t>(durations[stationIndex]);
+            if (timeToReach >= incidentResolutionTime) {
+                spdlog::debug("[{}] Station {} cannot reach incident {} in "
+                              "time ({} seconds).",
+                              formatTime(state.getSystemTime()),
+                              station.getStationId(), incidentIndex,
+                              durations[stationIndex]);
+                break; // No point in dispatching if it can't reach in time
+            }
+
+            // Calculate how many to dispatch
+            int toDispatch = std::min({
+                availableCount,               // What station has
+                neededCount - dispatchedCount // What we still need
+            });
+
+            if (toDispatch > 0) {
+                Action dispatchAction = Action::createDispatchAction(
+                    station.getStationIndex(), incidentIndex, type, toDispatch,
+                    durations[stationIndex]);
+
+                actions.push_back(dispatchAction);
+                dispatchedCount += toDispatch;
+                spdlog::info(
+                    "[{}] Dispatching {} {} from station {} to incident {}, "
+                    "{:.2f} minutes away.",
+                    formatTime(state.getSystemTime()), toDispatch,
+                    to_string(type), station.getStationId(), incidentIndex,
+                    durations[stationIndex] / constants::SECONDS_IN_MINUTE);
+            }
+        }
+
+        // Log if we couldn't fulfill the requirement
+        if (dispatchedCount < neededCount) {
+            spdlog::warn(
+                "Could only dispatch {} of {} required {} for incident {}",
+                dispatchedCount, neededCount, to_string(type), incidentIndex);
+        } else if (dispatchedCount >= neededCount) {
+            break;
+        }
+    }
+
+    return actions;
 }

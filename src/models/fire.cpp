@@ -12,6 +12,7 @@ HardCodedFireModel::HardCodedFireModel(unsigned int seed)
 // Example implementation for HardCodedFireModel
 double HardCodedFireModel::computeResolutionTime(State& state, const Incident& incident) {
     IncidentLevel incidentLevel = incident.incident_level;
+    const time_t& stateTime = state.getSystemTime();
 
     double estimatedResolutionTime = 0.0;
     switch (incidentLevel) {
@@ -34,25 +35,26 @@ bool HardCodedFireModel::shouldResolveIncident(double probability) {
     return sample < probability;
 }
 
-int HardCodedFireModel::calculateApparatusCount(const Incident& incident) {
-    int apparatusCount = 0; // Placeholder for apparatus count
+// HACK: Right now only engine type is required.
+std::unordered_map<ApparatusType, int> HardCodedFireModel::calculateApparatusCount(const Incident& incident) {
+    std::unordered_map<ApparatusType, int> apparatusCount;
     IncidentLevel incidentLevel = incident.incident_level;
     switch (incidentLevel) {
         case IncidentLevel::Low:
-            apparatusCount = 1; // Example apparatus count for low-level incidents
+            apparatusCount[ApparatusType::Engine] = 1; // Example apparatus count for low-level incidents
             break;
         case IncidentLevel::Moderate:
-            apparatusCount = 2; // Example apparatus count for moderate-level incidents
+            apparatusCount[ApparatusType::Engine] = 2; // Example apparatus count for moderate-level incidents
             break;
         case IncidentLevel::High:
-            apparatusCount = 3; // Example apparatus count for high-level incidents
+            apparatusCount[ApparatusType::Engine] = 3; // Example apparatus count for high-level incidents
             break;
         case IncidentLevel::Critical:
-            apparatusCount = 4; // Example apparatus count for critical-level incidents
+            apparatusCount[ApparatusType::Engine] = 4; // Example apparatus count for critical-level incidents
             break;
         default:
             spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
-    return apparatusCount; // Return the calculated apparatus count
+    return apparatusCount; // Return the calculated apparatus count map
 }

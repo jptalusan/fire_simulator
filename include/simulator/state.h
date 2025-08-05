@@ -17,6 +17,7 @@ public:
     Station& getStation(int stationIndex);
     const std::vector<Station>& getAllStations() const;
     std::vector<Apparatus>& getApparatusList();
+    void setApparatusList(const std::vector<Apparatus>& apparatusList);
     void addStations(std::vector<Station> stations);
     std::unordered_map<int, Incident>& getActiveIncidents();
     void updateStationMetrics(const std::string& metric);
@@ -31,14 +32,15 @@ public:
     std::vector<int> inProgressIncidentIndices;
     const std::unordered_map<int, Incident>& getAllIncidents() const;
     void populateAllIncidents(const std::vector<Incident>& incidents);
-    
+    std::vector<int> dispatchApparatus(ApparatusType type, int count, int stationIndex);
+    void returnApparatus(ApparatusType type, int count, const std::vector<int>& apparatusIds);
+
 private:
     std::time_t system_time_;
     std::vector<Station> stations_;
     std::vector<Apparatus> apparatusList_;
     std::unordered_map<int, Incident> activeIncidents_;
     std::vector<std::string> stationMetrics_;
-    int lastEventId = 0; // Used to generate unique event IDs
     std::unordered_map<int, Incident> allIncidents_; //policies should not access this
 };
 
