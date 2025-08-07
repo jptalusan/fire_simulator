@@ -107,14 +107,18 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
     
     int zoneIndex = incident.zoneIndex;
+    // Check if the zone index is valid
+    if (zoneIndex < 0 || zoneIndex >= fireBeatsHeight_) {
+        LOG_ERROR("Invalid zone index: {} for incident {}", zoneIndex, incident.incident_id);
+        throw InvalidValueError("Invalid zone index for incident: " + std::to_string(incident.incident_id));
+    }
     std::vector<int> beatStationIndices = getColumn(fireBeatsMatrix_, fireBeatsWidth_, fireBeatsHeight_, zoneIndex);
 
     return getAction_(incident, state, beatStationIndices, durations);
 }
 
 std::unordered_map<int, std::string>
-FireBeatsDispatch::readZoneIndexToNameMapCSV(
-    const std::string &filename) const {
+FireBeatsDispatch::readZoneIndexToNameMapCSV(const std::string &filename) const {
     std::unordered_map<int, std::string> zoneMap;
     std::ifstream file(filename);
     if (!file.is_open()) {
