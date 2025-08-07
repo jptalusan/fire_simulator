@@ -137,15 +137,7 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
 
     std::vector<Action> actions;
 
-    for (ApparatusType type : dispatchOrder) {
-        auto neededIt = remainingNeeded.find(type);
-        if (neededIt == remainingNeeded.end()) {
-            LOG_DEBUG("No remaining apparatus needed for type: {}",
-                          to_string(type));
-            continue; // No apparatus of this type needed
-        }
-
-        int neededCount = neededIt->second;
+    for (const auto& [type, neededCount] : remainingNeeded) {
         int dispatchedCount = 0;
 
         // Try each station in order of proximity
@@ -201,10 +193,12 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
             LOG_WARN(
                 "Could only dispatch {} of {} required {} for incident {}",
                 dispatchedCount, neededCount, to_string(type), incidentIndex);
-        } else if (dispatchedCount >= neededCount) {
-            break;
         }
     }
 
+    if (actions.empty()) {
+        LOG_DEBUG("No actions could be taken for incident {}", incidentIndex);
+        return {Action::createDoNothingAction()}; // No action could be taken
+    }
     return actions;
 }

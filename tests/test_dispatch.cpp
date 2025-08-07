@@ -263,8 +263,12 @@ TEST_F(NearestDispatchTest, ReturnsDoNothingWhenNoStationsAvailable) {
     State state = createMockState(0);
     
     for (auto& station : state.getAllStations_()) {
-        station.dispatchApparatus(ApparatusType::Engine, 10);  // Dispatch more than available
-        station.dispatchApparatus(ApparatusType::Medic, 10);
+        int available_engine = station.getAvailableCount(ApparatusType::Engine);
+        int available_medic = station.getAvailableCount(ApparatusType::Medic);
+        station.dispatchApparatus(ApparatusType::Engine, available_engine);  // Dispatch more than available
+        station.dispatchApparatus(ApparatusType::Medic, available_medic);
+        state.dispatchApparatus(ApparatusType::Engine, available_engine, station.getStationIndex());
+        state.dispatchApparatus(ApparatusType::Medic, available_medic, station.getStationIndex());
     }
     
     // Act
