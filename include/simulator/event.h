@@ -4,6 +4,8 @@
 #include <ctime>
 #include "enums.h"
 #include <queue>
+#include <iostream>
+#include "utils/helpers.h"
 
 class Event {
 public:
@@ -54,14 +56,46 @@ public:
         e.incidentIndex = incidentIndex;
         return e;
     }
-
-    void print() const;
     
     bool operator>(const Event& other) const {
         if (event_time != other.event_time)
             return event_time > other.event_time;
         
         return event_type > other.event_type;
+    }
+
+    void print() const {
+        std::cout << "[" << utils::formatTime(event_time) << "] ";
+        
+        switch (event_type) {
+            case EventType::Incident:
+                std::cout << "Incident Event - IncidentIndex: " << incidentIndex;
+                break;
+                
+            case EventType::ApparatusArrivalAtIncident:
+                std::cout << "Apparatus Arrival - StationIndex: " << stationIndex 
+                        << ", IncidentIndex: " << incidentIndex 
+                        << ", ApparatusCount: " << apparatusCount
+                        << ", ApparatusType: " << to_string(apparatusType);
+                break;
+                
+            case EventType::ApparatusReturnToStation:
+                std::cout << "Apparatus Return - StationIndex: " << stationIndex 
+                        << ", IncidentIndex: " << incidentIndex 
+                        << ", ApparatusCount: " << apparatusCount
+                        << ", ApparatusType: " << to_string(apparatusType);
+                break;
+                
+            case EventType::IncidentResolution:
+                std::cout << "Incident Resolution - IncidentIndex: " << incidentIndex;
+                break;
+                
+            default:
+                std::cout << "Unknown Event Type";
+                break;
+        }
+        
+        std::cout << std::endl;
     }
 };
 

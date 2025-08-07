@@ -7,7 +7,6 @@
 #include "config/EnvLoader.h"
 #include "data/location.h"
 #include <nlohmann/json.hpp>
-#include <spdlog/spdlog.h>
 
 class Queries {
 public:
@@ -19,11 +18,8 @@ public:
 
 private:
     std::string osrm_url;
-    void loadEnv();
     std::string buildQueryURL(const std::vector<Location>& sources,
                               const std::vector<Location>& destinations);
-
-    EnvLoader env;  // Add EnvLoader instance
 };
 
 bool checkOSRM(const std::string& base_url);

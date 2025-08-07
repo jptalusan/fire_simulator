@@ -3,9 +3,9 @@
 #include "services/queries.h"
 #include "utils/constants.h"
 #include "utils/error.h"
+#include "utils/logger.h"
 #include "utils/helpers.h"
 #include <iostream>
-#include <spdlog/spdlog.h>
 
 // Firebeats naming convention is a bit confusing. and currently this is incomplete.
 // Check the preprocess notebook for a list of beats that I have no idea what they mean (DSOP,BAR,HQ, etc.)
@@ -13,23 +13,23 @@ FireBeatsDispatch::FireBeatsDispatch(const std::string& distanceMatrixPath,
                                      const std::string& durationMatrixPath,
                                      const std::string& fireBeatsMatrixPath,
                                      const std::string& zoneIDToNameMapPath)
-    : queries_(), distanceMatrix_(nullptr), durationMatrix_(nullptr), fireBeatsMatrix_(nullptr) {
+    : distanceMatrix_(nullptr), durationMatrix_(nullptr), fireBeatsMatrix_(nullptr) {
         // Validate the URL
         std::ifstream file(distanceMatrixPath);
         if (file) {
             distanceMatrix_ = load_matrix_binary_flat(distanceMatrixPath, height_, width_);
             durationMatrix_ = load_matrix_binary_flat(durationMatrixPath, height_, width_);
         } else {
-            spdlog::error("File does not exist, defaulting to using OSRM Table API.");
+            LOG_ERROR("File does not exist, defaulting to using OSRM Table API.");
             throw std::runtime_error("Distance matrix file not found: " + distanceMatrixPath);
         }
 
         std::ifstream fireBeatsFile(fireBeatsMatrixPath);
         if (fireBeatsFile) {
             fireBeatsMatrix_ = getFireBeats(fireBeatsMatrixPath, fireBeatsHeight_, fireBeatsWidth_);
-            spdlog::info("FireBeats matrix loaded with dimensions: {}x{}", fireBeatsWidth_, fireBeatsHeight_);
+            LOG_INFO("FireBeats matrix loaded with dimensions: {}x{}", fireBeatsWidth_, fireBeatsHeight_);
         } else {
-            spdlog::error("FireBeats matrix file not found: {}", fireBeatsMatrixPath);
+            LOG_ERROR("FireBeats matrix file not found: {}", fireBeatsMatrixPath);
             throw std::runtime_error("FireBeats matrix file not found: " + fireBeatsMatrixPath);
         }
 
@@ -40,7 +40,6 @@ FireBeatsDispatch::~FireBeatsDispatch() {
     delete[] durationMatrix_; // Clean up the matrix if it was allocated
     delete[] distanceMatrix_; // Clean up the matrix if it was allocated
     delete[] fireBeatsMatrix_; // Clean up the fire beats data if it was allocated
-    spdlog::info("FireBeatsDispatch policy destroyed.");
 }
 
 // Relies on the preprocessed bin, if its not correct then the key suddenly has the string "Station" that means it failed.
@@ -85,7 +84,6 @@ int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, i
  * Steps:
  * @note 1. Retrieve the next unresolved incident from the state.
  * @note 2. Collect all station locations from the state.
- * @note 3. Use the OSRM Table API (via Queries::queryTableService) to get travel times
  * @note    from all stations (sources) to the incident (destination).
  * @note 4. (Planned) Select the station with the lowest travel time and available trucks.
  * @note 5. (Planned) Emit a station_action event for dispatch.
@@ -98,7 +96,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     int incidentIndex = getNextIncidentIndex(state);
 
     if (incidentIndex < 0) {
-        spdlog::debug("No unresolved incident found in the active incidents.");
+        LOG_DEBUG("No unresolved incident found in the active incidents.");
         return { Action::createDoNothingAction() }; // No action needed
     }
 
@@ -138,7 +136,7 @@ FireBeatsDispatch::readZoneIndexToNameMapCSV(
         try {
             zoneID = std::stoi(token);
         } catch (...) {
-            spdlog::error("Invalid zone ID: {}", token);
+            LOG_ERROR("Invalid zone ID: {}", token);
             throw InvalidValueError("Invalid zone ID in CSV file: " + token);
         }
 

@@ -17,7 +17,6 @@ public:
 
     ~FireBeatsDispatch();
 private:
-    Queries queries_;
     // Distance and duration matrices
     std::string distanceMatrixPath_;
     std::string durationMatrixPath_;

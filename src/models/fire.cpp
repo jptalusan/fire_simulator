@@ -2,8 +2,8 @@
 #include "simulator/state.h"
 #include "utils/constants.h"
 #include "utils/error.h"
-#include <spdlog/spdlog.h>
 #include <random>
+#include "utils/logger.h"
 
 // TODO: All placeholders, not working yet.
 HardCodedFireModel::HardCodedFireModel(unsigned int seed)
@@ -12,7 +12,7 @@ HardCodedFireModel::HardCodedFireModel(unsigned int seed)
 // Example implementation for HardCodedFireModel
 double HardCodedFireModel::computeResolutionTime(State& state, const Incident& incident) {
     IncidentLevel incidentLevel = incident.incident_level;
-    const time_t& stateTime = state.getSystemTime();
+    state.getSystemTime();
 
     double estimatedResolutionTime = 0.0;
     switch (incidentLevel) {
@@ -21,7 +21,7 @@ double HardCodedFireModel::computeResolutionTime(State& state, const Incident& i
         case IncidentLevel::High:       estimatedResolutionTime = 60 * constants::SECONDS_IN_MINUTE; break;
         case IncidentLevel::Critical:   estimatedResolutionTime = 90 * constants::SECONDS_IN_MINUTE; break;
         default:
-            spdlog::error("[HardCodedFireModel] Unknown incident level: {}", to_string(incidentLevel));
+            LOG_ERROR("[HardCodedFireModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
 
@@ -53,7 +53,7 @@ std::unordered_map<ApparatusType, int> HardCodedFireModel::calculateApparatusCou
             apparatusCount[ApparatusType::Engine] = 4; // Example apparatus count for critical-level incidents
             break;
         default:
-            spdlog::error("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
+            LOG_ERROR("[EnvironmentModel] Unknown incident level: {}", to_string(incidentLevel));
             throw UnknownValueError(); // Throw an error for unknown incident levels
     }
     return apparatusCount; // Return the calculated apparatus count map

@@ -4,8 +4,15 @@
 #include "data/station.h"
 #include "data/incident.h"
 #include "data/apparatus.h"
+#include "simulator/event.h"
 
-std::vector<Station> loadStationsFromCSV(const EnvLoader& env);
-std::vector<Incident> loadIncidentsFromCSV(const EnvLoader& env);
-// TODO: I want it to be a separate file but it should read the same stations.csv as the Station loader above.
-std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env);
+namespace loader {
+std::vector<Station> loadStationsFromCSV();
+std::vector<Incident> loadIncidentsFromCSV();
+std::vector<Apparatus> loadApparatusFromCSV();
+EventQueue generateEvents(const std::vector<Incident>& incidents);
+void preComputingMatrices(std::vector<Station>& stations, 
+                          std::vector<Incident>& incidents,
+                          std::vector<Apparatus>& apparatuses,
+                          size_t chunk_size = 100);
+}

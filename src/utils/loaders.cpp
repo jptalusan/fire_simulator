@@ -1,38 +1,56 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include <spdlog/spdlog.h>
 #include "utils/loaders.h"
 #include "config/EnvLoader.h"
 #include "data/geometry.h"
 #include "utils/error.h"
+#include "utils/logger.h"
 #include "utils/constants.h"
 #include "data/apparatus.h"
+#include "services/queries.h"
+#include "services/chunks.h"
+
+namespace loader {
+EventQueue generateEvents(const std::vector<Incident>& incidents) {
+    std::vector<Event> container;
+    container.reserve(incidents.size());  // Preallocate memory for efficiency
+    EventQueue events(std::greater<Event>(), std::move(container));
+
+    for (size_t i = 0; i < incidents.size(); ++i) {
+        int incidentIndex = incidents[i].incidentIndex;
+        time_t reportTime = incidents[i].reportTime;
+        Event incidentEvent = Event::createIncidentEvent(reportTime, incidentIndex);
+        events.push(incidentEvent);
+    }
+
+    return events;
+}
 
 int parseIntToken(const std::string& token, int defaultValue = 0) {
-    spdlog::debug("Parsing token: '{}' (length: {})", token, token.length());
+    LOG_DEBUG("Parsing token: '{}' (length: {})", token, token.length());
     
     if (token.empty()) {
-        spdlog::debug("Token is empty, returning default: {}", defaultValue);
+        LOG_DEBUG("Token is empty, returning default: {}", defaultValue);
         return defaultValue;
     }
     
     try {
         int result = std::stoi(token);
-        spdlog::debug("Successfully parsed: {}", result);
+        LOG_DEBUG("Successfully parsed: {}", result);
         return result;
     } catch (const std::exception& e) {
-        // spdlog::error("Failed to parse token '{}': {}, using default {}", token, e.what(), defaultValue);
+        // LOG_ERROR("Failed to parse token '{}': {}, using default {}", token, e.what(), defaultValue);
         return defaultValue;
     }
 }
 
-std::vector<Station> loadStationsFromCSV(const EnvLoader& env) {
-    std::string filename = env.get("STATIONS_CSV_PATH", "");
+std::vector<Station> loadStationsFromCSV() {
+    std::string filename = EnvLoader::getInstance()->get("STATIONS_CSV_PATH", "");
     // TODO: Add error checking
-    std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
+    std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
-    spdlog::info("Loading stations from CSV file: {}", filename);
+    LOG_INFO("Loading stations from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
 
     std::vector<Station> stations;
@@ -40,7 +58,7 @@ std::vector<Station> loadStationsFromCSV(const EnvLoader& env) {
     std::string line;
 
     if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
+        LOG_ERROR("Failed to open file: {}", filename);
         return stations;
     }
 
@@ -60,7 +78,7 @@ std::vector<Station> loadStationsFromCSV(const EnvLoader& env) {
         try {
             station_id = std::stoi(token);
         } catch (...) {
-            spdlog::error("Invalid station ID: {}", token);
+            LOG_ERROR("Invalid station ID: {}", token);
             throw InvalidStationError("Invalid station ID in CSV file: " + token);
         }
 
@@ -101,30 +119,30 @@ std::vector<Station> loadStationsFromCSV(const EnvLoader& env) {
                             lon,
                             lat);
             stations.emplace_back(station);
-            spdlog::debug("Loaded station: {}", station_id);
+            LOG_DEBUG("Loaded station: {}", station_id);
             index++;
         } else {
-            spdlog::debug("Station {} is out of bounds and will be ignored.", station_id);
+            LOG_DEBUG("Station {} is out of bounds and will be ignored.", station_id);
             ignoredCount++;
         }
     }
 
     file.close();
-    spdlog::info("Loaded {} stations from CSV file.", stations.size());
-    spdlog::warn("Ignored {} stations that are out of bounds.", ignoredCount);
+    LOG_INFO("Loaded {} stations from CSV file.", stations.size());
+    LOG_WARN("Ignored {} stations that are out of bounds.", ignoredCount);
     return stations;
 }
 
-std::vector<Incident> loadIncidentsFromCSV(const EnvLoader& env) {
-    std::string filename = env.get("INCIDENTS_CSV_PATH", "");
-    std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
-    spdlog::info("Loading incidents from CSV file: {}", filename);
+std::vector<Incident> loadIncidentsFromCSV() {
+    std::string filename = EnvLoader::getInstance()->get("INCIDENTS_CSV_PATH", "");
+    std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
+    LOG_INFO("Loading incidents from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
     std::vector<Incident> incidents;
     std::ifstream file(filename);
 
     if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
+        LOG_ERROR("Failed to open file: {}", filename);
         return incidents;
     }
 
@@ -148,7 +166,7 @@ std::vector<Incident> loadIncidentsFromCSV(const EnvLoader& env) {
         try {
             id = std::stoi(token);
         } catch (...) {
-            spdlog::error("Invalid incident ID: {}", token);
+            LOG_ERROR("Invalid incident ID: {}", token);
             throw InvalidIncidentError("Invalid incident ID in CSV file: " + token);
         }
 
@@ -199,7 +217,7 @@ std::vector<Incident> loadIncidentsFromCSV(const EnvLoader& env) {
             }
 
             if (seenIDs.count(id)) {
-                // spdlog::warn("Incident ID {} is duplicated and will be ignored.", id);
+                // LOG_WARN("Incident ID {} is duplicated and will be ignored.", id);
                 ignoredCount++;
                 continue; // Skip if ID is already seen
             } else {
@@ -208,14 +226,14 @@ std::vector<Incident> loadIncidentsFromCSV(const EnvLoader& env) {
                 index++;
             }
         } else {
-            // spdlog::debug("Incident {} is out of bounds and will be ignored.", id);
+            // LOG_DEBUG("Incident {} is out of bounds and will be ignored.", id);
             ignoredCount++;
         }
         
     }
-    spdlog::info("Total incidents: {}", incidents.size() + ignoredCount);
-    spdlog::info("Loaded {} incidents from CSV file.", incidents.size());
-    spdlog::warn("Ignored {} incidents that are out of bounds.", ignoredCount);
+    LOG_INFO("Total incidents: {}", incidents.size() + ignoredCount);
+    LOG_INFO("Loaded {} incidents from CSV file.", incidents.size());
+    LOG_WARN("Ignored {} incidents that are out of bounds.", ignoredCount);
     return incidents;
 }
 
@@ -227,11 +245,11 @@ Throw an error if there are stations mismatch between stations and apparatus.
 The goal is to only give the stations a dictionary of apparatus types and counts, while apparatuses is its own list.
 This would allow us to loop through the independently from the stations (if needed).
 */
-std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
-    std::string filename = env.get("APPARATUS_CSV_PATH", "");
-    std::string bounds_path = env.get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
+std::vector<Apparatus> loadApparatusFromCSV() {
+    std::string filename = EnvLoader::getInstance()->get("APPARATUS_CSV_PATH", "");
+    std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
-    spdlog::info("Loading apparatuses from CSV file: {}", filename);
+    LOG_INFO("Loading apparatuses from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
 
     std::vector<Apparatus> apparatuses;
@@ -239,14 +257,13 @@ std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
     std::string line;
 
     if (!file.is_open()) {
-        spdlog::error("Failed to open file: {}", filename);
+        LOG_ERROR("Failed to open file: {}", filename);
         return apparatuses;
     }
 
     // Skip header line
     std::getline(file, line);
 
-    int ignoredCount = 0; // Count of ignored apparatuses
     int index = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
@@ -259,7 +276,7 @@ std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
         try {
             station_id = std::stoi(token);
         } catch (...) {
-            spdlog::error("Invalid station ID: {}", token);
+            LOG_ERROR("Invalid station ID: {}", token);
             throw InvalidStationError("Invalid station ID in CSV file: " + token);
         }
     
@@ -317,7 +334,7 @@ std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
         std::getline(ss, token, ',');
         int chief_count = parseIntToken(token);
 
-        spdlog::debug("Station Index: {}, Chief Count: {}", station_id, chief_count);
+        LOG_DEBUG("Station Index: {}, Chief Count: {}", station_id, chief_count);
 
         // Loop through each apparatus type and create instances
         for (int i = 0; i < engine_count; i++) {
@@ -382,7 +399,90 @@ std::vector<Apparatus> loadApparatusFromCSV(const EnvLoader& env) {
     }
 
     file.close();
-    // spdlog::info("Loaded {} stations from CSV file.", stations.size());
-    // spdlog::warn("Ignored {} stations that are out of bounds.", ignoredCount);
+    // LOG_INFO("Loaded {} stations from CSV file.", stations.size());
+    // LOG_WARN("Ignored {} stations that are out of bounds.", ignoredCount);
     return apparatuses;
 }
+
+
+// TODO: Add checking if the binary files already exist, if so, load them instead of generating them again.
+void preComputingMatrices(std::vector<Station>& stations, 
+                          std::vector<Incident>& incidents,
+                          std::vector<Apparatus>& apparatuses,
+                          size_t chunk_size) {
+    LOG_INFO("Starting Precomputation...");
+    //spdlog::stopwatch sw;
+    // Additional logic can be added here
+    std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
+    std::string stations_path = env->get("STATIONS_CSV_PATH", "../data/stations.csv");
+    std::string incidents_path = env->get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
+    std::string matrix_csv_path = env->get("MATRIX_CSV_PATH", "../logs/matrix.csv");
+    std::string distance_matrix_path = env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin");
+    std::string duration_matrix_path = env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin");
+    std::string beats_shapefile_path = env->get("BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson");
+    std::string osrmUrl_ = env->get("BASE_OSRM_URL", "http://router.project-osrm.org");
+
+    if (checkOSRM(osrmUrl_)) {
+        LOG_INFO("OSRM server is reachable and working correctly.");
+    } else {
+        LOG_ERROR("OSRM server is not reachable.");
+        throw OSRMError();
+    }
+
+    stations = loadStationsFromCSV();
+    incidents = loadIncidentsFromCSV();
+    apparatuses = loadApparatusFromCSV();
+
+    // START Adding zones per incident (maybe costly?)
+    std::vector<std::pair<int, Polygon>> polygonWithZoneID = loadServiceZonesFromGeojson(beats_shapefile_path);
+    std::vector<Polygon> polygons;
+    polygons.reserve(polygonWithZoneID.size());
+    for (const auto& pair : polygonWithZoneID) {
+        polygons.emplace_back(pair.second);
+    }
+    std::vector<Point> points;
+    points.reserve(incidents.size());  // Preallocate memory for efficiency
+    for (auto& incident : incidents) {
+        points.emplace_back(Point(incident.lon, incident.lat));
+    }
+    auto results = getPointToPolygonIndices(points, polygons);
+    int notThere = 0;
+    for (size_t i = 0; i < results.size(); ++i) {
+        if (results[i]) {
+            int zoneIndex = polygonWithZoneID.at(*results[i]).first;
+            incidents.at(i).zoneIndex = zoneIndex;
+        } else {    
+            notThere++;
+        }
+    }
+    LOG_ERROR("There are {} incidents that are not in any service zone.", notThere);
+    LOG_ERROR("There are {} incidents in service zones.", results.size() - notThere);
+    // END Adding zones per incident (maybe costly?)
+
+    std::vector<Location> sources;
+    sources.reserve(stations.size());  // Preallocate memory for efficiency
+    for (const auto& station : stations) {
+        sources.emplace_back(station.getLocation());
+    }
+    std::vector<Location> destinations;
+    destinations.reserve(incidents.size());  // Preallocate memory for efficiency
+    for (const auto& incident : incidents) {
+        destinations.emplace_back(incident.getLocation());
+    }
+
+    auto result = generate_osrm_table_chunks(sources, destinations, chunk_size);
+    const std::vector<std::vector<double>>& full_distance_matrix = result.first;
+    const std::vector<std::vector<double>>& full_duration_matrix = result.second;
+
+    std::cout << full_duration_matrix.size() << " sources, " 
+              << full_duration_matrix[0].size() << " destinations.\n";
+    // print_matrix(full_duration_matrix, 5, 5);
+    // For readability
+    write_matrix_to_csv(full_duration_matrix, matrix_csv_path, 2, false);
+    save_matrix_binary(full_duration_matrix, duration_matrix_path);
+    save_matrix_binary(full_distance_matrix, distance_matrix_path);
+   // LOG_INFO("Preprocessing completed successfully in {:.3} s.", sw);
+}
+
+} // namespace loader
+

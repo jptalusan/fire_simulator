@@ -1,6 +1,6 @@
-#include <spdlog/spdlog.h>
 #include <numeric>
 #include "data/incident.h"
+#include "utils/logger.h"
 
 Incident::Incident(int index, int id, double latitude, double longitude,
                    IncidentType type, IncidentLevel level,
@@ -18,7 +18,7 @@ Incident::Incident(int index, int id, double latitude, double longitude,
       status(IncidentStatus::hasBeenReported) {}
 
 void Incident::printInfo() const {
-    spdlog::error("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
+    LOG_ERROR("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
                 incidentIndex, incident_id, to_string(incident_type), to_string(incident_level), lat, lon, reportTime);
 }
 
@@ -36,7 +36,7 @@ void Incident::updateCurrentApparatusMap(const ApparatusType& type, int count) {
     } else {
         currentApparatusMap[type] = count;
     }
-    spdlog::debug("Updated current apparatus count for type {}: {}", to_string(type), currentApparatusMap[type]);
+    LOG_DEBUG("Updated current apparatus count for type {}: {}", to_string(type), currentApparatusMap[type]);
 }
 
 int Incident::getCurrentApparatusCount() const {

@@ -1,0 +1,88 @@
+# Doxyfile configuration for Fire Dispatch Simulator
+
+# Project information
+PROJECT_NAME           = "Fire Dispatch Simulator"
+PROJECT_NUMBER         = @PROJECT_VERSION@
+PROJECT_BRIEF          = "A comprehensive Fire Dispatch Simulator"
+
+# Output settings
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs
+CREATE_SUBDIRS         = NO
+OUTPUT_LANGUAGE        = English
+
+# Input settings
+INPUT                  = @CMAKE_SOURCE_DIR@/include @CMAKE_SOURCE_DIR@/src @CMAKE_SOURCE_DIR@/README.md
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.h *.hpp *.cpp *.cc *.cxx *.md
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */tests/*
+
+# Source browser
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = YES
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Documentation extraction
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_ANON_NSPACES   = NO
+
+# Generation settings
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+
+# HTML settings
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_HEADER            = 
+HTML_FOOTER            = 
+HTML_STYLESHEET        = 
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+HTML_COLORSTYLE_GAMMA  = 80
+HTML_TIMESTAMP         = YES
+HTML_DYNAMIC_SECTIONS  = NO
+HTML_INDEX_NUM_ENTRIES = 100
+
+# LaTeX settings
+GENERATE_LATEX         = NO
+
+# Preprocessing
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = @CMAKE_SOURCE_DIR@/include
+PREDEFINED             = 
+
+# Dot settings
+HAVE_DOT               = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+GROUP_GRAPHS           = YES
+UML_LOOK               = NO
+TEMPLATE_RELATIONS     = NO
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+GRAPHICAL_HIERARCHY    = YES
+DIRECTORY_GRAPH        = YES
+DOT_IMAGE_FORMAT       = png
+DOT_PATH               = 
+DOTFILE_DIRS           = 
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 0
+DOT_TRANSPARENT        = NO
+DOT_MULTI_TARGETS      = NO
+
+# Search engine
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO

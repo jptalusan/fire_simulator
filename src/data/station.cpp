@@ -2,12 +2,12 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
-#include <spdlog/spdlog.h>
 #include "data/station.h"
 #include "data/geometry.h"
 #include "config/EnvLoader.h"
 #include "utils/constants.h"
 #include "utils/error.h"
+#include "utils/logger.h"
 
 // TODO: Need to change the name of the stationID to be unique and incrementally start from 0...N
 Station::Station(int stationIndex, //simulator internal ID, not the one from the CSV
@@ -42,7 +42,7 @@ void Station::setNumFireTrucks(int n) {
         num_fire_trucks = n;
     }
     else {
-        spdlog::warn("Attempted to set number of fire trucks to {} but max is {}", n, max_fire_trucks);
+        LOG_WARN("Attempted to set number of fire trucks to {} but max is {}", n, max_fire_trucks);
     }
 }
 
@@ -51,12 +51,12 @@ void Station::setNumAmbulances(int n) {
         num_ambulances = n;
     }
     else {
-        spdlog::warn("Attempted to set number of ambulances to {} but max is {}", n, max_ambulances);
+        LOG_WARN("Attempted to set number of ambulances to {} but max is {}", n, max_ambulances);
     }
 }
 
 void Station::printInfo() const {
-    spdlog::debug("Station ID: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
+    LOG_DEBUG("Station ID: {}, Lat: {}, Lon: {}, Fire Trucks: {}, Ambulances: {}",
                 station_id, lat, lon, num_fire_trucks, num_ambulances);
 }
 
@@ -84,7 +84,7 @@ void Station::updateApparatusStatus(ApparatusType type, ApparatusStatus old_stat
 // In station.cpp - cleaner implementation:
 bool Station::dispatchApparatus(ApparatusType type, int count) {
     if (available_count_[type] < count) {
-        spdlog::warn("Station {} cannot dispatch {} {} apparatus - only {} available", 
+        LOG_WARN("Station {} cannot dispatch {} {} apparatus - only {} available", 
                     stationIndex, count, to_string(type), available_count_[type]);
         return false;
     }
@@ -92,7 +92,7 @@ bool Station::dispatchApparatus(ApparatusType type, int count) {
     for (int i = 0; i < count; ++i) {
         updateApparatusStatus(type, ApparatusStatus::Available, ApparatusStatus::Dispatched);
     }
-    spdlog::debug("Station {} dispatched {} {} apparatus. Remaining: {}", 
+    LOG_DEBUG("Station {} dispatched {} {} apparatus. Remaining: {}", 
                  stationIndex, count, to_string(type), available_count_[type]);
     return true;
 }
@@ -103,14 +103,14 @@ void Station::returnApparatus(ApparatusType type, int count) {
     int actualReturn = std::min(count, maxReturnable);
     
     if (actualReturn != count) {
-        spdlog::warn("Station {} can only accept {} of {} returning {} apparatus", 
+        LOG_WARN("Station {} can only accept {} of {} returning {} apparatus", 
                     stationIndex, actualReturn, count, to_string(type));
     }
 
     for (int i = 0; i < actualReturn; ++i) {
         updateApparatusStatus(type, ApparatusStatus::Dispatched, ApparatusStatus::Available);
     }
-    spdlog::debug("Station {} received {} returning {} apparatus. Available: {}", 
+    LOG_DEBUG("Station {} received {} returning {} apparatus. Available: {}", 
                  stationIndex, actualReturn, to_string(type), available_count_[type]);
 }
 
@@ -121,7 +121,7 @@ bool Station::canDispatch(ApparatusType type, int count) const {
 void Station::updateTotalCount(ApparatusType type, int count) {
     total_count_[type] += count;
     if (total_count_[type] < 0) {
-        spdlog::error("Total count for {} at station {} cannot be negative. Resetting to 0.", 
+        LOG_ERROR("Total count for {} at station {} cannot be negative. Resetting to 0.", 
                       to_string(type), stationIndex);
         total_count_[type] = 0;
     }
@@ -130,7 +130,7 @@ void Station::updateTotalCount(ApparatusType type, int count) {
 void Station::updateAvailableCount(ApparatusType type, int count) {
     available_count_[type] += count;
     if (available_count_[type] < 0) {
-        spdlog::error("Available count for {} at station {} cannot be negative. Resetting to 0.", 
+        LOG_ERROR("Available count for {} at station {} cannot be negative. Resetting to 0.", 
                       to_string(type), stationIndex);
         available_count_[type] = 0;
     }

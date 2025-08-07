@@ -1,7 +1,7 @@
 #include "simulator/state.h"
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include "utils/helpers.h"
+#include "utils/logger.h"
 
 State::State() : system_time_(std::time(nullptr)) {}
 
@@ -22,6 +22,11 @@ const std::vector<Station>& State::getAllStations() const {
     return stations_;
 }
 
+std::vector<Station>& State::getAllStations_() {
+    return stations_;
+}
+
+
 std::vector<Apparatus>& State::getApparatusList() {
     return apparatusList_;
 }
@@ -32,6 +37,14 @@ void State::setApparatusList(const std::vector<Apparatus>& apparatusList) {
 
 void State::addStations(std::vector<Station> stations) {
     stations_ = std::move(stations);
+}
+
+void State::addStation(const Station& station) {
+    stations_.push_back(station);
+}
+
+void State::addApparatus(const Apparatus& apparatus) {
+    apparatusList_.push_back(apparatus);
 }
 
 std::unordered_map<int, Incident>& State::getActiveIncidents() {
@@ -85,21 +98,33 @@ std::vector<int> State::dispatchApparatus(ApparatusType type, int count, int sta
 
 void State::returnApparatus(ApparatusType type, int count, const std::vector<int>& apparatusIds) {
     if (static_cast<size_t>(count) != apparatusIds.size()) {
-        spdlog::warn("[{}] Mismatch in returnApparatus: count {} vs apparatusIds size {}", 
-                     formatTime(system_time_), count, apparatusIds.size());
+        LOG_WARN("[{}] Mismatch in returnApparatus: count {} vs apparatusIds size {}", 
+                     utils::formatTime(system_time_), count, apparatusIds.size());
     }
     for (int id : apparatusIds) {
         auto it = std::find_if(apparatusList_.begin(), apparatusList_.end(),
                                [id](const Apparatus& a) { return a.getId() == id; });
         if (it != apparatusList_.end()) {
             if (it->getType() != type) {
-                spdlog::warn("[{}] Apparatus ID {} type mismatch: expected {}, found {}", 
-                             formatTime(system_time_), id, to_string(type), to_string(it->getType()));
+                LOG_WARN("[{}] Apparatus ID {} type mismatch: expected {}, found {}", 
+                             utils::formatTime(system_time_), id, to_string(type), to_string(it->getType()));
             }
             it->setStatus(ApparatusStatus::Available);
-            spdlog::info("[{}] Apparatus {} returned to available status", formatTime(system_time_), id);
+            LOG_INFO("[{}] Apparatus {} returned to available status", utils::formatTime(system_time_), id);
         } else {
-            spdlog::warn("[{}] Apparatus ID {} not found in the list", formatTime(system_time_), id);
+            LOG_WARN("[{}] Apparatus ID {} not found in the list", utils::formatTime(system_time_), id);
         }
     }
+}
+
+void State::matchApparatusesWithStations() {
+    // Initialize station apparatus counts
+    for (auto& apparatus : apparatusList_) {
+        int stationIndex = apparatus.getStationIndex();
+        Station& station = stations_.at(stationIndex);
+        station.updateAvailableCount(apparatus.getType(), 1);
+        station.updateTotalCount(apparatus.getType(), 1);
+    }
+    LOG_INFO("Matched {} apparatus across {} stations", 
+                 apparatusList_.size(), stations_.size());
 }

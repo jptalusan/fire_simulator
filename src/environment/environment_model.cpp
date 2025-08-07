@@ -1,5 +1,4 @@
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include "environment/environment_model.h"
 #include "data/incident.h"
 #include "simulator/event.h"
@@ -7,19 +6,20 @@
 #include "utils/helpers.h"
 #include "utils/error.h"
 #include <fmt/format.h>
+#include "utils/logger.h"
 
 EnvironmentModel::EnvironmentModel(FireModel& fireModel)
     : fireModel_(fireModel) {}
 
 // TODO: When a new incident needs to be generated, add it first to state.AllIncidents_
 std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& event) {
-    spdlog::debug("[{}] Handling {} for {}", formatTime(state.getSystemTime()), to_string(event.event_type), formatTime(event.event_time));
+    LOG_DEBUG("[{}] Handling {} for {}", utils::formatTime(state.getSystemTime()), to_string(event.event_type), utils::formatTime(event.event_time));
 
     switch (event.event_type) {
         case EventType::Incident: {
             int incidentIndex = event.incidentIndex;
             if (incidentIndex >= 0) {
-                // spdlog::info("[{}] Incident: {} | Level: {}", formatTime(event.event_time), incident->incident_type, to_string(incident->incident_level));
+                // LOG_INFO("[{}] Incident: {} | Level: {}", utils::formatTime(event.event_time), incident->incident_type, to_string(incident->incident_level));
                 const Incident& incident = state.getAllIncidents().at(incidentIndex);
                 Incident modifiableIncident = incident;
                 handleIncident(state, modifiableIncident, event.event_time);
@@ -69,16 +69,16 @@ std::vector<Event> EnvironmentModel::handleEvent(State& state, const Event& even
             Station& station = state.getStation(stationIndex);
             state.returnApparatus(apparatusType, apparatusCount, apparatusIds);
             station.returnApparatus(apparatusType, apparatusCount);
-            spdlog::info("[{}] {} {} returned to station {} from incident {}", 
-                            formatTime(event.event_time), apparatusCount, to_string(apparatusType), station.getStationId(), incidentIndex);
+            LOG_INFO("[{}] {} {} returned to station {} from incident {}", 
+                            utils::formatTime(event.event_time), apparatusCount, to_string(apparatusType), station.getStationId(), incidentIndex);
             break;
         }
 
         default: {
             // Optimized: Use fmt library (already included)
             std::string msg = fmt::format("[{}] Unknown event type: {}", 
-                formatTime(event.event_time), static_cast<int>(event.event_type));
-            spdlog::warn(msg);
+                utils::formatTime(event.event_time), static_cast<int>(event.event_type));
+            LOG_WARN(msg);
             throw UnknownValueError(msg); // Throw an error for unknown event types
             break;
         }
@@ -102,7 +102,7 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
     
     auto incidentIt = activeIncidents.find(incidentIndex);
     if (incidentIt == activeIncidents.end()) {
-        spdlog::debug("[EnvironmentModel] No unresolved incident found");
+        LOG_DEBUG("[EnvironmentModel] No unresolved incident found");
         return {};
     }
     
@@ -115,10 +115,10 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
             processDispatchAction(state, action, incident, newEvents, hasSentResolutionEvent);
         }
         else if (action.type == StationActionType::DoNothing) {
-            spdlog::debug("[EnvironmentModel] No action taken.");
+            LOG_DEBUG("[EnvironmentModel] No action taken.");
             continue; // No action to take, skip to next action
         } else {
-            spdlog::error("[EnvironmentModel] Unknown action type: {}", static_cast<int>(action.type));
+            LOG_ERROR("[EnvironmentModel] Unknown action type: {}", static_cast<int>(action.type));
             throw UnknownValueError(); // Throw an error for unknown action types
         }
     }
@@ -129,8 +129,8 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t eventTime) {
     // This should be the new event time already.
     std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
-    spdlog::info("[{}] Incident {} | Level: {} | Requires: {} apparatus.", 
-                 formatTime(eventTime), 
+    LOG_INFO("[{}] Incident {} | Level: {} | Requires: {} apparatus.", 
+                 utils::formatTime(eventTime), 
                  incident.incidentIndex, 
                  to_string(incident.incident_level), 
                  requiredApparatusMap[ApparatusType::Engine]); // Currently only engine type is supported
@@ -150,7 +150,7 @@ void EnvironmentModel::generateStationEvents(State& state,
     const std::vector<Action>& actions, 
     std::vector<Event>& newEvents) {
     if (actions.empty()) {
-        spdlog::warn("[EnvironmentModel] No actions provided to generate station events.");
+        LOG_WARN("[EnvironmentModel] No actions provided to generate station events.");
         return; // Exit early if no actions are provided
     }
     
@@ -158,12 +158,12 @@ void EnvironmentModel::generateStationEvents(State& state,
 
     // Error handling
     if (incidentIndex < 0) {
-        spdlog::error("[EnvironmentModel] Invalid incident ID: {}", incidentIndex);
+        LOG_ERROR("[EnvironmentModel] Invalid incident ID: {}", incidentIndex);
         throw InvalidIncidentError(); // Throw an error for invalid incident IDs
     }
 
     for (const auto& action : actions) {
-        spdlog::debug("[EnvironmentModel] Processing action: {}", to_string(action.type));
+        LOG_DEBUG("[EnvironmentModel] Processing action: {}", to_string(action.type));
         int stationIndex = action.payload.stationIndex; // Get station index from action payload
         double travel_time = action.payload.travelTime; // Get travel time from action payload
         
@@ -172,13 +172,13 @@ void EnvironmentModel::generateStationEvents(State& state,
         Station station = state.getStation(stationIndex);
         // check if stationIndex and station.getStationIndex() are the same
         if (stationIndex != station.getStationIndex()) {
-            spdlog::error("[EnvironmentModel] Station index mismatch: {} != {}", stationIndex, station.getStationIndex());
+            LOG_ERROR("[EnvironmentModel] Station index mismatch: {} != {}", stationIndex, station.getStationIndex());
             throw StationIndexMismatchError(); // Throw an error for station index mismatches
         }
         time_t timeToArriveAtIncident = state.getSystemTime() + constants::RESPOND_DELAY_SECONDS + static_cast<time_t>(travel_time); // Add travel time to resolution time
         Event apparatusArrival = Event::createApparatusArrivalEvent(timeToArriveAtIncident, station.getStationIndex(), incidentIndex, apparatusCount, apparatusType);
 
-        spdlog::debug("Inserting new events.");
+        LOG_DEBUG("Inserting new events.");
         newEvents.emplace_back(apparatusArrival);
     }
 }
@@ -201,13 +201,13 @@ void EnvironmentModel::processDispatchAction(State& state, const Action& action,
     station.dispatchApparatus(type, count);
 
     if (dispatchedIds.empty()) {
-        spdlog::warn("Failed to dispatch {} {} from station {}", 
+        LOG_WARN("Failed to dispatch {} {} from station {}", 
                     count, to_string(type), stationIndex);
         return;
     }
 
     if (incidentIndex != incident.incidentIndex) {
-        spdlog::error("[EnvironmentModel] Incident ID does not match target incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
+        LOG_ERROR("[EnvironmentModel] Incident ID does not match target incident ID: {} vs {}", incidentIndex, incident.incidentIndex);
         throw MismatchError(); // Throw an error if the incident ID does not match
     }
 

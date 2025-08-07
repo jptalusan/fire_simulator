@@ -29,12 +29,13 @@ brew install googletest
 brew install nlohmann-json
 brew install spdlog
 brew install boost
+brew install lp_solve
 xcode-select --install
 
 # For unix
 sudo apt update
 sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb libboost-all-dev
-sudo apt install nlohmann-json3-dev libspdlog-dev
+sudo apt install nlohmann-json3-dev libspdlog-dev lp-solve
 ```
 
 To build the project, navigate to the project directory and run the following command:
@@ -43,7 +44,11 @@ To build the project, navigate to the project directory and run the following co
 mkdir build
 cd build
 cmake ..
-make
+make -j4
+```
+or
+```
+./build.sh --clean --test
 ```
 
 This will compile the source files and create an executable in the project's root folder.
@@ -69,10 +74,9 @@ it should be 0th  indexed without any missing indices in the middle.
 Right now, if you don't have a bounds.geojson it will not check any point.
 
 4. After building the project, you can run the application with the following command:
-```
-./run_simulator
-# If you are still inside build folder
-../run_simulator
+```bash
+# while inside build directory 
+./src/fire_simulator
 # just make sure the paths in the .env reflect where you are
 ```
 
@@ -85,6 +89,17 @@ make clean
 
 ## Development
 Don't forget to create test cases. Place them inside `test/` and run `./test_simulator` after make.
+
+```bash
+# Run only nearest dispatch tests
+./tests/unit_tests --gtest_filter="NearestDispatchTest.*"
+
+# Run only location tests
+./tests/unit_tests --gtest_filter="LocationTest.*"
+
+# Running all tests, while in build dir
+ctest
+```
 
 ### Precomputing Travel times
 

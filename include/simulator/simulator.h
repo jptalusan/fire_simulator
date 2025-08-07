@@ -19,6 +19,9 @@ public:
     const std::vector<Action>& getActionHistory() const;
     State& getCurrentState();
 
+    void writeActions();
+    void writeReportToCSV();
+
 private:
     State& state_;
     EventQueue& events_;

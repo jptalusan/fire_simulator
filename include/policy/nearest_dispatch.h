@@ -14,7 +14,6 @@ public:
 
     ~NearestDispatch();
 private:
-    Queries queries_;
     std::string distanceMatrixPath_;
     std::string durationMatrixPath_;
     double* distanceMatrix_;

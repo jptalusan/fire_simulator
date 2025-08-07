@@ -10,6 +10,29 @@
 
 class EnvLoader {
 public:
+    // Singleton pattern: get the shared instance
+    static std::shared_ptr<EnvLoader> getInstance() {
+        return instance;
+    }
+    
+    // Initialize the singleton instance once (call this once at startup)
+    static void init(const std::string& filename = ".env") {
+        instance = std::shared_ptr<EnvLoader>(new EnvLoader(filename));
+    }
+
+    std::string get(const std::string& key, const std::string& default_val = "") const {
+        auto it = env_map.find(key);
+        if (it != env_map.end()) return it->second;
+        return default_val;
+    }
+
+    // Optional: explicit cleanup method (for tests)
+    static void cleanup() {
+        instance.reset();  // This will delete the object if it's the last reference
+    }
+
+private:
+    // Private constructor for singleton pattern
     explicit EnvLoader(const std::string& filename = ".env") {
         std::ifstream file(filename);
         if (!file.is_open()) {
@@ -35,14 +58,8 @@ public:
         }
     }
 
-    std::string get(const std::string& key, const std::string& default_val = "") const {
-        auto it = env_map.find(key);
-        if (it != env_map.end()) return it->second;
-        return default_val;
-    }
-
-private:
     std::unordered_map<std::string, std::string> env_map;
+    inline static std::shared_ptr<EnvLoader> instance = nullptr;
 };
 
 #endif // ENVLOADER_H

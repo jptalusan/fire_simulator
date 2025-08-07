@@ -4,6 +4,7 @@
 #include <sstream>
 #include <curl/curl.h>
 #include <cstdlib>
+#include "utils/logger.h"
 using json = nlohmann::json;
 
 // Helper for libcurl response
@@ -13,8 +14,8 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 }
 
 // TODO: Modify this so it can be used for other OSRM services, right now it is only for table service
-Queries::Queries() : env("../.env") {
-    osrm_url = env.get("OSRM_URL", "http://router.project-osrm.org/table/v1/driving/");
+Queries::Queries() {
+    osrm_url = EnvLoader::getInstance()->get("OSRM_URL", "http://router.project-osrm.org/table/v1/driving/");
 }
 
 std::vector<double> parseResponse(const std::string& response, const std::string& feature) {
@@ -90,11 +91,11 @@ void Queries::queryTableService(const std::vector<Location>& sources,
                                 std::vector<double>& durations,
                                 std::vector<double>& distances) {
     std::string url = buildQueryURL(sources, destinations);
-    spdlog::debug("OSRM Query URL: {}", url);
+    LOG_DEBUG("OSRM Query URL: {}", url);
 
     CURL* curl = curl_easy_init();
     if (!curl) {
-        spdlog::error("Failed to init curl");
+        LOG_ERROR("Failed to init curl");
         return;
     }
 
@@ -104,10 +105,10 @@ void Queries::queryTableService(const std::vector<Location>& sources,
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
     CURLcode res = curl_easy_perform(curl);
 
-    spdlog::debug("OSRM Response: {}", response_string);
+    LOG_DEBUG("OSRM Response: {}", response_string);
 
     if (res != CURLE_OK) {
-        spdlog::error("curl_easy_perform() failed: {}", curl_easy_strerror(res));
+        LOG_ERROR("curl_easy_perform() failed: {}", curl_easy_strerror(res));
     } else {
         durations = parseResponse(response_string, "durations");
         distances = parseResponse(response_string, "distances");
@@ -123,11 +124,11 @@ bool checkOSRM(const std::string& base_url) {
     std::string readBuffer;
 
     std::string query_url = base_url + "/route/v1/driving/-86.7844,36.1659;-86.8005,36.1447";
-    spdlog::debug("Checking OSRM with URL: {}", query_url);
+    LOG_DEBUG("Checking OSRM with URL: {}", query_url);
 
     curl = curl_easy_init();
     if (!curl) {
-        spdlog::error("Failed to initialize curl.");
+        LOG_ERROR("Failed to initialize curl.");
         return false;
     }
 
@@ -151,13 +152,13 @@ bool checkOSRM(const std::string& base_url) {
                     is_ok = true;
                 }
             } catch (const json::parse_error& e) {
-                spdlog::error("JSON parse error: {}", e.what());
+                LOG_ERROR("JSON parse error: {}", e.what());
             }
         } else {
-            spdlog::error("HTTP error code: {}", http_code);
+            LOG_ERROR("HTTP error code: {}", http_code);
         }
     } else {
-        spdlog::error("curl_easy_perform() failed: {}", curl_easy_strerror(res));
+        LOG_ERROR("curl_easy_perform() failed: {}", curl_easy_strerror(res));
     }
 
     curl_easy_cleanup(curl);

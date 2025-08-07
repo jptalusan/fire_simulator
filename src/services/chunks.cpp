@@ -1,10 +1,10 @@
 #include <services/chunks.h>
-#include <spdlog/spdlog.h>
 #include <fstream>
 #include <iomanip>
 #include "data/location.h"
 #include "config/EnvLoader.h"
 #include "utils/error.h"
+#include "utils/logger.h"
 
 // libcurl write callback
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output) {
@@ -38,8 +38,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
     const std::vector<Location>& destinations,
     size_t chunk_size
 ) {
-    EnvLoader env("../.env");
-    const std::string base_url = env.get("BASE_OSRM_URL", "http://localhost:8080");
+    const std::string base_url = EnvLoader::getInstance()->get("BASE_OSRM_URL", "http://localhost:8080");
     size_t num_sources = sources.size();
     size_t num_destinations = destinations.size();
 
@@ -130,7 +129,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
             }
         }
 
-        spdlog::debug("Processed chunk from {} to {}",
+        LOG_DEBUG("Processed chunk from {} to {}",
                  i, std::min(i + chunk_size, destinations.size()) - 1);
     }
     return {full_distance_matrix, full_duration_matrix};
