@@ -84,9 +84,8 @@ int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, i
  * Steps:
  * @note 1. Retrieve the next unresolved incident from the state.
  * @note 2. Collect all station locations from the state.
- * @note    from all stations (sources) to the incident (destination).
- * @note 4. (Planned) Select the station with the lowest travel time and available trucks.
- * @note 5. (Planned) Emit a station_action event for dispatch.
+ * @note 3. (Planned) Select the station with the lowest travel time and available trucks.
+ * @note 4. (Planned) Emit a station_action event for dispatch.
  *
  * @param state The current simulation state, containing incidents and stations.
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
@@ -108,7 +107,7 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
     
     int zoneIndex = incident.zoneIndex;
     // Check if the zone index is valid
-    if (zoneIndex < 0 || zoneIndex >= fireBeatsHeight_) {
+    if (beatsIndexToNameMap_.find(zoneIndex) == beatsIndexToNameMap_.end()) {
         LOG_ERROR("Invalid zone index: {} for incident {}", zoneIndex, incident.incident_id);
         throw InvalidValueError("Invalid zone index for incident: " + std::to_string(incident.incident_id));
     }

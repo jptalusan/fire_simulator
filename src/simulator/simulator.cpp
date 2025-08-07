@@ -1,6 +1,5 @@
 #include "simulator/simulator.h"
 #include "simulator/action.h"
-#include "utils/constants.h"
 #include "utils/helpers.h"
 #include "utils/logger.h"
 

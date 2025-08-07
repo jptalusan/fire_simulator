@@ -1,5 +1,4 @@
 #include "simulator/state.h"
-#include <iostream>
 #include "utils/helpers.h"
 #include "utils/logger.h"
 

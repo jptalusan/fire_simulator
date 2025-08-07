@@ -19,6 +19,7 @@ endif()
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Find required dependencies
 cmake_policy(SET CMP0167 OLD)

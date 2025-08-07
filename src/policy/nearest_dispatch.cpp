@@ -1,4 +1,3 @@
-#include <iostream>
 #include "policy/nearest_dispatch.h"
 #include "services/queries.h"
 #include "utils/error.h"
@@ -38,9 +37,8 @@ NearestDispatch::~NearestDispatch() {
  * Steps:
  * @note 1. Retrieve the next unresolved incident from the state.
  * @note 2. Collect all station locations from the state.
- * @note    from all stations (sources) to the incident (destination).
- * @note 4. (Planned) Select the station with the lowest travel time and available trucks.
- * @note 5. (Planned) Emit a station_action event for dispatch.
+ * @note 3. (Planned) Select the station with the lowest travel time and available trucks.
+ * @note 4. (Planned) Emit a station_action event for dispatch.
  *
  * @param state The current simulation state, containing incidents and stations.
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).

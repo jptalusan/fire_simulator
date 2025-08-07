@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
       {
-        "label": "(release) create build directory",
+        "label": "create build directory",
         "type": "shell",
         "options": {
             "cwd": "${workspaceFolder}"
@@ -12,7 +12,7 @@
         "command": "mkdir -p build", //this command creates a build directory if it does not exist
       },
       {
-        "label": "cmake1",
+        "label": "(debug) cmake debug",
         "type": "shell",
         "options": {
             "cwd": "${workspaceFolder}/build"
@@ -33,9 +33,25 @@
         "problemMatcher": [],
         "dependsOrder": "sequence",
         "dependsOn": [
-            "(release) create build directory",
-            "cmake1"
+            "create build directory",
+            "(debug) cmake debug"
         ]
+      },
+      {
+          "label": "build tests",
+          "type": "shell",
+          "options": {
+              "cwd": "${workspaceFolder}"
+          },
+          "command": "mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make tests",
+          "group": "build",
+          "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "shared"
+          },
+          "problemMatcher": ["$gcc"]
       }
     ]
   }

@@ -1,9 +1,3 @@
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include "config/EnvLoader.h"
-#include "data/incident.h"
-#include "services/queries.h"
 #include "simulator/simulator.h"
 #include "policy/nearest_dispatch.h"
 #include "policy/firebeats_dispatch.h"
@@ -11,13 +5,9 @@
 #include "spdlog/stopwatch.h"
 #endif
 #include "utils/logger.h"
-#include "utils/helpers.h"
-#include "utils/error.h"
-#include "models/fire.h"
-#include "utils/util.h"
-#include "data/geometry.h"
 #include "utils/loaders.h"
 #include "services/chunks.h"
+#include "data/location.h"
 
 // Run on main to test Overpass
 /* Should be run for each incident, find worst-case building nearby and use that as basis.
