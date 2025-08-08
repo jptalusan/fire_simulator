@@ -4,7 +4,7 @@
 
 Incident::Incident(int index, int id, double latitude, double longitude,
                    IncidentType type, IncidentLevel level,
-                   time_t time)
+                   time_t time, IncidentCategory category)
     : lat(latitude), 
       lon(longitude), 
       reportTime(time),

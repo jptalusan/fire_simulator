@@ -36,4 +36,20 @@ private:
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;
 };
+
+class DepartmentFireModel : public FireModel {
+public:
+    DepartmentFireModel(unsigned int seed, const std::string& csv_path );
+
+    double computeResolutionTime(State& state, const Incident& incident) override;
+    bool shouldResolveIncident(double probability);
+    std::unordered_map<ApparatusType, int> calculateApparatusCount(const Incident& incident) override;
+
+private:
+    std::mt19937 rng_;
+    std::uniform_real_distribution<double> dist_;
+    std::unordered_map<IncidentCategory, std::unordered_map<ApparatusType, int>> apparatus_requirements_;
+    void loadApparatusRequirements(const std::string& csv_path);
+};
+
 #endif // FIRE_H
