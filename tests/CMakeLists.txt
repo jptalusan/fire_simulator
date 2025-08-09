@@ -1,9 +1,11 @@
-# Find GoogleTest
-find_package(GTest REQUIRED)
-
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
 # For Windows: Prevent overriding the parent project's compiler/linker settings
-# set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-# FetchContent_MakeAvailable(googletest)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
@@ -13,14 +15,15 @@ if(NOT TEST_SOURCES)
     return()
 endif()
 
+enable_testing()
+
 # Create test executable
 add_executable(unit_tests ${TEST_SOURCES})
 
 # Link libraries
 target_link_libraries(unit_tests
     ${PROJECT_NAME}_lib
-    GTest::gtest
-    # GTest::gmock
+    GTest::gmock
 )
 
 # Include directories
