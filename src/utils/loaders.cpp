@@ -236,8 +236,8 @@ std::vector<Incident> loadIncidentsFromCSV() {
 
         std::getline(ss, type, ',');
         std::getline(ss, level, ',');
-        std::getline(ss, datetime_str);
-        std::getline(ss, category, ','); 
+        std::getline(ss, datetime_str, ',');
+        std::getline(ss, category, ',' ); 
 
 
         // Parse datetime string to Unix time

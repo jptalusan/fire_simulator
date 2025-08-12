@@ -61,7 +61,7 @@ std::unordered_map<ApparatusType, int> HardCodedFireModel::calculateApparatusCou
 }
 
 
-
+//TODO: Delete this function and put in loader.h
 IncidentCategory stringToIncidentCategory(const std::string& str) {
     if (str == "One") return IncidentCategory::One;
     if (str == "OneB") return IncidentCategory::OneB;
@@ -137,6 +137,7 @@ void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path)
         while (std::getline(ss, token, ',')) {
             tokens.push_back(token);
         }
+        tokens[14] = tokens[14].substr(0, tokens[14].find_last_not_of(" \n\r\t")+1); // Trim whitespace/newline from last token
         if (tokens.size() < 3) continue; // skip incomplete lines
 
         IncidentCategory cat = stringToIncidentCategory(tokens[0]);
@@ -154,8 +155,13 @@ void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path)
         if (tokens.size() > 12 && !tokens[12].empty()) reqs[ApparatusType::UTV] = std::stoi(tokens[12]);
         if (tokens.size() > 13 && !tokens[13].empty()) reqs[ApparatusType::Reach] = std::stoi(tokens[13]);
         if (tokens.size() > 14 && !tokens[14].empty()) reqs[ApparatusType::Chief] = std::stoi(tokens[14]);
+        // if (reqs.empty()) {
+        //     LOG_ERROR("No apparatus requirements found for category: {}", to_string(cat));
+
+        // }
 
         apparatus_requirements_[cat] = reqs;
+        
     }
 }
 
@@ -163,6 +169,7 @@ double DepartmentFireModel::computeResolutionTime(State& state, const Incident& 
     IncidentLevel incidentLevel = incident.incident_level;
     state.getSystemTime();  
     double estimatedResolutionTime = 0.0;
+    // TODO: Replace with actual logic for resolution time based on incident level
     switch (incidentLevel) {
         case IncidentLevel::Low:        estimatedResolutionTime = 15 * constants::SECONDS_IN_MINUTE; break;
         case IncidentLevel::Moderate:   estimatedResolutionTime = 35 * constants::SECONDS_IN_MINUTE; break;

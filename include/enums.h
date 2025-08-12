@@ -24,7 +24,7 @@ enum class IncidentLevel : uint8_t {
     Critical
 };
 
-enum class IncidentCategory {
+enum class IncidentCategory : uint8_t {
     One,
     OneB,
     OneBM,

@@ -15,7 +15,8 @@ Incident::Incident(int index, int id, double latitude, double longitude,
       zoneIndex(-1),
       incident_type(type), 
       incident_level(level), 
-      status(IncidentStatus::hasBeenReported) {}
+      status(IncidentStatus::hasBeenReported), 
+      category(category) {}
 
 void Incident::printInfo() const {
     LOG_ERROR("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
