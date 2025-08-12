@@ -25,7 +25,6 @@ Install the required packages:
 # For macOS
 brew install cmake
 brew install curl
-brew install googletest
 brew install nlohmann-json
 brew install spdlog
 brew install boost
@@ -36,6 +35,10 @@ xcode-select --install
 sudo apt update
 sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb libboost-all-dev
 sudo apt install nlohmann-json3-dev libspdlog-dev lp-solve
+```
+> Do not install googletest, instead just follow their documentation which uses `FetchContent`.
+```cmake
+include(FetchContent)
 ```
 
 To build the project, navigate to the project directory and run the following command:
