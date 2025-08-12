@@ -54,6 +54,7 @@ const std::vector<Action>& Simulator::getActionHistory() const {
 State& Simulator::getCurrentState() { return state_; }
 
 void Simulator::writeReportToCSV() {
+  //All required apparatus counts and all recieved appartus counts
     std::unordered_map<int, Incident>& activeIncidents = state_.getActiveIncidents();
     std::unordered_map<int, Incident>& doneIncidents = state_.doneIncidents_;
 
@@ -100,6 +101,7 @@ void Simulator::writeReportToCSV() {
 }
 
 void Simulator::writeActions() {
+  //TODO: Remaining appaaratus count for the station and what they dispatched and how many they dispatched for the incident.
     std::string station_report_path = EnvLoader::getInstance()->get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
 
     std::vector<Action> actionHistory = getActionHistory();
