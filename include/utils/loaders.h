@@ -10,6 +10,7 @@ namespace loader {
 std::vector<Station> loadStationsFromCSV();
 std::vector<Incident> loadIncidentsFromCSV();
 std::vector<Apparatus> loadApparatusFromCSV();
+
 EventQueue generateEvents(const std::vector<Incident>& incidents);
 void preComputingMatrices(std::vector<Station>& stations, 
                           std::vector<Incident>& incidents,

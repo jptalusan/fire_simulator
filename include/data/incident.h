@@ -24,6 +24,7 @@ public:
     IncidentType incident_type;
     IncidentLevel incident_level;
     IncidentStatus status;
+    IncidentCategory category; // Category of the incident
 
     std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
     std::unordered_map<ApparatusType, int> requiredApparatusMap; // How many apparatus is needed for this incident
@@ -31,7 +32,7 @@ public:
 
     Incident(int index, int id, double latitude, double longitude,
              IncidentType type, IncidentLevel level,
-             time_t report_time);
+             time_t report_time, IncidentCategory category);
 
     // Default constructor
     Incident()
@@ -45,8 +46,9 @@ public:
           zoneIndex(-1),
           incident_type(IncidentType::Invalid),
           incident_level(IncidentLevel::Invalid),
-          status(IncidentStatus::hasBeenReported)
-    {}
+          status(IncidentStatus::hasBeenReported),
+          category(IncidentCategory::Invalid) {} // Default values
+
 
     void printInfo() const;
     Location getLocation() const;

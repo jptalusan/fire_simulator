@@ -167,25 +167,25 @@ protected:
         
         // Incident 0: Zone 0 - should prefer Station 0
         incidents_.emplace_back(0, 201, 36.1608, -86.7809, 
-                               IncidentType::Fire, IncidentLevel::Low, currentTime);
+                               IncidentType::Fire, IncidentLevel::Low, currentTime, IncidentCategory::One);
         incidents_[0].zoneIndex = 0;  // Assign to Zone 0
         incidents_[0].resolvedTime = currentTime + 1800; // 30 minutes to resolve
         
         // Incident 1: Zone 1 - should prefer Station 1
         incidents_.emplace_back(1, 202, 36.1609, -86.7810,
-                               IncidentType::Fire, IncidentLevel::Moderate, currentTime);
+                               IncidentType::Fire, IncidentLevel::Moderate, currentTime, IncidentCategory::OneB);
         incidents_[1].zoneIndex = 1;  // Assign to Zone 1
         incidents_[1].resolvedTime = currentTime + 2400; // 40 minutes to resolve
         
         // Incident 2: Zone 2 - should prefer Station 2
         incidents_.emplace_back(2, 203, 36.1610, -86.7811,
-                               IncidentType::Fire, IncidentLevel::High, currentTime);
+                               IncidentType::Fire, IncidentLevel::High, currentTime, IncidentCategory::OneC);
         incidents_[2].zoneIndex = 2;  // Assign to Zone 2
         incidents_[2].resolvedTime = currentTime + 3600; // 60 minutes to resolve
 
         // Incident 3: Zone 3 - should prefer Station 3
         incidents_.emplace_back(3, 204, 36.1611, -86.7812,
-                               IncidentType::Fire, IncidentLevel::Moderate, currentTime);
+                               IncidentType::Fire, IncidentLevel::Moderate, currentTime, IncidentCategory::OneD);
         incidents_[3].zoneIndex = 3;  // Assign to Zone 3
         incidents_[3].resolvedTime = currentTime + 2700; // 45 minutes to resolve
 
