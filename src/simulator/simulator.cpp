@@ -3,6 +3,21 @@
 #include "utils/helpers.h"
 #include "utils/logger.h"
 
+std::vector<ApparatusType> apparatusTypes = {
+    ApparatusType::Engine,
+    ApparatusType::Truck,
+    ApparatusType::Rescue,
+    ApparatusType::Hazard,
+    ApparatusType::Squad,
+    ApparatusType::Fast,
+    ApparatusType::Medic,
+    ApparatusType::Brush,
+    ApparatusType::Boat,
+    ApparatusType::UTV,
+    ApparatusType::Reach,
+    ApparatusType::Chief
+};
+
 Simulator::Simulator(State &initialState, EventQueue &events,
                      EnvironmentModel &environmentModel,
                      DispatchPolicy &dispatchPolicy)
@@ -37,7 +52,12 @@ void Simulator::run() {
         continue;
       }
       action_history_.push_back(action);
+
+      state_history_.push_back(state_);
+      int stationIndex = action.payload.stationIndex;
+      station_history_.push_back(state_.getStation(stationIndex));  
     }
+    
   }
 
   LOG_DEBUG("Number of events addressed: {}", state_.getActiveIncidents().size());
@@ -64,10 +84,19 @@ void Simulator::writeReportToCSV() {
     std::string report_path = EnvLoader::getInstance()->get("REPORT_CSV_PATH", "../logs/incident_report.csv");
 
     std::ofstream csv(report_path);
-    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Zone,Status\n";
+    // csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Zone,Status\n";
 
     // Copy incidents to a vector and sort by reportTime if desired
     // Can be expensive, but its already at the end of the run
+    // List all apparatus types you want to report (must match your ApparatusType enum)
+
+
+    // Write header
+    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved";
+    for (const auto& type : apparatusTypes) {
+        csv << "," << to_string(type) << "Required," << to_string(type) << "Received";
+    }
+    csv << ",Zone,Status\n";
     std::vector<Incident> sortedIncidents;
     sortedIncidents.reserve(activeIncidents.size());  // Preallocate memory for efficiency
     for (const auto& [id, incident] : activeIncidents) {
@@ -90,12 +119,19 @@ void Simulator::writeReportToCSV() {
             << incident.incident_id << ","
             << utils::formatTime(incident.reportTime) << ","
             << utils::formatTime(incident.timeRespondedTo) << ","
-            << utils::formatTime(incident.resolvedTime) << ","
-            // << incident.currentApparatusCount << ","
-            // << incident.lat << ","
-            // << incident.lon << ","
-            << incident.zoneIndex << ","
-            << to_string(incident.status) << "\n";
+            << utils::formatTime(incident.resolvedTime);
+
+         // Output required and received for each apparatus type
+         for (const auto& type : apparatusTypes) {
+             int required = 0;
+             int received = 0;
+             auto reqIt = incident.requiredApparatusMap.find(type);
+             if (reqIt != incident.requiredApparatusMap.end()) required = reqIt->second;
+             auto recIt = incident.currentApparatusMap.find(type);
+             if (recIt != incident.currentApparatusMap.end()) received = recIt->second;
+             csv << "," << required << "," << received;
+         }
+         csv << "," << incident.zoneIndex << "," << to_string(incident.status) << "\n";
     }
     csv.close();
 }
@@ -112,28 +148,49 @@ void Simulator::writeActions() {
     // Insert all elements from doneIncidents into activeIncidents
     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
     
-    std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
+    // std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
+    // Apparatus types to report (must match your ApparatusType enum)
+
     std::ofstream station_csv(station_report_path);
-    station_csv << stationMetricHeader << "\n";
 
-    // TODO: Fix, this is totally wrong now because of apparatus count and type.
-    for (const auto& action : actionHistory) {
-        if (action.type != StationActionType::Dispatch) {
-            continue; // Skip non-dispatch actions
+    station_csv << "DispatchTime,StationID";
+    for (const auto& type : apparatusTypes) {
+        station_csv << "," << to_string(type) << "Dispatched," << to_string(type) << "Remaining";
         }
-        std::string metrics;
-        metrics.reserve(128);
+    station_csv << ",TravelTime,IncidentIndex\n";
 
-        const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
-        const Station& station = state_.getStation(action.payload.stationIndex);
-        int apparatusCount = action.payload.apparatusCount;
-        int fireTrucksRemainingAtTime = station.getNumFireTrucks() - apparatusCount;
-        double travelTime = action.payload.travelTime;
-        fmt::format_to(std::back_inserter(metrics), 
-                    "{},{},{},{},{:.2f},{},{}",
-        utils::formatTime(incident.timeRespondedTo), station.getStationIndex(), 
-        apparatusCount, fireTrucksRemainingAtTime,
-        travelTime, incident.incident_id, incident.incidentIndex);
+    for (size_t i = 0; i < actionHistory.size(); ++i) {
+        const auto& action = actionHistory[i];
+        if (action.type != StationActionType::Dispatch) continue;
+        std::string metrics;
+        metrics.reserve(256)
+        ;
+        // Get the relevant station snapshot at the time of dispatch
+        const Station& station = station_history_[i];
+        //get state from the state history
+        state_ = state_history_[i];
+
+        // Get the incident for dispatch time
+        const Incident& incident = state_.getActiveIncidents().at(action.payload.incidentIndex);
+        fmt::format_to(std::back_inserter(metrics), "{},{}", 
+            utils::formatTime(incident.timeRespondedTo), station.getStationIndex());
+
+        for (const auto& type : apparatusTypes) {
+            int dispatched = 0;
+            int remaining = station.getAvailableCount(type);
+
+            // Only fill dispatched for the type in this action
+            if (type == action.payload.apparatusType) {
+                dispatched = action.payload.apparatusCount;
+                remaining -= dispatched;
+                if (remaining < 0) remaining = 0;
+            }
+            fmt::format_to(std::back_inserter(metrics), ",{},{}", dispatched, remaining);
+        }
+
+        fmt::format_to(std::back_inserter(metrics), ",{:.2f},{}", 
+            action.payload.travelTime, action.payload.incidentIndex);
+
         station_csv << metrics << "\n";
     }
     station_csv.close();

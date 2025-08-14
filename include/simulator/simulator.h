@@ -17,6 +17,7 @@ public:
     void run();
     const std::vector<State>& getStateHistory() const;
     const std::vector<Action>& getActionHistory() const;
+    const std::vector<Station>& getStationHistory() const;
     State& getCurrentState();
 
     void writeActions();
@@ -28,6 +29,7 @@ private:
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     std::vector<State> state_history_;
+    std::vector<Station> station_history_;
     std::vector<Action> action_history_;
 };
 
