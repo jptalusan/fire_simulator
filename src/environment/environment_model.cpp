@@ -128,12 +128,9 @@ std::vector<Event> EnvironmentModel::takeActions(State& state, const std::vector
 
 void EnvironmentModel::handleIncident(State& state, Incident& incident, time_t eventTime) {
     // This should be the new event time already.
+    //TODO: Add uncertainty to the incident resolution time.
     std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
-    LOG_INFO("[{}] Incident {} | Level: {} | Requires: {} apparatus.", 
-                 utils::formatTime(eventTime), 
-                 incident.incidentIndex, 
-                 to_string(incident.incident_level), 
-                 requiredApparatusMap[ApparatusType::Engine]); // Currently only engine type is supported
+
     incident.setRequiredApparatusMap(requiredApparatusMap); // Set the required apparatus map for the incident
     state.getActiveIncidents().insert({incident.incidentIndex, incident}); // Add the incident to the active incidents map
     state.inProgressIncidentIndices.push_back(incident.incidentIndex); // Add the incident index to the in-progress incidents list
