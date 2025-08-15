@@ -208,32 +208,6 @@ void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
     }
 }
 
-
-// Add new statistical resolution time function
-// double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
-//     state.getSystemTime();
-//     auto it = resolution_stats_.find(incident.category);
-//     if (it != resolution_stats_.end()) {
-//         std::normal_distribution<double> normal_dist(it->second.mean, std::sqrt(it->second.variance));
-//         double sampled_time = normal_dist(rng_);
-//         // Clamp to minimum reasonable time
-//         return std::max(sampled_time, 1.0);
-//     }
-//     // Fallback to incident level if category not found
-//     IncidentLevel incidentLevel = incident.incident_level;
-//     double estimatedResolutionTime = 0.0;
-//     switch (incidentLevel) {
-//         case IncidentLevel::Low:        estimatedResolutionTime = 15 * constants::SECONDS_IN_MINUTE; break;
-//         case IncidentLevel::Moderate:   estimatedResolutionTime = 35 * constants::SECONDS_IN_MINUTE; break;
-//         case IncidentLevel::High:       estimatedResolutionTime = 70 * constants::SECONDS_IN_MINUTE; break;
-//         case IncidentLevel::Critical:   estimatedResolutionTime = 120 * constants::SECONDS_IN_MINUTE; break;
-//         default:
-//             LOG_ERROR("[DepartmentFireModel] Unknown incident level: {}", to_string(incidentLevel));
-//             throw UnknownValueError();
-//     }
-//     return estimatedResolutionTime;
-// }
-// Add new statistical resolution time function
 double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
     state.getSystemTime();
     auto it = resolution_stats_.find(incident.category);
