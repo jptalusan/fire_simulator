@@ -157,7 +157,7 @@ void Simulator::writeActions() {
     for (const auto& type : apparatusTypes) {
         station_csv << "," << to_string(type) << "Dispatched," << to_string(type) << "Remaining";
         }
-    station_csv << ",TravelTime,IncidentIndex\n";
+    station_csv << ",TravelTime,IncidentIndex,IncidentID\n";
 
     for (size_t i = 0; i < actionHistory.size(); ++i) {
         const auto& action = actionHistory[i];
@@ -168,10 +168,10 @@ void Simulator::writeActions() {
         // Get the relevant station snapshot at the time of dispatch
         const Station& station = station_history_[i];
         //get state from the state history
-        state_ = state_history_[i];
+        // state_ = state_history_[i];
 
         // Get the incident for dispatch time
-        const Incident& incident = state_.getActiveIncidents().at(action.payload.incidentIndex);
+        const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
         fmt::format_to(std::back_inserter(metrics), "{},{}", 
             utils::formatTime(incident.timeRespondedTo), station.getStationIndex());
 
@@ -182,14 +182,14 @@ void Simulator::writeActions() {
             // Only fill dispatched for the type in this action
             if (type == action.payload.apparatusType) {
                 dispatched = action.payload.apparatusCount;
-                remaining -= dispatched;
-                if (remaining < 0) remaining = 0;
+
+
             }
             fmt::format_to(std::back_inserter(metrics), ",{},{}", dispatched, remaining);
         }
 
-        fmt::format_to(std::back_inserter(metrics), ",{:.2f},{}", 
-            action.payload.travelTime, action.payload.incidentIndex);
+        fmt::format_to(std::back_inserter(metrics), ",{:.2f},{},{}", 
+            action.payload.travelTime, action.payload.incidentIndex, incident.incident_id);
 
         station_csv << metrics << "\n";
     }
