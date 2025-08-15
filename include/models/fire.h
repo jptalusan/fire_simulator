@@ -37,9 +37,14 @@ private:
     std::uniform_real_distribution<double> dist_;
 };
 
+struct ResolutionStats {
+    double mean;
+    double variance;
+};
+
 class DepartmentFireModel : public FireModel {
 public:
-    DepartmentFireModel(unsigned int seed, const std::string& csv_path );
+    DepartmentFireModel(unsigned int seed, const std::string& csv_path, const std::string& resolution_stats_path = "");
 
     double computeResolutionTime(State& state, const Incident& incident) override;
     bool shouldResolveIncident(double probability);
@@ -49,7 +54,9 @@ private:
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;
     std::unordered_map<IncidentCategory, std::unordered_map<ApparatusType, int>> apparatus_requirements_;
+    std::unordered_map<IncidentCategory, ResolutionStats> resolution_stats_;
     void loadApparatusRequirements(const std::string& csv_path);
+    void loadResolutionStats(const std::string& csv_path = "../data/resolution_stats.csv");
 };
 
 #endif // FIRE_H

@@ -120,9 +120,10 @@ IncidentCategory stringToIncidentCategory(const std::string& str) {
     return IncidentCategory::Invalid;
 }
 
-DepartmentFireModel::DepartmentFireModel(unsigned int seed, const std::string& csv_path)
+DepartmentFireModel::DepartmentFireModel(unsigned int seed, const std::string& csv_path, const std::string& resolution_stats_path)
     : rng_(seed), dist_(0.0, 1.0) {
     loadApparatusRequirements(csv_path);
+    loadResolutionStats(resolution_stats_path);
 }
 
 void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path) {
@@ -165,11 +166,70 @@ void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path)
     }
 }
 
+
+
+
+
+
+// Add a loader function (call from constructor)
+void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
+    std::ifstream file(csv_path);
+    if (!file.is_open()) {
+        LOG_ERROR("[DepartmentFireModel] Failed to open resolution stats file: {}", csv_path);
+        return;
+    }
+    std::string line;
+    bool first = true;
+    while (std::getline(file, line)) {
+        //skip header
+        if (first) { first = false; continue; }
+        std::stringstream ss(line);
+        std::string token;
+        IncidentCategory category;
+        ResolutionStats stats;
+        // header=Enum,count,mean,std,min,25%,50%,75%,max
+        std::getline(ss, token, ',');
+        category = stringToIncidentCategory(token);
+        std::getline(ss, token, ','); // count, not used
+        std::getline(ss, token, ',');
+        stats.mean = std::stod(token);
+        std::getline(ss, token, ',');
+        //check if token is empty or not a number
+        if (token.empty() || !std::isdigit(token[0])) {
+            LOG_ERROR("[DepartmentFireModel] Invalid stddev value: {}", token);
+            stats.variance = 0.0; // default to 0 if invalid
+        } else {
+            stats.variance = std::stod(token) * std::stod(token); // variance is stddev squared
+        }
+
+        std::getline(ss, token, ','); // min, not used
+        std::getline(ss, token, ','); // 25%, not used
+        std::getline(ss, token, ','); // 50%, not used
+        std::getline(ss, token, ','); // 75%, not used
+        std::getline(ss, token, ','); // max, not used
+        if (category == IncidentCategory::Invalid) {
+            LOG_ERROR("[DepartmentFireModel] Invalid category in resolution stats: {}", token);
+            continue; // skip invalid categories
+        }
+
+        resolution_stats_[category] = stats;
+    }
+}
+
+
+// Add new statistical resolution time function
 double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
+    state.getSystemTime();
+    auto it = resolution_stats_.find(incident.category);
+    if (it != resolution_stats_.end()) {
+        std::normal_distribution<double> normal_dist(it->second.mean, std::sqrt(it->second.variance));
+        double sampled_time = normal_dist(rng_);
+        // Clamp to minimum reasonable time
+        return std::max(sampled_time, 1.0);
+    }
+    // Fallback to incident level if category not found
     IncidentLevel incidentLevel = incident.incident_level;
-    state.getSystemTime();  
     double estimatedResolutionTime = 0.0;
-    // TODO: Replace with actual logic for resolution time based on incident level
     switch (incidentLevel) {
         case IncidentLevel::Low:        estimatedResolutionTime = 15 * constants::SECONDS_IN_MINUTE; break;
         case IncidentLevel::Moderate:   estimatedResolutionTime = 35 * constants::SECONDS_IN_MINUTE; break;
@@ -177,9 +237,8 @@ double DepartmentFireModel::computeResolutionTime(State& state, const Incident& 
         case IncidentLevel::Critical:   estimatedResolutionTime = 120 * constants::SECONDS_IN_MINUTE; break;
         default:
             LOG_ERROR("[DepartmentFireModel] Unknown incident level: {}", to_string(incidentLevel));
-            throw UnknownValueError(); // Throw an error for unknown incident levels
+            throw UnknownValueError();
     }
-    
     return estimatedResolutionTime;
 }
 
