@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     // testingOverpass();
 
-    EnvLoader::init("../.env");
+    EnvLoader::init(".env");
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
     // Initialize logger
     utils::Logger::init("boilerplate_app");
@@ -55,19 +55,20 @@ int main(int argc, char* argv[]) {
     initial_state.setApparatusList(apparatuses);
     initial_state.matchApparatusesWithStations(); // Match apparatuses with their respective stations
 
-    // DispatchPolicy* policy = new NearestDispatch(env.get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-    //                                              env.get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    DispatchPolicy* policy = new NearestDispatch(env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+                                                 env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
 
-    DispatchPolicy* policy = new FireBeatsDispatch(
-        env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-        env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-        env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-        env->get("ZONE_MAP_PATH", "../data/zones.csv")
-    );
+    // DispatchPolicy* policy = new FireBeatsDispatch(
+    //     env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+    //     env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+    //     env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+    //     env->get("ZONE_MAP_PATH", "../data/zones.csv")
+    // );
 
     int seed = std::stoi(env->get("RANDOM_SEED", "42"));
     std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
-    FireModel* fireModel = new DepartmentFireModel(seed, nfd_path);
+    std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/exploratory_analysis/response_time_summary.csv");
+    FireModel* fireModel = new DepartmentFireModel(seed, nfd_path, resolution_stats_path);
 
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
