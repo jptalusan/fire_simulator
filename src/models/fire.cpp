@@ -235,7 +235,6 @@ double DepartmentFireModel::computeResolutionTime(State& state, const Incident& 
         
         std::normal_distribution<double> fallback_dist(weighted_mean, std::sqrt(weighted_variance));
         double sampled_time = fallback_dist(rng_);
-        
 
         return std::max(sampled_time, 1.0);
     }
