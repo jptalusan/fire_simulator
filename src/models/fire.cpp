@@ -190,7 +190,9 @@ void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
         // header=Enum,count,mean,std,min,25%,50%,75%,max
         std::getline(ss, token, ',');
         category = stringToIncidentCategory(token);
-        std::getline(ss, token, ','); // count, not used
+        std::getline(ss, token, ','); // count
+        stats.count = std::stoi(token);
+
         std::getline(ss, token, ',');
         stats.mean = std::stod(token);
         std::getline(ss, token, ',');
@@ -218,28 +220,65 @@ void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
 
 
 // Add new statistical resolution time function
+// double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
+//     state.getSystemTime();
+//     auto it = resolution_stats_.find(incident.category);
+//     if (it != resolution_stats_.end()) {
+//         std::normal_distribution<double> normal_dist(it->second.mean, std::sqrt(it->second.variance));
+//         double sampled_time = normal_dist(rng_);
+//         // Clamp to minimum reasonable time
+//         return std::max(sampled_time, 1.0);
+//     }
+//     // Fallback to incident level if category not found
+//     IncidentLevel incidentLevel = incident.incident_level;
+//     double estimatedResolutionTime = 0.0;
+//     switch (incidentLevel) {
+//         case IncidentLevel::Low:        estimatedResolutionTime = 15 * constants::SECONDS_IN_MINUTE; break;
+//         case IncidentLevel::Moderate:   estimatedResolutionTime = 35 * constants::SECONDS_IN_MINUTE; break;
+//         case IncidentLevel::High:       estimatedResolutionTime = 70 * constants::SECONDS_IN_MINUTE; break;
+//         case IncidentLevel::Critical:   estimatedResolutionTime = 120 * constants::SECONDS_IN_MINUTE; break;
+//         default:
+//             LOG_ERROR("[DepartmentFireModel] Unknown incident level: {}", to_string(incidentLevel));
+//             throw UnknownValueError();
+//     }
+//     return estimatedResolutionTime;
+// }
+// Add new statistical resolution time function
 double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
     state.getSystemTime();
     auto it = resolution_stats_.find(incident.category);
     if (it != resolution_stats_.end()) {
         std::normal_distribution<double> normal_dist(it->second.mean, std::sqrt(it->second.variance));
         double sampled_time = normal_dist(rng_);
-        // Clamp to minimum reasonable time
         return std::max(sampled_time, 1.0);
     }
-    // Fallback to incident level if category not found
-    IncidentLevel incidentLevel = incident.incident_level;
-    double estimatedResolutionTime = 0.0;
-    switch (incidentLevel) {
-        case IncidentLevel::Low:        estimatedResolutionTime = 15 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::Moderate:   estimatedResolutionTime = 35 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::High:       estimatedResolutionTime = 70 * constants::SECONDS_IN_MINUTE; break;
-        case IncidentLevel::Critical:   estimatedResolutionTime = 120 * constants::SECONDS_IN_MINUTE; break;
-        default:
-            LOG_ERROR("[DepartmentFireModel] Unknown incident level: {}", to_string(incidentLevel));
-            throw UnknownValueError();
+    
+    // Fallback: compute weighted mean and variance
+    if (!resolution_stats_.empty()) {
+        double weighted_mean_sum = 0.0;
+        double weighted_variance_sum = 0.0;
+        int total_count = 0;
+        
+        // Calculate weighted sums
+        for (const auto& pair : resolution_stats_) {
+            weighted_mean_sum += pair.second.mean * pair.second.count;
+            weighted_variance_sum += pair.second.variance * pair.second.count;
+            total_count += pair.second.count;
+        }
+        
+        double weighted_mean = weighted_mean_sum / total_count;
+        double weighted_variance = weighted_variance_sum / total_count;
+        
+        std::normal_distribution<double> fallback_dist(weighted_mean, std::sqrt(weighted_variance));
+        double sampled_time = fallback_dist(rng_);
+        
+
+        return std::max(sampled_time, 1.0);
     }
-    return estimatedResolutionTime;
+    
+    // Last resort fallback
+    LOG_ERROR("[DepartmentFireModel] No resolution stats loaded, using hardcoded fallback");
+    return 30 * constants::SECONDS_IN_MINUTE;
 }
 
 bool DepartmentFireModel::shouldResolveIncident(double probability) {

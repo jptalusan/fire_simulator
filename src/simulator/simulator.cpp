@@ -84,11 +84,7 @@ void Simulator::writeReportToCSV() {
     std::string report_path = EnvLoader::getInstance()->get("REPORT_CSV_PATH", "../logs/incident_report.csv");
 
     std::ofstream csv(report_path);
-    // csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved,EngineCount,Zone,Status\n";
 
-    // Copy incidents to a vector and sort by reportTime if desired
-    // Can be expensive, but its already at the end of the run
-    // List all apparatus types you want to report (must match your ApparatusType enum)
 
 
     // Write header
@@ -148,8 +144,7 @@ void Simulator::writeActions() {
     // Insert all elements from doneIncidents into activeIncidents
     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
     
-    // std::string stationMetricHeader = "DispatchTime,StationID,EnginesDispatched,EnginesRemaining,TravelTime,IncidentID,IncidentIndex";
-    // Apparatus types to report (must match your ApparatusType enum)
+
 
     std::ofstream station_csv(station_report_path);
 
@@ -167,8 +162,7 @@ void Simulator::writeActions() {
         ;
         // Get the relevant station snapshot at the time of dispatch
         const Station& station = station_history_[i];
-        //get state from the state history
-        // state_ = state_history_[i];
+
 
         // Get the incident for dispatch time
         const Incident& incident = activeIncidents.at(action.payload.incidentIndex);

@@ -40,6 +40,7 @@ private:
 struct ResolutionStats {
     double mean;
     double variance;
+    int count; 
 };
 
 class DepartmentFireModel : public FireModel {
