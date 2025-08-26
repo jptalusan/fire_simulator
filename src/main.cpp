@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     // testingOverpass();
 
-    EnvLoader::init(".env");
+    EnvLoader::init("../.env");
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
     // Initialize logger
     utils::Logger::init("boilerplate_app");
