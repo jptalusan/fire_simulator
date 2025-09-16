@@ -57,7 +57,7 @@ private:
     std::unordered_map<IncidentCategory, std::unordered_map<ApparatusType, int>> apparatus_requirements_;
     std::unordered_map<IncidentCategory, ResolutionStats> resolution_stats_;
     void loadApparatusRequirements(const std::string& csv_path);
-    void loadResolutionStats(const std::string& csv_path = "../data/resolution_stats.csv");
+    void loadResolutionStats(const std::string& resolutionStats_path);
 };
 
 #endif // FIRE_H

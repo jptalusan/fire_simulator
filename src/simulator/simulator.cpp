@@ -85,8 +85,6 @@ void Simulator::writeReportToCSV() {
 
     std::ofstream csv(report_path);
 
-
-
     // Write header
     csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved";
     for (const auto& type : apparatusTypes) {
@@ -143,8 +141,6 @@ void Simulator::writeActions() {
 
     // Insert all elements from doneIncidents into activeIncidents
     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
-    
-
 
     std::ofstream station_csv(station_report_path);
 
@@ -176,8 +172,6 @@ void Simulator::writeActions() {
             // Only fill dispatched for the type in this action
             if (type == action.payload.apparatusType) {
                 dispatched = action.payload.apparatusCount;
-
-
             }
             fmt::format_to(std::back_inserter(metrics), ",{},{}", dispatched, remaining);
         }

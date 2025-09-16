@@ -23,7 +23,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Find required dependencies
 cmake_policy(SET CMP0167 OLD)
-find_package(Boost REQUIRED COMPONENTS filesystem thread)
+find_package(Boost REQUIRED COMPONENTS filesystem thread regex)
 # find_package(PkgConfig REQUIRED)
 find_package(CURL REQUIRED)
 find_package(spdlog REQUIRED)

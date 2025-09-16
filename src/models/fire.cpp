@@ -60,7 +60,6 @@ std::unordered_map<ApparatusType, int> HardCodedFireModel::calculateApparatusCou
     return apparatusCount; // Return the calculated apparatus count map
 }
 
-
 //TODO: Delete this function and put in loader.h
 IncidentCategory stringToIncidentCategory(const std::string& str) {
     if (str == "One") return IncidentCategory::One;
@@ -156,20 +155,11 @@ void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path)
         if (tokens.size() > 12 && !tokens[12].empty()) reqs[ApparatusType::UTV] = std::stoi(tokens[12]);
         if (tokens.size() > 13 && !tokens[13].empty()) reqs[ApparatusType::Reach] = std::stoi(tokens[13]);
         if (tokens.size() > 14 && !tokens[14].empty()) reqs[ApparatusType::Chief] = std::stoi(tokens[14]);
-        // if (reqs.empty()) {
-        //     LOG_ERROR("No apparatus requirements found for category: {}", to_string(cat));
-
-        // }
 
         apparatus_requirements_[cat] = reqs;
         
     }
 }
-
-
-
-
-
 
 // Add a loader function (call from constructor)
 void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
