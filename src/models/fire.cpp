@@ -124,6 +124,7 @@ DepartmentFireModel::DepartmentFireModel(unsigned int seed, const std::string& c
     : rng_(seed), dist_(0.0, 1.0) {
     loadApparatusRequirements(csv_path);
     loadResolutionStats(resolution_stats_path);
+    loadResolutionStats(resolution_stats_path);
 }
 
 void DepartmentFireModel::loadApparatusRequirements(const std::string& csv_path) {
@@ -243,6 +244,58 @@ void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
 //     }
 //     return estimatedResolutionTime;
 // }
+// Add new statistical resolution time function
+
+
+
+
+
+// Add a loader function (call from constructor)
+void DepartmentFireModel::loadResolutionStats(const std::string& csv_path) {
+    std::ifstream file(csv_path);
+    if (!file.is_open()) {
+        LOG_ERROR("[DepartmentFireModel] Failed to open resolution stats file: {}", csv_path);
+        return;
+    }
+    std::string line;
+    bool first = true;
+    while (std::getline(file, line)) {
+        //skip header
+        if (first) { first = false; continue; }
+        std::stringstream ss(line);
+        std::string token;
+        IncidentCategory category;
+        ResolutionStats stats;
+        // header=Enum,count,mean,std,min,25%,50%,75%,max
+        std::getline(ss, token, ',');
+        category = stringToIncidentCategory(token);
+        std::getline(ss, token, ','); // count, not used
+        std::getline(ss, token, ',');
+        stats.mean = std::stod(token);
+        std::getline(ss, token, ',');
+        //check if token is empty or not a number
+        if (token.empty() || !std::isdigit(token[0])) {
+            LOG_ERROR("[DepartmentFireModel] Invalid stddev value: {}", token);
+            stats.variance = 0.0; // default to 0 if invalid
+        } else {
+            stats.variance = std::stod(token) * std::stod(token); // variance is stddev squared
+        }
+
+        std::getline(ss, token, ','); // min, not used
+        std::getline(ss, token, ','); // 25%, not used
+        std::getline(ss, token, ','); // 50%, not used
+        std::getline(ss, token, ','); // 75%, not used
+        std::getline(ss, token, ','); // max, not used
+        if (category == IncidentCategory::Invalid) {
+            LOG_ERROR("[DepartmentFireModel] Invalid category in resolution stats: {}", token);
+            continue; // skip invalid categories
+        }
+
+        resolution_stats_[category] = stats;
+    }
+}
+
+
 // Add new statistical resolution time function
 double DepartmentFireModel::computeResolutionTime(State& state, const Incident& incident) {
     state.getSystemTime();

@@ -18,7 +18,19 @@ fire_simulator
 └── README.md
 ```
 
+## Building Prerequisites
+You can follow the instructions [here](https://github.com/jptalusan/onnxruntime_boilerplate) to generate the ONNX library.
+Or download a pre-built version for MacOS ARM [here](https://vanderbilt.box.com/s/wderjr1ojh8fyikywijftra0626vjnyj) untar in the folder called `externals`.
+The structure should look like this:
+```bash
+external
+└── onnxruntime_install
+    └── usr/local...
+```
+
+
 ## Building the Project
+
 Install the required packages:
 > `gdb` debugging does not work on current macOS devices.
 ```bash
@@ -53,6 +65,7 @@ or
 ```
 ./build.sh --clean --test
 ```
+
 
 This will compile the source files and create an executable in the project's root folder.
 

@@ -8,7 +8,7 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
 # Link libraries to the static library
 target_link_libraries(${PROJECT_NAME}_lib
-    Boost::system
+    Boost::regex
     Boost::filesystem
     Boost::thread
     spdlog::spdlog
@@ -18,9 +18,15 @@ target_link_libraries(${PROJECT_NAME}_lib
     ${LPSOLVE_LIBRARY}
 )
 
+# Use custom-built ONNX Runtime (installed locally)
+# Make sure you have built onnxruntime and placed it in a directory below.
+set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime_install/usr/local")
+set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib/libonnxruntime.dylib")
+
 # Include directories for the static library
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
     ${CMAKE_SOURCE_DIR}/include
+    ${ONNXRUNTIME_INSTALL_DIR}/include
 )
 
 # Create executable
@@ -29,4 +35,9 @@ add_executable(${PROJECT_NAME} main.cpp)
 # Link the static library to the executable
 target_link_libraries(${PROJECT_NAME}
     ${PROJECT_NAME}_lib
+    ${ONNXRUNTIME_LIB}
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    INSTALL_RPATH "${ONNXRUNTIME_INSTALL_DIR}/lib"
 )
