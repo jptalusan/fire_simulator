@@ -34,10 +34,12 @@ public:
     int getNumAmbulances() const noexcept;
     double getLon() const noexcept;
     double getLat() const noexcept;
+    std::string getFacilityName() const noexcept;
 
     Location getLocation() const noexcept;
 
     // Setters
+    void setFacilityName(std::string name);
     void setNumFireTrucks(int n);
     void setNumAmbulances(int n);
 
@@ -68,6 +70,9 @@ private:
     double lon;
     double lat;
 
+    // Strings
+    std::string facilityName;
+    
     // Maps for fast lookups
     std::unordered_map<ApparatusType, int> available_count_; // Assuming ApparatusType is defined elsewhere
     std::unordered_map<ApparatusType, int> total_count_;

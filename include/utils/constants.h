@@ -13,6 +13,8 @@ namespace constants {
     inline static constexpr const char* TRAVEL_TIME = "TRAVEL_TIME";
     inline static constexpr const char* DISTANCE = "DISTANCE";
     inline static constexpr const char* RESOLUTION_TIME = "RESOLUTION_TIME";
+    inline static constexpr const char* POLICY_FIREBEATS = "FIREBEATS";
+    inline static constexpr const char* POLICY_NEAREST = "NEAREST";
 
     // Numeric constants
     inline static constexpr int DEFAULT_NUM_FIRE_TRUCKS = 2;

@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <ctime>
 #include "data/location.h"
 #include "simulator/event.h"

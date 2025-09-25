@@ -9,6 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/src/fire_simulator",
+            "args": ["--ENV_PATH=../.env"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
             "environment": [],

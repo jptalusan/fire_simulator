@@ -4,90 +4,40 @@
 #ifdef HAVE_SPDLOG_STOPWATCH
 #include "spdlog/stopwatch.h"
 #endif
+#include "utils/constants.h"
 #include "utils/logger.h"
 #include "utils/loaders.h"
 #include "services/chunks.h"
 #include "data/location.h"
-#include <onnxruntime/onnxruntime_cxx_api.h>
+#include "models/processors.h"
 
+#include <memory>
+#include <unordered_map>
+#include <nlohmann/json.hpp>
 
-int run_sk_model(Ort::Env& env, Ort::SessionOptions& session_options) {
-    Ort::Session session(env, "../data/sk_linear_regression.onnx", session_options);
-    Ort::AllocatorWithDefaultOptions allocator;
+using json = nlohmann::json;
 
-    auto input_name = session.GetInputNameAllocated(0, allocator);
-    auto output_name = session.GetOutputNameAllocated(0, allocator);
-    auto input_shape = session.GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
-
-    std::cout << "Input name: " << input_name << std::endl;
-    std::cout << "Input shape: ";
-    for (auto dim : input_shape) std::cout << dim << " ";
-    std::cout << std::endl;
-
-    std::vector<float> input_tensor_values = {1.0f, 2.0f, 3.0f};
-    std::vector<int64_t> input_dims = {1, 3};
-
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(
-        OrtAllocatorType::OrtArenaAllocator,
-        OrtMemType::OrtMemTypeDefault
-    );
-
-    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-        memory_info, 
-        input_tensor_values.data(), 
-        input_tensor_values.size(), 
-        input_dims.data(), 
-        input_dims.size()
-    );
-
-    const char* input_names[] = {input_name.get()};
-    const char* output_names[] = {output_name.get()};
-
-    auto output_tensors = session.Run(Ort::RunOptions{nullptr}, input_names, &input_tensor, 1, output_names, 1);
-
-    float* floatarr = output_tensors.front().GetTensorMutableData<float>();
-    std::cout << "Prediction: " << floatarr[0] << std::endl;
-
-    return 0;
-}
-
-int run_torch_model(Ort::Env& env, Ort::SessionOptions& session_options) {
-    // ----- 2. Load model -----
-    Ort::Session session(env, "../data/torch_linear_regression.onnx", session_options);
-
-    // ----- 3. Prepare input -----
-    std::vector<float> input_tensor_values = {3.0f};  // Example: predict y for x=3
-    std::vector<int64_t> input_shape = {1, 1};
-
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(
-        OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
-
-    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-        memory_info,
-        input_tensor_values.data(),
-        input_tensor_values.size(),
-        input_shape.data(),
-        input_shape.size()
-    );
-
-    // ----- 4. Run inference -----
-    const char* input_names[] = {"input"};
-    const char* output_names[] = {"output"};
-
-    auto output_tensors = session.Run(
-        Ort::RunOptions{nullptr},
-        input_names,
-        &input_tensor,
-        1,
-        output_names,
-        1
-    );
-
-    // ----- 5. Extract result -----
-    float* float_array = output_tensors.front().GetTensorMutableData<float>();
-    std::cout << "Predicted y = " << float_array[0] << std::endl;
-
-    return 0;
+/**
+ * Print usage information
+ */
+void printUsage(const char* program_name) {
+    std::cout << "Usage: " << program_name << " [OPTIONS]\n";
+    std::cout << "\nOPTIONS:\n";
+    std::cout << "  --run-python                    Run Python post-processing script after simulation\n";
+    std::cout << "  --OSRM_URL=URL                  OSRM table API URL (default: http://localhost:8080/table/v1/driving/)\n";
+    std::cout << "  --BASE_OSRM_URL=URL             Base OSRM URL (default: http://localhost:8080)\n";
+    std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: NEAREST/FIREBEATS, default: NEAREST)\n";
+    std::cout << "  --INCIDENTS_CSV_PATH=PATH       Path to incidents CSV file (default: ../data/incidents_5000.csv)\n";
+    std::cout << "  --STATIONS_CSV_PATH=PATH        Path to stations CSV file (default: ../data/stations.csv)\n";
+    std::cout << "  --APPARATUS_CSV_PATH=PATH       Path to apparatus CSV file (default: ../data/stations_with_apparatus.csv)\n";
+    std::cout << "  --BOUNDS_GEOJSON_PATH=PATH      Path to bounds GeoJSON file (default: ../data/bounds.geojson)\n";
+    std::cout << "  --RANDOM_SEED=NUMBER            Random seed for simulation (default: 42)\n";
+    std::cout << "  --PYTHON_PATH=PATH              Path to Python executable (default: ../../venvBOC/bin/python)\n";
+    std::cout << "  --ENV_PATH=PATH                 Path to .env file. Overrides all other arguments.\n";
+    std::cout << "  --help                          Show this help message\n";
+    std::cout << "\nExample:\n";
+    std::cout << "  " << program_name << " --INCIDENTS_CSV_PATH=../data/custom_incidents.csv --RANDOM_SEED=123\n";
+    std::cout << "  " << program_name << " --ENV_PATH=../.env\n";
 }
 
 // Run on main to test Overpass
@@ -111,15 +61,108 @@ void testingONNX() {
     run_torch_model(env, session_options);
 }
 
+/**
+ * Parse command line arguments and build JSON configuration string
+ * Arguments should be in the format: --KEY=VALUE
+ * Only provided arguments will override the defaults
+ */
+std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
+    // Default configuration values
+    json config = {
+        {"OSRM_URL", "http://localhost:8080/table/v1/driving/"},
+        {"BASE_OSRM_URL", "http://localhost:8080"},
+        {"DISPATCH_POLICY", "NEAREST"},
+        {"INCIDENTS_CSV_PATH", "../data/incidents_5000.csv"},
+        {"STATIONS_CSV_PATH", "../data/stations.csv"},
+        {"APPARATUS_CSV_PATH", "../data/stations_with_apparatus.csv"},
+        {"BOUNDS_GEOJSON_PATH", "../data/bounds.geojson"},
+        {"NFD_RESPONSE_CSV_PATH", "../data/NFDResponse.csv"},
+        {"RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv"},
+        {"REPORT_CSV_PATH", "../logs/incident_report.csv"},
+        {"STATION_REPORT_CSV_PATH", "../logs/station_report.csv"},
+        {"DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"},
+        {"DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"},
+        {"MATRIX_CSV_PATH", "../logs/matrix.csv"},
+        {"FIREBEATS_MATRIX_PATH", "../logs/beats.bin"},
+        {"ZONE_MAP_PATH", "../data/zones.csv"},
+        {"BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson"},
+        {"RANDOM_SEED", 42},
+        {"PYTHON_PATH", "../../venvBOC/bin/python"}
+    };
+
+    // Parse command line arguments starting from index 1 (skip program name)
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        
+        // Handle help flag
+        if (arg == "--help" || arg == "-h") {
+            printUsage(argv[0]);
+            exit(0);
+        }
+        
+        // Skip the --run-python flag as it's handled separately
+        if (arg == "--run-python") {
+            continue;
+        }
+        
+        // Look for arguments in format --KEY=VALUE
+        if (arg.size() > 2 && arg.substr(0, 2) == "--") {
+            size_t equals_pos = arg.find('=');
+            if (equals_pos != std::string::npos) {
+                std::string key = arg.substr(2, equals_pos - 2);  // Remove -- prefix
+                std::string value = arg.substr(equals_pos + 1);
+                
+                // Check if this is a valid configuration key
+                if (config.contains(key)) {
+                    // Handle RANDOM_SEED as integer, others as string
+                    if (key == "RANDOM_SEED") {
+                        try {
+                            config[key] = std::stoi(value);
+                        } catch (const std::exception& e) {
+                            std::cerr << "Warning: Invalid value for RANDOM_SEED: " << value 
+                                      << ". Using default." << std::endl;
+                        }
+                    } else {
+                        config[key] = value;
+                    }
+                } else {
+                    std::cerr << "Warning: Unknown configuration key: " << key << std::endl;
+                }
+            } else {
+                std::cerr << "Warning: Invalid argument format: " << arg 
+                          << ". Expected --KEY=VALUE" << std::endl;
+            }
+        }
+    }
+    
+    return config.dump();
+}
+
 int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     // testingOverpass();
-    testingONNX();
-    return 0;
+    // testingONNX();
+    // return 0;
+    if (argc == 1) {
+        printUsage(argv[0]);
+        return 0;
+    }
 
-    EnvLoader::init("../.env");
+    std::string arg(argv[1]);
+    if (argc == 2 && arg.find("ENV_PATH") != std::string::npos) {
+        std::cout << "Using env file from: " <<  argv[1] << std::endl;
+        std::string env_path_arg = argv[1];
+        std::string env_path = env_path_arg.substr(std::string("--ENV_PATH=").size());
+        EnvLoader::init(env_path, "file");
+    } else {
+        // Parse command line arguments and build configuration
+        std::string json_config = parseArgumentsAndBuildConfig(argc, argv);
+        EnvLoader::init(json_config, "json");
+    }
+
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
-    // Initialize logger
+
+    // Initialize logger (this needs the env, might need to update)
     utils::Logger::init("boilerplate_app");
     utils::Logger::setLevel("info");
 
@@ -148,20 +191,29 @@ int main(int argc, char* argv[]) {
     initial_state.setApparatusList(apparatuses);
     initial_state.matchApparatusesWithStations(); // Match apparatuses with their respective stations
 
-    DispatchPolicy* policy = new NearestDispatch(env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-                                                 env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
-
-    // DispatchPolicy* policy = new FireBeatsDispatch(
-    //     env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-    //     env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-    //     env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-    //     env->get("ZONE_MAP_PATH", "../data/zones.csv")
-    // );
+    std::string policy_name = env->get("DISPATCH_POLICY", "NEAREST");
+    std::unique_ptr<DispatchPolicy> policy;
+    if (policy_name == constants::POLICY_NEAREST) {
+        LOG_INFO("Using {} dispatching policy", policy_name);
+        policy = std::make_unique<NearestDispatch>(
+            env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+            env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
+    } else if (policy_name == constants::POLICY_FIREBEATS) {
+        LOG_INFO("Using {} dispatching policy", policy_name);
+        policy = std::make_unique<FireBeatsDispatch>(
+            env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
+            env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
+            env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+            env->get("ZONE_MAP_PATH", "../data/zones.csv")
+        );
+    } else {
+        throw std::runtime_error("Only FIREBEATS or NEAREST policy supported");
+    }
 
     int seed = std::stoi(env->get("RANDOM_SEED", "42"));
     std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
     std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
-    FireModel* fireModel = new DepartmentFireModel(seed, nfd_path, resolution_stats_path);
+    std::unique_ptr<DepartmentFireModel> fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
 
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
@@ -173,8 +225,8 @@ int main(int argc, char* argv[]) {
 
     simulator.writeReportToCSV();
     simulator.writeActions();
-    delete policy;
-    delete fireModel;
+    
+    // No need to delete fireModel, unique_ptr handles it automatically
 
     // Call Python script after simulation finishes
     if (argc > 1 && std::string(argv[1]) == "--run-python") {

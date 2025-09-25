@@ -31,6 +31,7 @@ int Station::getNumFireTrucks() const noexcept { return num_fire_trucks; }
 int Station::getNumAmbulances() const noexcept { return num_ambulances; }
 double Station::getLon() const noexcept { return lon; }
 double Station::getLat() const noexcept { return lat; }
+std::string Station::getFacilityName() const noexcept { return facilityName; }
 Location Station::getLocation() const noexcept {
     return Location(lat, lon);
 }
@@ -134,4 +135,8 @@ void Station::updateAvailableCount(ApparatusType type, int count) {
                       to_string(type), stationIndex);
         available_count_[type] = 0;
     }
+}
+
+void Station::setFacilityName(std::string name) {
+    facilityName = name;
 }

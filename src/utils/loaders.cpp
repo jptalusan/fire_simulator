@@ -84,6 +84,8 @@ std::vector<Station> loadStationsFromCSV() {
 
         // Skip Facility Name
         std::getline(ss, token, ',');
+        std::string name = token;
+        std::cout << name << std::endl;
 
         // Skip Address
         std::getline(ss, token, ',');
@@ -118,6 +120,7 @@ std::vector<Station> loadStationsFromCSV() {
                             num_ambulances,
                             lon,
                             lat);
+            station.setFacilityName(name);
             stations.emplace_back(station);
             LOG_DEBUG("Loaded station: {}", station_id);
             index++;

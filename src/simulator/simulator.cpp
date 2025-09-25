@@ -144,7 +144,7 @@ void Simulator::writeActions() {
 
     std::ofstream station_csv(station_report_path);
 
-    station_csv << "DispatchTime,StationID";
+    station_csv << "DispatchTime,StationID,StationName";
     for (const auto& type : apparatusTypes) {
         station_csv << "," << to_string(type) << "Dispatched," << to_string(type) << "Remaining";
         }
@@ -162,8 +162,8 @@ void Simulator::writeActions() {
 
         // Get the incident for dispatch time
         const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
-        fmt::format_to(std::back_inserter(metrics), "{},{}", 
-            utils::formatTime(incident.timeRespondedTo), station.getStationIndex());
+        fmt::format_to(std::back_inserter(metrics), "{},{},{}", 
+            utils::formatTime(incident.timeRespondedTo), station.getStationIndex(), station.getFacilityName());
 
         for (const auto& type : apparatusTypes) {
             int dispatched = 0;
