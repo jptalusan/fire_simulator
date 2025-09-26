@@ -1,0 +1,10 @@
+#ignore all
+# Ignore model files
+*.pt
+*.pth
+*.onnx
+*.h5
+*.tflite
+*.pb
+*.joblib
+

@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <ctime>
+#include "enums.h"
 #include "data/location.h"
 #include "simulator/event.h"
 

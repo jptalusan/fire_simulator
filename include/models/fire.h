@@ -3,6 +3,9 @@
 
 #include <random>
 #include "simulator/state.h"
+#include "utils/util.h"
+#include "models/onnx_predictor.h"
+#include <nlohmann/json.hpp>
 
 // Create a parent class for all fire-related models
 class FireModel {
@@ -59,5 +62,45 @@ private:
     void loadApparatusRequirements(const std::string& csv_path);
     void loadResolutionStats(const std::string& resolutionStats_path);
 };
+class MLFireModel : public FireModel {
+public:
+    MLFireModel(unsigned int seed, const std::string& model_path, const std::string& config_path,const std::string& apparatus_csv_path);
+    std::unordered_map<ApparatusType, int> calculateApparatusCount(const Incident& incident) override;
+    double computeResolutionTime(State& state, const Incident& incident) override;
+    void validateFeatureOrder() const;
+    void printFeatureOrder(size_t max_features = 50) const;
+private:
+    // ONNX predictor for ML inference
+    std::unique_ptr<ONNXPredictor> onnx_predictor_;
+    
+    // Model configuration from JSON
+    nlohmann::json feature_config_;
+    std::vector<std::string> numerical_features_;
+    std::vector<std::string> categorical_features_;
+    std::vector<std::string> feature_order_; // Exact order from JSON
+    std::map<std::string, std::map<std::string, int>> categorical_mappings_;
+    std::map<std::string, std::pair<double, double>> numerical_scaling_; // mean, scale pairs
+    
+    // Model metadata
+    int expected_input_features_;
+    std::string model_type_;
 
+    void loadONNXModel(const std::string& model_path);
+    void loadFeatureConfig(const std::string& config_path);
+    std::unordered_map<IncidentCategory, std::unordered_map<ApparatusType, int>> apparatus_requirements_;
+    void loadApparatusRequirements(const std::string& csv_path);
+
+    // Feature extraction methods
+    std::vector<float> extractFeatures(const State& state, const Incident& incident);
+    std::vector<float> extractTemporalFeatures(const Incident& incident);
+    std::vector<float> extractGeographicFeatures(const Incident& incident);
+    std::vector<float> extractCategoricalFeatures(const Incident& incident);
+    // std::vector<float> extractWorkloadFeatures(const State& state);
+    
+    // Preprocessing utilities
+    float scaleNumericalFeature(const std::string& feature_name, float value);
+    std::vector<float> encodeCategoricalFeature(const std::string& feature_name, const std::string& value);
+    
+    // ... existing interface
+};
 #endif // FIRE_H
