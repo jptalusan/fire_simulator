@@ -213,12 +213,12 @@ int main(int argc, char* argv[]) {
     int seed = std::stoi(env->get("RANDOM_SEED", "42"));
     std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
     std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
-    std::unique_ptr<DepartmentFireModel> fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
+    std::unique_ptr<FireModel> fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
 
-    std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
-    std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+    // std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
+    // std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+    // std::unique_ptr<FireModel> fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
 
-    FireModel* fireModel = new MLFireModel(seed, model_path, features_path, nfd_path);
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
