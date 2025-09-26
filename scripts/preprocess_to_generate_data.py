@@ -144,7 +144,8 @@ if __name__ == "__main__":
 
     zones_to_stations_df = df.drop(columns=["Zone", "index"], errors='ignore')
     zones_to_stations_df = zones_to_stations_df.T
-
+    print(zones_to_stations_df.head())
+    print(zones_to_stations_df.shape)
     ############################################################
     ############### Create beats.bin ###############
     ############################################################
@@ -177,6 +178,7 @@ if __name__ == "__main__":
     # for integers
     print(zones_to_stations_df.to_numpy().shape)
     arr = zones_to_stations_df.to_numpy().astype(np.int32)
+    print(arr)
 
     save_array_to_binary("data/beats.bin", arr)
 
@@ -207,10 +209,12 @@ if __name__ == "__main__":
                 "geometry": poly
             }
             df_arr.append(data)
-    df = gpd.GeoDataFrame(df_arr, crs="EPSG:4326")
-    df.to_file("data/beats_shpfile.geojson", driver="GeoJSON")
+    gdf = gpd.GeoDataFrame(df_arr, crs="EPSG:4326")
+    gdf.to_file("data/beats_shpfile.geojson", driver="GeoJSON")
 
     ############################################################
     ############### Create bounds.geojson ###############
     ############################################################
-    df.minimum_rotated_rectangle().to_file("data/bounds.geojson", driver="GeoJSON")
+    rect = gdf.union_all().minimum_rotated_rectangle
+    rect_gdf = gpd.GeoDataFrame(geometry=[rect], crs=gdf.crs)
+    rect_gdf.to_file("data/bounds.geojson", driver="GeoJSON")

@@ -42,7 +42,14 @@ FireBeatsDispatch::~FireBeatsDispatch() {
     delete[] fireBeatsMatrix_; // Clean up the fire beats data if it was allocated
 }
 
-// Relies on the preprocessed bin, if its not correct then the key suddenly has the string "Station" that means it failed.
+// Relies on the preprocessed bin, if its not correct then the key suddenly has the string "Station", that means it failed.
+/*
+Essentially reading a row: run(station) x col: zones(beats) matrix.
+signifying the order or stations for each fire beats. -1 means there is no more station allocated there.
+[[ 0  8  8 ... 12  7  7]
+ [23 25 25 ...  7 10  3]
+ [ 1 18 18 ...  3  3 12]
+*/
 int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, int& width) const {
     // Open the file for reading
     std::ifstream in(filename, std::ios::binary);
@@ -111,13 +118,31 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
         LOG_ERROR("Invalid zone index: {} for incident {}", zoneIndex, incident.incident_id);
         throw InvalidValueError("Invalid zone index for incident: " + std::to_string(incident.incident_id));
     }
+
+    // Given the zoneIndex (or beats ID like 38R4, find the column for that which is the order of first to last station in the beats)
     std::vector<int> beatStationIndices = getColumn(fireBeatsMatrix_, fireBeatsWidth_, fireBeatsHeight_, zoneIndex);
 
     return getAction_(incident, state, beatStationIndices, durations);
 }
 
-std::unordered_map<int, std::string>
-FireBeatsDispatch::readZoneIndexToNameMapCSV(const std::string &filename) const {
+/*
+Reads a CSV with the following format.
+ZoneID,Zone Name
+0,01
+1,10
+2,10A
+3,10B
+4,10C
+5,10D
+6,10E
+7,10F
+8,11
+9,11B
+10,11C
+11,11D
+12,11E
+*/
+std::unordered_map<int, std::string> FireBeatsDispatch::readZoneIndexToNameMapCSV(const std::string &filename) const {
     std::unordered_map<int, std::string> zoneMap;
     std::ifstream file(filename);
     if (!file.is_open()) {
