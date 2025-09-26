@@ -96,6 +96,7 @@ Temporary Items
 .history/
 .env
 run_simulator
+external/*
 .vscode/settings.json
 build/
 test_simulator
@@ -109,3 +110,4 @@ test.ipynb
 *.json
 *.idea
 external/**
+rec/*

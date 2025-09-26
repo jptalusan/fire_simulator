@@ -269,14 +269,7 @@ std::vector<Incident> loadIncidentsFromCSV() {
                 ilevel = IncidentLevel::Invalid; // Handle invalid levels
             }
 
-            IncidentType itype = IncidentType::Invalid; // Default to Invalid
-            if (type == "Fire") {
-                itype = IncidentType::Fire;
-            } else if (type == "Medical") {
-                itype = IncidentType::Medical;
-            } else {
-                itype = IncidentType::Invalid; // Handle invalid types
-            }
+            IncidentType itype = mapIncidentType(type); // Use the new mapping function
             IncidentCategory icategory = stringToIncidentCategory(category);
 
             if (seenIDs.count(id)) {
@@ -532,7 +525,13 @@ void preComputingMatrices(std::vector<Station>& stations,
     for (const auto& incident : incidents) {
         destinations.emplace_back(incident.getLocation());
     }
-
+    bool matrixNotExist = true;
+    if (matrixNotExist) {
+        LOG_INFO("Distance and Duration matrix files do not exist. Generating new matrices...");
+    } else {
+        LOG_INFO("Distance and Duration matrix files already exist. Skipping matrix generation.");
+        return;
+    }
     auto result = generate_osrm_table_chunks(sources, destinations, chunk_size);
     const std::vector<std::vector<double>>& full_distance_matrix = result.first;
     const std::vector<std::vector<double>>& full_duration_matrix = result.second;

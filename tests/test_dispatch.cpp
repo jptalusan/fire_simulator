@@ -132,17 +132,17 @@ protected:
         
         // Incident 0: Should be closest to Station 0
         incidents_.emplace_back(0, 201, 36.1608, -86.7809, 
-                               IncidentType::Fire, IncidentLevel::Low, currentTime, IncidentCategory::One);
+                               IncidentType::BuildingFire, IncidentLevel::Low, currentTime, IncidentCategory::One);
         incidents_[0].resolvedTime = currentTime + 1800; // 30 minutes to resolve
         
         // Incident 1: Should be closest to Station 1  
         incidents_.emplace_back(1, 202, 36.1609, -86.7810,
-                               IncidentType::Fire, IncidentLevel::Moderate, currentTime, IncidentCategory::OneB);
+                               IncidentType::BuildingFire, IncidentLevel::Moderate, currentTime, IncidentCategory::OneB);
         incidents_[1].resolvedTime = currentTime + 2400; // 40 minutes to resolve
         
         // Incident 2: Should be closest to Station 2
         incidents_.emplace_back(2, 203, 36.1610, -86.7811,
-                               IncidentType::Fire, IncidentLevel::High, currentTime, IncidentCategory::OneC);
+                               IncidentType::BrushFire, IncidentLevel::High, currentTime, IncidentCategory::OneC);
         incidents_[2].resolvedTime = currentTime + 3600; // 60 minutes to resolve
 
         // Set required apparatus for incidents
