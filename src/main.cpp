@@ -219,6 +219,10 @@ int main(int argc, char* argv[]) {
     // std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
     // std::unique_ptr<FireModel> fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
 
+    std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
+    std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+
+    FireModel* fireModel = new MLFireModel(seed, model_path, features_path, nfd_path);
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
     simulator.run();
