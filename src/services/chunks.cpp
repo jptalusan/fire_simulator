@@ -32,6 +32,50 @@ std::string fetch_osrm_response(const std::string& full_url) {
     return response;
 }
 
+
+// Generate OSRM route query for a single source-destination pair
+std::pair<float, std::vector<double>> generate_route(
+    Location& source,
+    Location& destination
+) {
+    const std::string base_url = EnvLoader::getInstance()->get("BASE_OSRM_URL", "http://localhost:8080");
+
+    // Build coordinates string: source;destination
+    std::string coords = locationToString(source) + ";" + locationToString(destination);
+    
+    // Build URL for route service
+    std::string full_url = base_url + "/route/v1/driving/" + coords + 
+        "?overview=full&geometries=geojson&steps=false";
+
+    // Fetch and parse JSON
+    std::string response = fetch_osrm_response(full_url);
+    auto json_resp = json::parse(response);
+
+    if (json_resp["code"] != "Ok") {
+        std::cerr << "OSRM route error: " << json_resp["code"] << "\n";
+        throw OSRMError(fmt::format("OSRM route failed: {}", json_resp["code"].get<std::string>()));
+    }
+
+    // Extract duration (in seconds)
+    float duration = json_resp["routes"][0]["duration"].get<float>();
+    
+    // Extract coordinates from geometry and flatten to vector<double>
+    // Format: [lon1, lat1, lon2, lat2, ...]
+    std::vector<double> coordinates;
+    auto geometry = json_resp["routes"][0]["geometry"]["coordinates"];
+    
+    for (const auto& coord : geometry) {
+        // Note: GeoJSON format is [longitude, latitude]
+        double lon = coord[0].get<double>();
+        double lat = coord[1].get<double>();
+        coordinates.push_back(lon);
+        coordinates.push_back(lat);
+    }
+
+    return {duration, coordinates};
+}
+
+
 // Generate OSRM table queries: all sources with destination chunks
 std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> generate_osrm_table_chunks(
     const std::vector<Location>& sources,

@@ -17,6 +17,11 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
     size_t chunk_size=100
 );
 
+std::pair<float, std::vector<double>> generate_route(
+    Location& sources,
+    Location& destinations
+);
+
 void print_matrix(const std::vector<std::vector<double>>& matrix,
                   size_t max_rows = 10,
                   size_t max_cols = 10,

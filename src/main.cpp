@@ -61,6 +61,88 @@ void testingONNX() {
     run_torch_model(env, session_options);
 }
 
+void testingOSRMRoute() {
+    Location source(36.1627, -86.7816);  // Nashville coordinates
+    Location destination(36.1447, -86.8027);
+
+    auto [duration, coordinates] = generate_route(source, destination);
+
+    std::cout << "Travel time: " << duration << " seconds" << std::endl;
+    std::cout << "Route has " << coordinates.size()/2 << " coordinate points" << std::endl;
+}
+
+void testingOSRMTable() {
+    std::cout << "=== Testing OSRM Table Chunks ===" << std::endl;
+    
+    // Create 5 source locations (fire stations in Nashville area)
+    std::vector<Location> sources = {
+        Location(36.1627, -86.7816),  // Downtown Nashville
+        Location(36.1447, -86.8027),  // West End
+        Location(36.1853, -86.7647),  // North Nashville
+        Location(36.1174, -86.7903),  // South Nashville
+        Location(36.1314, -86.7123)   // East Nashville
+    };
+    
+    // Create 1 destination location
+    std::vector<Location> destinations = {
+        Location(36.1540, -86.7767)   // Music City Center area
+    };
+    
+    try {
+        std::cout << "Testing with " << sources.size() << " sources and " 
+                  << destinations.size() << " destination..." << std::endl;
+        
+        // Test with chunk size of 100 (should handle all destinations in one chunk)
+        size_t chunk_size = 100;
+        
+        auto [distance_matrix, duration_matrix] = generate_osrm_table_chunks(sources, destinations, chunk_size);
+        
+        std::cout << "Success! Generated matrices:" << std::endl;
+        std::cout << "Distance matrix size: " << distance_matrix.size() << " x " 
+                  << (distance_matrix.empty() ? 0 : distance_matrix[0].size()) << std::endl;
+        std::cout << "Duration matrix size: " << duration_matrix.size() << " x " 
+                  << (duration_matrix.empty() ? 0 : duration_matrix[0].size()) << std::endl;
+        
+        // Print results
+        std::cout << "\nDistance Matrix (meters):" << std::endl;
+        for (size_t i = 0; i < distance_matrix.size(); ++i) {
+            std::cout << "Source " << i << " -> Destination 0: " 
+                      << std::fixed << std::setprecision(2) 
+                      << distance_matrix[i][0] << " meters" << std::endl;
+        }
+        
+        std::cout << "\nDuration Matrix (seconds):" << std::endl;
+        for (size_t i = 0; i < duration_matrix.size(); ++i) {
+            std::cout << "Source " << i << " -> Destination 0: " 
+                      << std::fixed << std::setprecision(2) 
+                      << duration_matrix[i][0] << " seconds ("
+                      << duration_matrix[i][0] / 60.0 << " minutes)" << std::endl;
+        }
+        
+        // Test with smaller chunk size to verify chunking works
+        std::cout << "\n--- Testing chunking with chunk_size=1 ---" << std::endl;
+        auto [distance_matrix2, duration_matrix2] = generate_osrm_table_chunks(sources, destinations, 1);
+        
+        // Verify results are the same
+        bool matrices_match = true;
+        for (size_t i = 0; i < distance_matrix.size() && matrices_match; ++i) {
+            for (size_t j = 0; j < distance_matrix[i].size() && matrices_match; ++j) {
+                if (std::abs(distance_matrix[i][j] - distance_matrix2[i][j]) > 0.001 ||
+                    std::abs(duration_matrix[i][j] - duration_matrix2[i][j]) > 0.001) {
+                    matrices_match = false;
+                }
+            }
+        }
+        
+        std::cout << "Chunking test: " << (matrices_match ? "PASSED" : "FAILED") << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error testing OSRM table chunks: " << e.what() << std::endl;
+    }
+    
+    std::cout << "=== OSRM Table Test Complete ===" << std::endl;
+}
+
 /**
  * Parse command line arguments and build JSON configuration string
  * Arguments should be in the format: --KEY=VALUE
@@ -140,9 +222,6 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
-    // testingOverpass();
-    // testingONNX();
-    // return 0;
     if (argc == 1) {
         printUsage(argv[0]);
         return 0;
@@ -161,6 +240,13 @@ int main(int argc, char* argv[]) {
     }
 
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
+
+
+    // testingOverpass();
+    // testingOSRMRoute();
+    testingOSRMTable();
+    // testingONNX();
+    return 0;
 
     // Initialize logger (this needs the env, might need to update)
     utils::Logger::init("boilerplate_app");
