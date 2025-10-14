@@ -27,6 +27,9 @@ void printUsage(const char* program_name) {
     std::cout << "  --OSRM_URL=URL                  OSRM table API URL (default: http://localhost:8080/table/v1/driving/)\n";
     std::cout << "  --BASE_OSRM_URL=URL             Base OSRM URL (default: http://localhost:8080)\n";
     std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: NEAREST/FIREBEATS, default: NEAREST)\n";
+    std::cout << "  --FIRE_MODEL=STRING             Fire Model (options: HISTORICAL/ML, default: HISTORICAL)\n";
+    std::cout << "                                  HISTORICAL: Uses historical sampling from NFD data\n";
+    std::cout << "                                  ML: Uses machine learning model for predictions\n";
     std::cout << "  --INCIDENTS_CSV_PATH=PATH       Path to incidents CSV file (default: ../data/incidents_5000.csv)\n";
     std::cout << "  --STATIONS_CSV_PATH=PATH        Path to stations CSV file (default: ../data/stations.csv)\n";
     std::cout << "  --APPARATUS_CSV_PATH=PATH       Path to apparatus CSV file (default: ../data/stations_with_apparatus.csv)\n";
@@ -37,6 +40,7 @@ void printUsage(const char* program_name) {
     std::cout << "  --help                          Show this help message\n";
     std::cout << "\nExample:\n";
     std::cout << "  " << program_name << " --INCIDENTS_CSV_PATH=../data/custom_incidents.csv --RANDOM_SEED=123\n";
+    std::cout << "  " << program_name << " --FIRE_MODEL=ML --DISPATCH_POLICY=FIREBEATS\n";
     std::cout << "  " << program_name << " --ENV_PATH=../.env\n";
 }
 
@@ -72,6 +76,7 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"OSRM_URL", "http://localhost:8080/table/v1/driving/"},
         {"BASE_OSRM_URL", "http://localhost:8080"},
         {"DISPATCH_POLICY", "NEAREST"},
+        {"FIRE_MODEL", "HISTORICAL"},
         {"INCIDENTS_CSV_PATH", "../data/incidents_5000.csv"},
         {"STATIONS_CSV_PATH", "../data/stations.csv"},
         {"APPARATUS_CSV_PATH", "../data/stations_with_apparatus.csv"},
@@ -87,7 +92,9 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"ZONE_MAP_PATH", "../data/zones.csv"},
         {"BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson"},
         {"RANDOM_SEED", 42},
-        {"PYTHON_PATH", "../../venvBOC/bin/python"}
+        {"PYTHON_PATH", "../../venvBOC/bin/python"},
+        {"MODEL_PATH", "../models/fire_incident_gb_model.onnx"},
+        {"FEATURES_PATH", "../models/fire_model_features_mapping.json"}
     };
 
     // Parse command line arguments starting from index 1 (skip program name)
@@ -212,12 +219,24 @@ int main(int argc, char* argv[]) {
 
     int seed = std::stoi(env->get("RANDOM_SEED", "42"));
     std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
-    std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
-    std::unique_ptr<FireModel> fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
 
-    // std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
-    // std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
-    // std::unique_ptr<FireModel> fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
+    // Fire model selection based on configuration
+    std::string fire_model_type = env->get("FIRE_MODEL", "HISTORICAL");
+    std::unique_ptr<FireModel> fireModel;
+    
+    if (fire_model_type == constants::FIRE_MODEL_HISTORICAL) {
+        LOG_INFO("Using {} fire model (DepartmentFireModel)", fire_model_type);
+        std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
+        fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
+    } else if (fire_model_type == constants::FIRE_MODEL_ML) {
+        LOG_INFO("Using {} fire model (MLFireModel)", fire_model_type);
+        std::string model_path = env->get("MODEL_PATH", "../models/fire_incident_gb_model.onnx");
+        std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+
+        fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
+    } else {
+        throw std::runtime_error("Only HISTORICAL or ML fire models supported. Got: " + fire_model_type);
+    }
 
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, events, environment_model, *policy);
