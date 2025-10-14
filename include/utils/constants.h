@@ -15,6 +15,8 @@ namespace constants {
     inline static constexpr const char* RESOLUTION_TIME = "RESOLUTION_TIME";
     inline static constexpr const char* POLICY_FIREBEATS = "FIREBEATS";
     inline static constexpr const char* POLICY_NEAREST = "NEAREST";
+    inline static constexpr const char* FIRE_MODEL_HISTORICAL = "HISTORICAL";
+    inline static constexpr const char* FIRE_MODEL_ML = "ML";
 
     // Numeric constants
     inline static constexpr int DEFAULT_NUM_FIRE_TRUCKS = 2;
