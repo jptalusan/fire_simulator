@@ -10,7 +10,8 @@ public:
     virtual ~DispatchPolicy() = default;
 
     // Handle dispatching logic given the state and an event
-    virtual std::vector<Action> getAction(const State& state) = 0;
+    virtual std::vector<Action> getAction(const State& state) const = 0;
+    virtual const std::vector<Action> getAction2(const State& state) const = 0;
     
     // Dispatch apparatus by type priority (you can customize this order)
     std::vector<ApparatusType> dispatchOrder = {
@@ -31,14 +32,15 @@ public:
 
 protected:
     int getNextIncidentIndex(const State& state) const;
-    std::vector<int> getSortedIndicesByDuration(const std::vector<double>& durations);
-    int findMinIndex(const std::vector<double>& durations);
+    std::vector<int> getSortedIndicesByDuration(const std::vector<double>& durations) const;
+    int findMinIndex(const std::vector<double>& durations) const;
     std::vector<double> getColumn(double* matrix, int width, int height, int col_index) const;
+    std::vector<double> getColumn(const std::vector<std::vector<double>>& matrix, size_t col_index) const;
     std::vector<int> getColumn(int* matrix, int width, int height, int col_index) const;
     std::vector<Action> getAction_(const Incident& incident, 
         const State& state, 
         const std::vector<int>& stationOrder, 
-        const std::vector<double>& durations);
+        const std::vector<double>& durations) const;
 };
 
 #endif // DISPATCH_POLICY_H

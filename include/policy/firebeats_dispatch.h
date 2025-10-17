@@ -3,7 +3,7 @@
 
 #include <memory>
 #include "dispatch_policy.h"
-#include "data/incident.h"
+#include "objects/incident.h"
 #include "services/queries.h" // You should have an OSRM query utility class or function
     
 class FireBeatsDispatch : public DispatchPolicy {
@@ -13,7 +13,8 @@ public:
                       const std::string& fireBeatsMatrixPath="",
                       const std::string& zoneIDToNameMapPath="");
 
-    std::vector<Action> getAction(const State& state) override;
+    std::vector<Action> getAction(const State& state) const override;
+    const std::vector<Action> getAction2(const State& state) const override;
 
     ~FireBeatsDispatch();
 private:

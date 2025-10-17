@@ -258,7 +258,7 @@ std::unordered_map<ApparatusType, int> DepartmentFireModel::calculateApparatusCo
     throw UnknownValueError();
 }
 
-MLFireModel::MLFireModel(unsigned int seed, const std::string& model_path, const std::string& config_path, const std::string& apparatus_csv_path){
+MLFireModel::MLFireModel([[maybe_unused]] unsigned int seed, const std::string& model_path, const std::string& config_path, const std::string& apparatus_csv_path){
     // Initialize ONNX predictor
     onnx_predictor_ = std::make_unique<ONNXPredictor>();
     
@@ -481,7 +481,7 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
     }
 }
 
-std::vector<float> MLFireModel:: extractFeatures(const State& state, const Incident& incident) {
+std::vector<float> MLFireModel:: extractFeatures([[maybe_unused]]const State& state, const Incident& incident) {
     std::vector<float> all_features;
     
     // Create a map of all possible features
@@ -578,7 +578,7 @@ std::vector<float> MLFireModel:: extractFeatures(const State& state, const Incid
     // Category features - map each encoded feature to its name
     auto category_mapping = categorical_mappings_.find("category");
     if (category_mapping != categorical_mappings_.end()) {
-        int idx = 0;
+        size_t idx = 0;
         for (const auto& [cat_name, cat_idx] : category_mapping->second) {
             if (cat_idx > 0) { // Skip dropped category (index 0)
                 std::string feature_name = "category_" + cat_name;
@@ -593,7 +593,7 @@ std::vector<float> MLFireModel:: extractFeatures(const State& state, const Incid
     // Zone ID features
     auto zone_mapping = categorical_mappings_.find("ZONE_ID");
     if (zone_mapping != categorical_mappings_.end()) {
-        int idx = 0;
+        size_t idx = 0;
         for (const auto& [zone_name, zone_idx] : zone_mapping->second) {
             if (zone_idx > 0) { // Skip dropped category
                 std::string feature_name = "ZONE_ID_" + zone_name;
@@ -608,7 +608,7 @@ std::vector<float> MLFireModel:: extractFeatures(const State& state, const Incid
     // Incident type features
     auto type_mapping = categorical_mappings_.find("incident_type");
     if (type_mapping != categorical_mappings_.end()) {
-        int idx = 0;
+        size_t idx = 0;
         for (const auto& [type_name, type_idx] : type_mapping->second) {
             if (type_idx > 0) { // Skip dropped category
                 std::string feature_name = "incident_type_" + type_name;

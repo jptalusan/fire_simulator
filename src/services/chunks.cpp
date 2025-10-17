@@ -1,7 +1,7 @@
 #include <services/chunks.h>
 #include <fstream>
 #include <iomanip>
-#include "data/location.h"
+#include "objects/location.h"
 #include "config/EnvLoader.h"
 #include "utils/error.h"
 #include "utils/logger.h"
@@ -35,8 +35,8 @@ std::string fetch_osrm_response(const std::string& full_url) {
 
 // Generate OSRM route query for a single source-destination pair
 std::pair<float, std::vector<double>> generate_route(
-    Location& source,
-    Location& destination
+    const Location& source,
+    const Location& destination
 ) {
     const std::string base_url = EnvLoader::getInstance()->get("BASE_OSRM_URL", "http://localhost:8080");
 
@@ -46,7 +46,6 @@ std::pair<float, std::vector<double>> generate_route(
     // Build URL for route service
     std::string full_url = base_url + "/route/v1/driving/" + coords + 
         "?overview=full&geometries=geojson&steps=false";
-
     // Fetch and parse JSON
     std::string response = fetch_osrm_response(full_url);
     auto json_resp = json::parse(response);

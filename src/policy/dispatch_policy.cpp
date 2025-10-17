@@ -40,7 +40,7 @@ int DispatchPolicy::getNextIncidentIndex(const State& state) const {
  * @param durations The vector of durations.
  * @return The index of the smallest value, or -1 if the vector is empty.
  */
-int DispatchPolicy::findMinIndex(const std::vector<double>& durations) {
+int DispatchPolicy::findMinIndex(const std::vector<double>& durations) const {
     if (durations.empty()) return -1;
     auto min_it = std::min_element(durations.begin(), durations.end());
     return static_cast<int>(std::distance(durations.begin(), min_it));
@@ -52,7 +52,7 @@ int DispatchPolicy::findMinIndex(const std::vector<double>& durations) {
  * @param durations The vector of durations.
  * @return A vector of pairs (index, duration), sorted by duration.
  */
-std::vector<int> DispatchPolicy::getSortedIndicesByDuration(const std::vector<double>& durations) {
+std::vector<int> DispatchPolicy::getSortedIndicesByDuration(const std::vector<double>& durations) const {
     std::vector<int> indices(durations.size());
     std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
     
@@ -102,7 +102,7 @@ std::vector<int> DispatchPolicy::getColumn(int* matrix, int width, int height, i
 // TODO: This is basically the same code as in nearest_dispatch and firebeats_dispatch, only difference is the stationOrder passed in.
 std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const State &state,
                               const std::vector<int> &stationOrder,
-                              const std::vector<double> &durations) {
+                              const std::vector<double> &durations) const {
     int incidentIndex = incident.incidentIndex;
     
     if (incidentIndex < 0) {
@@ -133,7 +133,7 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
     }
 
     time_t incidentResolutionTime = incident.resolvedTime;
-    const std::vector<Station> &validStations = state.getAllStations();
+    const std::vector<FireStation> &validStations = state.getAllStations();
 
     std::vector<Action> actions;
 
@@ -146,7 +146,7 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
                 break; // Already dispatched enough of this type
             }
 
-            const Station &station = validStations[stationIndex];
+            const FireStation &station = validStations[stationIndex];
             int availableCount = station.getAvailableCount(type);
             if (availableCount <= 0) {
                 LOG_DEBUG("Station {} has no available {} apparatus.",
@@ -174,7 +174,10 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
 
             if (toDispatch > 0) {
                 Action dispatchAction = Action::createDispatchAction(
-                    station.getStationIndex(), incidentIndex, type, toDispatch,
+                    station.getStationIndex(), 
+                    incidentIndex, 
+                    -1, // Vehicle index not tracked here
+                    type, toDispatch,
                     durations[stationIndex]);
 
                 actions.push_back(dispatchAction);
@@ -201,4 +204,17 @@ std::vector<Action> DispatchPolicy::getAction_(const Incident &incident, const S
         return {Action::createDoNothingAction()}; // No action could be taken
     }
     return actions;
+}
+
+std::vector<double> DispatchPolicy::getColumn(const std::vector<std::vector<double>>& matrix, size_t col_index) const {
+    std::vector<double> column;
+    column.reserve(matrix.size());
+    for (const auto& row : matrix) {
+        if (col_index < row.size()) {
+            column.push_back(row[col_index]);
+        } else {
+            column.push_back(std::numeric_limits<double>::infinity()); // or some other sentinel value
+        }
+    }
+    return column;
 }

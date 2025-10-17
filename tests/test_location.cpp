@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "data/location.h"
+#include "objects/location.h"
 
 TEST(LocationTest, DefaultConstructor) {
     Location loc;

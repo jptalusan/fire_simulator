@@ -1,15 +1,16 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include "utils/loaders.h"
+#include "io/loaders.h"
 #include "config/EnvLoader.h"
-#include "data/geometry.h"
+#include "objects/geometry.h"
 #include "utils/error.h"
 #include "utils/logger.h"
 #include "utils/constants.h"
-#include "data/apparatus.h"
+#include "objects/vehicle.h"
 #include "services/queries.h"
 #include "services/chunks.h"
+#include "objects/location.h"
 
 namespace loader {
 EventQueue generateEvents(const std::vector<Incident>& incidents) {
@@ -45,61 +46,68 @@ int parseIntToken(const std::string& token, int defaultValue = 0) {
     }
 }
 
-std::vector<Station> loadStationsFromCSV() {
-    std::string filename = EnvLoader::getInstance()->get("STATIONS_CSV_PATH", "");
+std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV() {
+    std::string filename = EnvLoader::getInstance()->get("APPARATUS_CSV_PATH", "");
     // TODO: Add error checking
     std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
 
+    std::cout<<bounds_path<<";"<<filename<<std::endl;
     LOG_INFO("Loading stations from CSV file: {}", filename);
+    LOG_INFO("Loading polygon from geojson file: {}", bounds_path);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
-
-    std::vector<Station> stations;
+    
+    std::vector<FireStation> stations;
+    std::vector<Vehicle> vehicles;
     std::ifstream file(filename);
     std::string line;
 
     if (!file.is_open()) {
         LOG_ERROR("Failed to open file: {}", filename);
-        return stations;
+        return std::make_pair(stations, vehicles);
     }
 
     // Skip header line
     std::getline(file, line);
 
     int ignoredCount = 0; // Count of ignored stations
-    int index = 0;
+    int vehicleIndex = 0;
+    int _stationIndex = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
         std::string token;
 
-        // Skip OBJECTID
         // How to ensure that these are string that can be converted to int?
+        // Station Index
         std::getline(ss, token, ',');
-        int station_id = -1;
+        int stationIndex = -1;
         try {
-            station_id = std::stoi(token);
+            stationIndex = std::stoi(token);
+            if (stationIndex != _stationIndex) {
+                throw InvalidStationError("Invalid station ID in CSV file: " + token);
+            }
         } catch (...) {
             LOG_ERROR("Invalid station ID: {}", token);
             throw InvalidStationError("Invalid station ID in CSV file: " + token);
         }
 
-        // Skip Facility Name
+        // Stations ID
         std::getline(ss, token, ',');
-        std::string name = token;
+        std::string stationId = token;
 
-        // Skip Address
-        std::getline(ss, token, ',');
+        // // Skip Address
+        // std::getline(ss, token, ',');
 
-        // Skip City
-        std::getline(ss, token, ',');
+        // // Skip City
+        // std::getline(ss, token, ',');
 
-        // Skip State
-        std::getline(ss, token, ',');
+        // // Skip State
+        // std::getline(ss, token, ',');
 
-        // Skip Zip Code
-        std::getline(ss, token, ',');
+        // // Skip Zip Code
+        // std::getline(ss, token, ',');
 
-        // Skip GLOBALID
-        std::getline(ss, token, ',');
+        // // Skip GLOBALID
+        // std::getline(ss, token, ',');
 
         // x
         std::getline(ss, token, ',');
@@ -108,31 +116,221 @@ std::vector<Station> loadStationsFromCSV() {
         // y
         std::getline(ss, token, ',');
         double lon = std::stod(token);
+        Location location;
+        location.lat = lat;
+        location.lon = lon;
 
-        int num_fire_trucks = constants::DEFAULT_NUM_FIRE_TRUCKS; // Default value, can be updated later
-        int num_ambulances = constants::DEFAULT_NUM_AMBULANCES;  // Default value, can be updated later
-
-        if (isPointInPolygon(polygon, Location(lon, lat))) {
-            Station station(index,
-                            station_id,
-                            num_fire_trucks,
-                            num_ambulances,
-                            lon,
-                            lat);
-            station.setFacilityName(name);
-            stations.emplace_back(station);
-            LOG_DEBUG("Loaded station: {}", station_id);
-            index++;
-        } else {
-            LOG_DEBUG("Station {} is out of bounds and will be ignored.", station_id);
+        if (!isPointInPolygon(polygon, location)) {
+            LOG_DEBUG("Station {} is out of bounds and will be ignored.", stationId);
             ignoredCount++;
+            continue;
+        } else {
+            LOG_DEBUG("Station {} is inside the polygon bounds.", stationId);
         }
+
+        // Skip the address
+        std::getline(ss, token, ',');
+
+        // Engine_ID (its just count)
+        std::getline(ss, token, ',');
+        int engine_count = parseIntToken(token);
+
+        // Truck
+        std::getline(ss, token, ',');
+        int truck_count = parseIntToken(token);
+
+        // Rescue
+        std::getline(ss, token, ',');
+        int rescue_count = parseIntToken(token);
+
+        // Hazard
+        std::getline(ss, token, ',');
+        int hazard_count = parseIntToken(token);
+
+        // Squad
+        std::getline(ss, token, ',');
+        int squad_count = parseIntToken(token);
+
+        // Fast
+        std::getline(ss, token, ',');
+        int fast_count = parseIntToken(token);
+
+        // Medic
+        std::getline(ss, token, ',');
+        int medic_count = parseIntToken(token);
+
+        // Brush
+        std::getline(ss, token, ',');
+        int brush_count = parseIntToken(token);
+
+        // Boat
+        std::getline(ss, token, ',');
+        int boat_count = parseIntToken(token);
+
+        // UTV
+        std::getline(ss, token, ',');
+        int utv_count = parseIntToken(token);
+
+        // REACH
+        std::getline(ss, token, ',');
+        int reach_count = parseIntToken(token);
+
+        // Chief
+        std::getline(ss, token, ',');
+        int chief_count = parseIntToken(token);
+
+        std::vector<Vehicle> fireEngines = {};
+        std::vector<Vehicle> trucks = {};
+        std::vector<Vehicle> rescues = {};
+        std::vector<Vehicle> hazards = {};
+        std::vector<Vehicle> squads = {};
+        std::vector<Vehicle> fasts = {};
+        std::vector<Vehicle> brushes = {};
+        std::vector<Vehicle> boats = {};
+        std::vector<Vehicle> utvs = {};
+        std::vector<Vehicle> reaches = {};
+        std::vector<Vehicle> chiefs = {};
+
+        std::vector<Vehicle> medics = {};
+
+        // EMS are special case
+        for (int i = 0; i < medic_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                  vehicleIndex++, location,
+                                ApparatusType::Medic, 
+                                  ApparatusStatus::Available);
+            medics.emplace_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        // Loop through each apparatus type and create instances
+        for (int i = 0; i < engine_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Engine, 
+                                ApparatusStatus::Available);
+            fireEngines.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < truck_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Truck, 
+                                ApparatusStatus::Available);
+            trucks.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < rescue_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Rescue, 
+                                ApparatusStatus::Available);
+            rescues.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < hazard_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Hazard, 
+                                ApparatusStatus::Available);
+            hazards.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < squad_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Squad, ApparatusStatus::Available);
+            squads.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < fast_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Fast, 
+                                ApparatusStatus::Available);
+            fasts.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < brush_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Brush, 
+                                ApparatusStatus::Available);
+            brushes.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < boat_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Boat, 
+                                ApparatusStatus::Available);
+            boats.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < utv_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::UTV, 
+                                ApparatusStatus::Available);
+            utvs.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < reach_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Reach, 
+                                ApparatusStatus::Available);
+            reaches.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < chief_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::Chief, 
+                                ApparatusStatus::Available);
+            chiefs.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        FireStation fireStation(stationId,
+                        stationIndex,
+                        location);
+        // station.setFacilityName(name);
+        fireStation.addApparatusToMap(ApparatusType::Engine, fireEngines);
+        fireStation.addApparatusToMap(ApparatusType::Truck, trucks);
+        fireStation.addApparatusToMap(ApparatusType::Rescue, rescues);
+        fireStation.addApparatusToMap(ApparatusType::Hazard, hazards);
+        fireStation.addApparatusToMap(ApparatusType::Squad, squads);
+        fireStation.addApparatusToMap(ApparatusType::Fast, fasts);
+        fireStation.addApparatusToMap(ApparatusType::Brush, brushes);
+        fireStation.addApparatusToMap(ApparatusType::Boat, boats);
+        fireStation.addApparatusToMap(ApparatusType::UTV, utvs);
+        fireStation.addApparatusToMap(ApparatusType::Reach, reaches);
+        fireStation.addApparatusToMap(ApparatusType::Chief, chiefs);
+
+        fireStation.addApparatusToMap(ApparatusType::Medic, medics);
+        fireStation.updateApparatusCounts();
+        stations.emplace_back(fireStation);
+        LOG_DEBUG("Loaded station: {}", stationId);
+        stationIndex++;
+        _stationIndex++;
     }
 
     file.close();
     LOG_INFO("Loaded {} stations from CSV file.", stations.size());
     LOG_WARN("Ignored {} stations that are out of bounds.", ignoredCount);
-    return stations;
+
+    return std::make_pair(stations, vehicles);
 }
 
 IncidentCategory stringToIncidentCategory(const std::string& str) {
@@ -195,6 +393,7 @@ IncidentCategory stringToIncidentCategory(const std::string& str) {
 
 std::vector<Incident> loadIncidentsFromCSV() {
     std::string filename = EnvLoader::getInstance()->get("INCIDENTS_CSV_PATH", "");
+    std::cout<<"READ:" << filename <<std::endl;
     std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
     LOG_INFO("Loading incidents from CSV file: {}", filename);
     std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
@@ -254,8 +453,11 @@ std::vector<Incident> loadIncidentsFromCSV() {
         }
         tm.tm_isdst = -1;  // Let mktime() determine DST
         time_t unix_time = std::mktime(&tm);
-
-        if (isPointInPolygon(polygon, Location(lon, lat))) {
+        Location location;
+        location.lat = lat;
+        location.lon = lon;
+        
+        if (isPointInPolygon(polygon, location)) {
             IncidentLevel ilevel = IncidentLevel::Invalid; // Default to Invalid
             if (level == constants::INCIDENT_LEVEL_LOW) {
                 ilevel = IncidentLevel::Low;
@@ -293,185 +495,15 @@ std::vector<Incident> loadIncidentsFromCSV() {
     return incidents;
 }
 
-/*
-Idea is to just load the apparatuses from a separate apparatus.csv.
-Read this first, then assign to each station after the fact.
-Throw an error if there are stations mismatch between stations and apparatus.
-(all apparatus stations should be in the stations list)
-The goal is to only give the stations a dictionary of apparatus types and counts, while apparatuses is its own list.
-This would allow us to loop through the independently from the stations (if needed).
-*/
-std::vector<Apparatus> loadApparatusFromCSV() {
-    std::string filename = EnvLoader::getInstance()->get("APPARATUS_CSV_PATH", "");
-    std::string bounds_path = EnvLoader::getInstance()->get("BOUNDS_GEOJSON_PATH", "../data/bounds.geojson");
-
-    LOG_INFO("Loading apparatuses from CSV file: {}", filename);
-    std::vector<Location> polygon = loadPolygonFromGeoJSON(bounds_path);
-
-    std::vector<Apparatus> apparatuses;
-    std::ifstream file(filename);
-    std::string line;
-
-    if (!file.is_open()) {
-        LOG_ERROR("Failed to open file: {}", filename);
-        return apparatuses;
-    }
-
-    // Skip header line
-    std::getline(file, line);
-
-    int index = 0;
-    while (std::getline(file, line)) {
-        std::istringstream ss(line);
-        std::string token;
-
-        // StationID
-        // How to ensure that these are string that can be converted to int?
-        std::getline(ss, token, ',');
-        int station_id = -1;
-        try {
-            station_id = std::stoi(token);
-        } catch (...) {
-            LOG_ERROR("Invalid station ID: {}", token);
-            throw InvalidStationError("Invalid station ID in CSV file: " + token);
-        }
-    
-        // Skip Facility Name/Stations
-        std::getline(ss, token, ',');
-    
-        // // Skip Station Name
-        std::getline(ss, token, ',');
-
-        // // Engine_ID (its jus count)
-        std::getline(ss, token, ',');
-        int engine_count = parseIntToken(token);
-
-        // Truck
-        std::getline(ss, token, ',');
-        int truck_count = parseIntToken(token);
-
-        // Rescue
-        std::getline(ss, token, ',');
-        int rescue_count = parseIntToken(token);
-
-        // Hazard
-        std::getline(ss, token, ',');
-        int hazard_count = parseIntToken(token);
-
-        // Squad
-        std::getline(ss, token, ',');
-        int squad_count = parseIntToken(token);
-
-        // Fast
-        std::getline(ss, token, ',');
-        int fast_count = parseIntToken(token);
-
-        // Medic
-        std::getline(ss, token, ',');
-        int medic_count = parseIntToken(token);
-
-        // Brush
-        std::getline(ss, token, ',');
-        int brush_count = parseIntToken(token);
-
-        // Boat
-        std::getline(ss, token, ',');
-        int boat_count = parseIntToken(token);
-
-        // UTV
-        std::getline(ss, token, ',');
-        int utv_count = parseIntToken(token);
-
-        // REACH
-        std::getline(ss, token, ',');
-        int reach_count = parseIntToken(token);
-
-        // Chief
-        std::getline(ss, token, ',');
-        int chief_count = parseIntToken(token);
-
-        LOG_DEBUG("Station Index: {}, Chief Count: {}", station_id, chief_count);
-
-        // Loop through each apparatus type and create instances
-        for (int i = 0; i < engine_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Engine);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < truck_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Truck);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < rescue_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Rescue);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < hazard_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Hazard);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < squad_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Squad);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < fast_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Fast);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < medic_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Medic);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < brush_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Brush);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < boat_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Boat);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < utv_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::UTV);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < reach_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Reach);
-            apparatuses.emplace_back(a);
-        }
-
-        for (int i = 0; i < chief_count; i++) {
-            Apparatus a = Apparatus(index++, station_id, ApparatusType::Chief);
-            apparatuses.emplace_back(a);
-        }
-    }
-
-    file.close();
-    // LOG_INFO("Loaded {} stations from CSV file.", stations.size());
-    // LOG_WARN("Ignored {} stations that are out of bounds.", ignoredCount);
-    return apparatuses;
-}
-
-
 // TODO: Add checking if the binary files already exist, if so, load them instead of generating them again.
-void preComputingMatrices(std::vector<Station>& stations, 
+void preComputingMatrices(std::vector<FireStation>& stations, 
                           std::vector<Incident>& incidents,
-                          std::vector<Apparatus>& apparatuses,
+                          std::vector<Vehicle>& vehicles,
                           size_t chunk_size) {
     LOG_INFO("Starting Precomputation...");
     //spdlog::stopwatch sw;
     // Additional logic can be added here
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
-    std::string stations_path = env->get("STATIONS_CSV_PATH", "../data/stations.csv");
-    std::string incidents_path = env->get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
     std::string matrix_csv_path = env->get("MATRIX_CSV_PATH", "../logs/matrix.csv");
     std::string distance_matrix_path = env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin");
     std::string duration_matrix_path = env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin");
@@ -485,9 +517,12 @@ void preComputingMatrices(std::vector<Station>& stations,
         throw OSRMError();
     }
 
-    stations = loadStationsFromCSV();
+    auto [_stations, _vehicles] = loadStationsFromCSV();
+    stations = std::move(_stations);
+    // Note: Type conversion may be needed here if Vehicle != Apparatus
+    vehicles = std::move(_vehicles);
+
     incidents = loadIncidentsFromCSV();
-    apparatuses = loadApparatusFromCSV();
 
     // START Adding zones per incident (maybe costly?)
     std::vector<std::pair<int, Polygon>> polygonWithZoneID = loadServiceZonesFromGeojson(beats_shapefile_path);

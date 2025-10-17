@@ -8,7 +8,7 @@
 #include <boost/geometry.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <nlohmann/json.hpp> // https://github.com/nlohmann/json
-#include "data/location.h"
+#include "objects/location.h"
 #include "utils/util.h"
 
 double crossProduct(const Location& p1, const Location& p2, const Location& p3);

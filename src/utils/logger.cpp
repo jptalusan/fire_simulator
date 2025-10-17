@@ -9,11 +9,28 @@ std::shared_ptr<spdlog::logger> Logger::s_logger = nullptr;
 
 void Logger::init(const std::string& name) {
     std::string log_file = EnvLoader::getInstance()->get("LOGS_PATH", "../logs/output.log");
+    std::string console_level = EnvLoader::getInstance()->get("CONSOLE_LOG_LEVEL", "debug");
     std::vector<spdlog::sink_ptr> sinks;
     
     // Console sink
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    console_sink->set_level(spdlog::level::err);
+    
+    // Set console level based on environment variable
+    if (console_level == "trace") {
+        console_sink->set_level(spdlog::level::trace);
+    } else if (console_level == "debug") {
+        console_sink->set_level(spdlog::level::debug);
+    } else if (console_level == "info") {
+        console_sink->set_level(spdlog::level::info);
+    } else if (console_level == "warn") {
+        console_sink->set_level(spdlog::level::warn);
+    } else if (console_level == "error") {
+        console_sink->set_level(spdlog::level::err);
+    } else if (console_level == "critical") {
+        console_sink->set_level(spdlog::level::critical);
+    } else {
+        console_sink->set_level(spdlog::level::err); // Default to error
+    }
     // console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v");
     console_sink->set_pattern("[%^%l%$] %v");
     sinks.push_back(console_sink);

@@ -13,37 +13,40 @@ std::time_t State::getSystemTime() const {
     return system_time_;
 }
 
-Station& State::getStation(int stationIndex) {
+FireStation& State::getStation(int stationIndex) {
     return stations_[stationIndex];
 }
 
-const std::vector<Station>& State::getAllStations() const {
+const std::vector<FireStation>& State::getAllStations() const {
     return stations_;
 }
 
-std::vector<Station>& State::getAllStations_() {
+std::vector<FireStation>& State::getAllStations_() {
     return stations_;
 }
 
-
-std::vector<Apparatus>& State::getApparatusList() {
-    return apparatusList_;
+std::vector<Vehicle>& State::getVehicleList() {
+    return vehicleList_;
 }
 
-void State::setApparatusList(const std::vector<Apparatus>& apparatusList) {
-    apparatusList_ = apparatusList;
+const std::vector<Vehicle>& State::getConstVehicleList() const {
+    return vehicleList_;
 }
 
-void State::addStations(std::vector<Station> stations) {
+void State::setVehicleList(const std::vector<Vehicle>& vehicleList) {
+    vehicleList_ = vehicleList;
+}
+
+void State::addStations(std::vector<FireStation> stations) {
     stations_ = std::move(stations);
 }
 
-void State::addStation(const Station& station) {
+void State::addStation(const FireStation& station) {
     stations_.push_back(station);
 }
 
-void State::addApparatus(const Apparatus& apparatus) {
-    apparatusList_.push_back(apparatus);
+void State::addVehicle(const Vehicle& vehicle) {
+    vehicleList_.push_back(vehicle);
 }
 
 std::unordered_map<int, Incident>& State::getActiveIncidents() {
@@ -52,18 +55,6 @@ std::unordered_map<int, Incident>& State::getActiveIncidents() {
 
 const std::unordered_map<int, Incident>& State::getActiveIncidentsConst() const {
     return activeIncidents_;
-}
-
-const std::unordered_map<int, Incident>& State::getAllIncidents() const {
-    return allIncidents_;
-}
-
-// Runs once to store all incidents for faster reference later.
-void State::populateAllIncidents(const std::vector<Incident>& incidents) {
-    allIncidents_.reserve(incidents.size()); // Preallocate memory for efficiency
-    for (const auto& incident : incidents) {
-        allIncidents_[incident.incidentIndex] = incident;
-    }
 }
 
 void State::updateStationMetrics(const std::string& metric) {
@@ -79,51 +70,18 @@ std::vector<int> State::dispatchApparatus(ApparatusType type, int count, int sta
     // Find and update individual apparatus
     std::vector<int> dispatchedIds;
     int dispatched = 0;
-    
-    for (auto& apparatus : apparatusList_) {
-        if (apparatus.getStationIndex() == stationIndex && 
-            apparatus.getType() == type && 
-            apparatus.getStatus() == ApparatusStatus::Available &&
+
+    for (auto& vehicle : vehicleList_) {
+        if (vehicle.getStationIndex() == stationIndex &&
+            vehicle.getType() == type &&
+            vehicle.getStatus() == ApparatusStatus::Available &&
             dispatched < count) {
             
-            apparatus.setStatus(ApparatusStatus::Dispatched);
-            dispatchedIds.push_back(apparatus.getId());
+            vehicle.setStatus(ApparatusStatus::Dispatched);
+            dispatchedIds.push_back(vehicle.getVehicleId());
             dispatched++;
         }
     }
     
     return dispatchedIds;
-}
-
-void State::returnApparatus(ApparatusType type, int count, const std::vector<int>& apparatusIds) {
-    if (static_cast<size_t>(count) != apparatusIds.size()) {
-        LOG_WARN("[{}] Mismatch in returnApparatus: count {} vs apparatusIds size {}", 
-                     utils::formatTime(system_time_), count, apparatusIds.size());
-    }
-    for (int id : apparatusIds) {
-        auto it = std::find_if(apparatusList_.begin(), apparatusList_.end(),
-                               [id](const Apparatus& a) { return a.getId() == id; });
-        if (it != apparatusList_.end()) {
-            if (it->getType() != type) {
-                LOG_WARN("[{}] Apparatus ID {} type mismatch: expected {}, found {}", 
-                             utils::formatTime(system_time_), id, to_string(type), to_string(it->getType()));
-            }
-            it->setStatus(ApparatusStatus::Available);
-            LOG_INFO("[{}] Apparatus {} returned to available status", utils::formatTime(system_time_), id);
-        } else {
-            LOG_WARN("[{}] Apparatus ID {} not found in the list", utils::formatTime(system_time_), id);
-        }
-    }
-}
-
-void State::matchApparatusesWithStations() {
-    // Initialize station apparatus counts
-    for (auto& apparatus : apparatusList_) {
-        int stationIndex = apparatus.getStationIndex();
-        Station& station = stations_.at(stationIndex);
-        station.updateAvailableCount(apparatus.getType(), 1);
-        station.updateTotalCount(apparatus.getType(), 1);
-    }
-    LOG_INFO("Matched {} apparatus across {} stations", 
-                 apparatusList_.size(), stations_.size());
 }

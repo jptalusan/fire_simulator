@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <ctime>
 #include "enums.h"
-#include "data/location.h"
+#include "objects/location.h"
 #include "simulator/event.h"
 
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
@@ -18,7 +18,6 @@ public:
     time_t reportTime;
     time_t timeRespondedTo; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
-
     int incidentIndex;
     int incident_id;
     int zoneIndex;
@@ -51,11 +50,9 @@ public:
           status(IncidentStatus::hasBeenReported),
           category(IncidentCategory::Invalid) {} // Default values
 
-
     void printInfo() const;
     Location getLocation() const;
     void setRequiredApparatusMap(const std::unordered_map<ApparatusType, int>& requiredApparatusMap);
-    void updateCurrentApparatusMap(const ApparatusType& type, int count);
     int getCurrentApparatusCount() const;
     int getTotalApparatusRequired() const;
 };

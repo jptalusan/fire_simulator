@@ -6,7 +6,7 @@
 #include <utility>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-#include "data/location.h"
+#include "objects/location.h"
 
 using json = nlohmann::json;
 
@@ -18,8 +18,8 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
 );
 
 std::pair<float, std::vector<double>> generate_route(
-    Location& sources,
-    Location& destinations
+    const Location& source,
+    const Location& destination
 );
 
 void print_matrix(const std::vector<std::vector<double>>& matrix,

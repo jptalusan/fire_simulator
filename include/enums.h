@@ -429,6 +429,17 @@ inline std::string to_string(IncidentLevel level) {
     }
 }
 
+inline const char* to_string(ApparatusStatus status) {
+    switch (status) {
+        case ApparatusStatus::Available:            return "Available";
+        case ApparatusStatus::Dispatched:           return "Dispatched";
+        case ApparatusStatus::EnRouteToIncident:    return "EnRouteToIncident";
+        case ApparatusStatus::AtIncident:           return "AtIncident";
+        case ApparatusStatus::ReturningToStation:   return "ReturningToStation";
+        default: return "Invalid";
+    }
+}
+
 inline const char* to_string(IncidentStatus status) {
     switch (status) {
         case IncidentStatus::hasBeenRespondedTo:    return "hasBeenRespondedTo";

@@ -1,4 +1,4 @@
-#include "data/geometry.h"
+#include "objects/geometry.h"
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -71,7 +71,8 @@ std::vector<Location> loadPolygonFromGeoJSON(const std::string& filename)
         for (const auto& coord : coords[0]) {
             double lon = coord[0];
             double lat = coord[1];
-            polygon.emplace_back(lon, lat);
+            Location location(lat, lon);
+            polygon.push_back(location);
         }
     }
     return polygon;

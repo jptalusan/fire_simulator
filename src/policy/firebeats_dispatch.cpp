@@ -98,7 +98,7 @@ int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, i
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
  */
 // TODO: Move this getactiveincidents block to a common function in base class.
-std::vector<Action> FireBeatsDispatch::getAction(const State& state) {
+std::vector<Action> FireBeatsDispatch::getAction(const State& state) const {
     int incidentIndex = getNextIncidentIndex(state);
 
     if (incidentIndex < 0) {
@@ -176,4 +176,10 @@ std::unordered_map<int, std::string> FireBeatsDispatch::readZoneIndexToNameMapCS
     }
 
     return zoneMap;
+}
+
+
+const std::vector<Action> FireBeatsDispatch::getAction2([[maybe_unused]] const State& state) const {
+    std::vector<Action> actions = {};
+    return actions;
 }

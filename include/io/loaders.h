@@ -1,19 +1,18 @@
 #include <string>
 #include <vector>
 #include "config/EnvLoader.h"
-#include "data/station.h"
-#include "data/incident.h"
-#include "data/apparatus.h"
+#include "objects/location.h"
+#include "objects/incident.h"
+#include "objects/vehicle.h"
 #include "simulator/event.h"
 
 namespace loader {
-std::vector<Station> loadStationsFromCSV();
+std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV();
 std::vector<Incident> loadIncidentsFromCSV();
-std::vector<Apparatus> loadApparatusFromCSV();
 
 EventQueue generateEvents(const std::vector<Incident>& incidents);
-void preComputingMatrices(std::vector<Station>& stations, 
+void preComputingMatrices(std::vector<FireStation>& stations, 
                           std::vector<Incident>& incidents,
-                          std::vector<Apparatus>& apparatuses,
+                          std::vector<Vehicle>& apparatuses,
                           size_t chunk_size = 100);
 }

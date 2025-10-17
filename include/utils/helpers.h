@@ -6,9 +6,10 @@
 #include <ctime>
 #include <string>
 #include <queue>
-#include "data/incident.h"
+#include "objects/incident.h"
 
 namespace utils {
+// Format a time_t as a human-readable string
 inline std::string formatTime(std::time_t t) {
     std::ostringstream oss;
     std::tm tm = *std::localtime(&t);

@@ -1,5 +1,5 @@
 #include <numeric>
-#include "data/incident.h"
+#include "objects/incident.h"
 #include "utils/logger.h"
 
 Incident::Incident(int index, int id, double latitude, double longitude,
@@ -18,26 +18,12 @@ Incident::Incident(int index, int id, double latitude, double longitude,
       status(IncidentStatus::hasBeenReported), 
       category(category) {}
 
-void Incident::printInfo() const {
-    LOG_ERROR("Incident Index: {}, ID: {}, Type: {}, Level: {}, Lat: {}, Lon: {}, Time: {}",
-                incidentIndex, incident_id, to_string(incident_type), to_string(incident_level), lat, lon, reportTime);
-}
-
 Location Incident::getLocation() const {
     return Location(lat, lon);
 }
 
 void Incident::setRequiredApparatusMap(const std::unordered_map<ApparatusType, int>& requiredApparatusMap) {
     this->requiredApparatusMap = requiredApparatusMap;
-}
-
-void Incident::updateCurrentApparatusMap(const ApparatusType& type, int count) {
-    if (currentApparatusMap.find(type) != currentApparatusMap.end()) {
-        currentApparatusMap[type] += count;
-    } else {
-        currentApparatusMap[type] = count;
-    }
-    LOG_DEBUG("Updated current apparatus count for type {}: {}", to_string(type), currentApparatusMap[type]);
 }
 
 int Incident::getCurrentApparatusCount() const {
@@ -52,4 +38,27 @@ int Incident::getTotalApparatusRequired() const {
                            [](int sum, const std::pair<ApparatusType, int>& p) {
                                return sum + p.second;
                            });
+}
+
+// print the apparatus type needed and how many is needed.
+void Incident::printInfo() const {
+    std::cout << "Incident Index: " << incidentIndex << ", ID: " << incident_id << "\n";
+    std::cout << "Type: " << to_string(incident_type) << ", Level: " << to_string(incident_level) << "\n";
+    std::cout << "Location: (" << locationToString(getLocation()) << ")\n";
+    std::cout << "Report Time: " << std::asctime(std::localtime(&reportTime));
+    std::cout << "Status: " << to_string(status) << "\n";
+    std::cout << "Category: " << static_cast<int>(category) << "\n";
+
+    std::cout << "Required Apparatus:\n";
+    for (const auto& [type, count] : requiredApparatusMap) {
+        std::cout << "  - " << to_string(type) << ": " << count << "\n";
+    }
+
+    std::cout << "Current Apparatus on Scene:\n";
+    for (const auto& [type, count] : currentApparatusMap) {
+        std::cout << "  - " << to_string(type) << ": " << count << "\n";
+    }
+
+    std::cout << "Total Apparatus Required: " << getTotalApparatusRequired() << "\n";
+    std::cout << "Total Apparatus Currently on Scene: " << getCurrentApparatusCount() << "\n";
 }
