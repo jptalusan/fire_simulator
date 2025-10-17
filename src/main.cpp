@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
     LOG_INFO("Starting Fire Simulator...");
 
     // Additional logic can be added here
-    std::string incidents_path = env->get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
+    std::string incidents_path = env->get(constants::INCIDENTS_CSV_PATH, "../data/incidents.csv");
 
     std::vector<Incident> incidents = {};
     std::vector<FireStation> stations = {};
@@ -169,44 +169,44 @@ int main(int argc, char* argv[]) {
     initial_state.addStations(stations);
     initial_state.setVehicleList(vehicles);
 
-    std::string policy_name = env->get("DISPATCH_POLICY", "NEAREST");
-    std::string fire_model_type = env->get("FIRE_MODEL_TYPE", "HISTORICAL");
-    std::string incident_model_type = env->get("INCIDENT_MODEL_TYPE", "EMPIRICAL");
-    std::string travel_time_model_type = env->get("TRAVEL_TIME_MODEL_TYPE", "OSRM");
+    std::string policy_name = env->get(constants::POLICY_DISPATCH, "NEAREST");
+    std::string fire_model_type = env->get(constants::POLICY_FIRE_MODEL, "HISTORICAL");
+    std::string incident_model_type = env->get(constants::POLICY_INCIDENT_MODEL, "EMPIRICAL");
+    std::string travel_time_model_type = env->get(constants::POLICY_TRAVEL_TIME_MODEL, "OSRM");
 
     std::unique_ptr<DispatchPolicy> policy;
     std::unique_ptr<ServiceTimeAndApparatusModel> fireModel;
     std::unique_ptr<IncidentModel> incidentModel;
     std::unique_ptr<TravelTimeModel> travelTimeModel;
-    
-    int seed = std::stoi(env->get("RANDOM_SEED", "42"));
-    std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
+
+    int seed = std::stoi(env->get(constants::RANDOM_SEED, "42"));
+    std::string nfd_path = env->get(constants::NFD_RESPONSE_CSV_PATH, "");
     if (fire_model_type == "HISTORICAL") {
         LOG_INFO("Using Historical Fire Model.");
-        std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
+        std::string resolution_stats_path = env->get(constants::RESOLUTION_STATS_CSV_PATH, "../data/response_time_summary.csv");
         fireModel = std::make_unique<HistoricalFireModel>(seed, nfd_path, resolution_stats_path);
     } else if (fire_model_type == "ML") {
         LOG_INFO("Using ML Fire Model.");
-        std::string model_path = env->get("MODEL_PATH", "../models/fire_incident_gb_model.onnx");
-        std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+        std::string model_path = env->get(constants::MODEL_PATH, "../models/fire_incident_gb_model.onnx");
+        std::string features_path = env->get(constants::FEATURES_PATH, "../models/fire_model_features_mapping.json");
         fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
     } else {
         throw std::runtime_error("Only HISTORICAL or ML fire model supported");
     }
 
-    if (travel_time_model_type == "OSRM") {
+    if (travel_time_model_type == constants::POLICY_OSRM) {
         LOG_INFO("Using OSRM Travel Time Model.");
         travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
             env->get("BASE_OSRM_URL", "http://localhost:8080")
         );
-    } else if (travel_time_model_type == "GIS") {
+    } else if (travel_time_model_type == constants::POLICY_GIS) {
         LOG_INFO("Using GIS Travel Time Model.");
         // travelTimeModel = std::make_unique<GISTravelTimeModel>();
     } else {
         throw std::runtime_error("Only OSRM or GIS travel time model supported");
     }
 
-    if (incident_model_type == "EMPIRICAL") {
+    if (incident_model_type == constants::POLICY_EMPIRICAL) {
         LOG_INFO("Using Empirical Incident Model.");
         incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
         incidentModel->load(incidents);
@@ -222,8 +222,8 @@ int main(int argc, char* argv[]) {
         LOG_INFO("Using {} dispatching policy", policy_name);
         policy = std::make_unique<FireBeatsDispatch>(
             *travelTimeModel,
-            env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-            env->get("ZONE_MAP_PATH", "../data/zones.csv"),
+            env->get(constants::FIREBEATS_MATRIX_PATH, "../logs/firebeats_matrix.bin"),
+            env->get(constants::ZONE_MAP_PATH, "../data/zones.csv"),
             stations
         );
     } else {
@@ -234,7 +234,7 @@ int main(int argc, char* argv[]) {
     Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
     initial_state = simulator.reset();
 
-    int num_steps = 25;
+    int num_steps = incidents.size();
     for (int step = 0; step < num_steps; ++step) {
         std::vector<Action> actions = policy->getAction(initial_state);
         StepResult result = simulator.step(actions);

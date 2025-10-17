@@ -25,7 +25,7 @@ State& EnvironmentModel::takeActions(State& state, const std::vector<Action>& ac
             int vehicleIndex = action.payload.vehicleIndex;
             Vehicle& vehicle = state.getVehicleList().at(vehicleIndex);
             vehicle.setStatus(ApparatusStatus::Dispatched);
-            time_t arrivalTime = currentTime + static_cast<time_t>(travelTime);
+            time_t arrivalTime = currentTime + static_cast<time_t>(travelTime) + constants::RESPOND_DELAY_SECONDS;
             vehicle.setTimeToIncident(arrivalTime);
             vehicle.timeStartedToDispatch = currentTime;
             // We don't know yet when the vehicle will return, set it when the vehicle actually arrives at the incident
