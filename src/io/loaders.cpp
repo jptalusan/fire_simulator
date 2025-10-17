@@ -10,7 +10,7 @@
 #include "objects/vehicle.h"
 #include "services/queries.h"
 #include "services/chunks.h"
-#include "objects/location.h"
+#include "objects/firestation.h"
 
 namespace loader {
 EventQueue generateEvents(const std::vector<Incident>& incidents) {

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "objects/location.h"
+#include "objects/firestation.h"
 
 TEST(LocationTest, DefaultConstructor) {
     Location loc;

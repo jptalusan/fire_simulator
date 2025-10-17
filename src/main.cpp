@@ -171,28 +171,11 @@ int main(int argc, char* argv[]) {
     initial_state.setVehicleList(vehicles);
 
     std::string policy_name = env->get("DISPATCH_POLICY", "NEAREST");
-    std::unique_ptr<DispatchPolicy> policy;
-    if (policy_name == constants::POLICY_NEAREST) {
-        LOG_INFO("Using {} dispatching policy", policy_name);
-        policy = std::make_unique<NearestDispatch>(
-            env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-            env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"));
-    } else if (policy_name == constants::POLICY_FIREBEATS) {
-        LOG_INFO("Using {} dispatching policy", policy_name);
-        policy = std::make_unique<FireBeatsDispatch>(
-            env->get("DISTANCE_MATRIX_PATH", "../logs/distance_matrix.bin"),
-            env->get("DURATION_MATRIX_PATH", "../logs/duration_matrix.bin"),
-            env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
-            env->get("ZONE_MAP_PATH", "../data/zones.csv")
-        );
-    } else {
-        throw std::runtime_error("Only FIREBEATS or NEAREST policy supported");
-    }
-    
     std::string fire_model_type = env->get("FIRE_MODEL_TYPE", "HISTORICAL");
     std::string incident_model_type = env->get("INCIDENT_MODEL_TYPE", "EMPIRICAL");
     std::string travel_time_model_type = env->get("TRAVEL_TIME_MODEL_TYPE", "OSRM");
 
+    std::unique_ptr<DispatchPolicy> policy;
     std::unique_ptr<ServiceTimeAndApparatusModel> fireModel;
     std::unique_ptr<IncidentModel> incidentModel;
     std::unique_ptr<TravelTimeModel> travelTimeModel;
@@ -232,13 +215,29 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Only EMPIRICAL incident model supported");
     }
 
+    // Dispatch policy needs the fire stations and travel time model
+    if (policy_name == constants::POLICY_NEAREST) {
+        LOG_INFO("Using {} dispatching policy", policy_name);
+        policy = std::make_unique<NearestDispatch>(stations, *travelTimeModel);
+    } else if (policy_name == constants::POLICY_FIREBEATS) {
+        LOG_INFO("Using {} dispatching policy", policy_name);
+        policy = std::make_unique<FireBeatsDispatch>(
+            *travelTimeModel,
+            env->get("FIREBEATS_MATRIX_PATH", "../logs/firebeats_matrix.bin"),
+            env->get("ZONE_MAP_PATH", "../data/zones.csv"),
+            stations
+        );
+    } else {
+        throw std::runtime_error("Only FIREBEATS or NEAREST policy supported");
+    }
+
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
     initial_state = simulator.reset();
 
     int num_steps = 25;
     for (int step = 0; step < num_steps; ++step) {
-        std::vector<Action> actions = policy->getAction2(initial_state);
+        std::vector<Action> actions = policy->getAction(initial_state);
         StepResult result = simulator.step(actions);
         initial_state = result.state;
         if (result.done) {

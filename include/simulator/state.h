@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "objects/incident.h"
-#include "objects/location.h"
+#include "objects/firestation.h"
 #include "objects/vehicle.h"
 
 class State {

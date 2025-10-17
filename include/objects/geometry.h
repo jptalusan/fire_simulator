@@ -3,12 +3,10 @@
 
 #include <vector>
 #include <string>
-#include <fstream>
-#include <iostream>
 #include <boost/geometry.hpp>
 #include <boost/geometry/index/rtree.hpp>
-#include <nlohmann/json.hpp> // https://github.com/nlohmann/json
-#include "objects/location.h"
+#include <nlohmann/json.hpp>
+#include "objects/common.h"
 #include "utils/util.h"
 
 double crossProduct(const Location& p1, const Location& p2, const Location& p3);

@@ -1,12 +1,9 @@
-#include <iostream>
 #include <vector>
 #include <string>
-#include <sstream>
-#include <fstream>
 #include <utility>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-#include "objects/location.h"
+#include "objects/common.h"
 
 using json = nlohmann::json;
 

@@ -2,13 +2,11 @@
 #ifndef INCIDENT_H
 #define INCIDENT_H
 
-#include <string>
 #include <vector>
 #include <unordered_map>
 #include <ctime>
 #include "enums.h"
-#include "objects/location.h"
-#include "simulator/event.h"
+#include "objects/common.h"
 
 // TODO: Modify stationIndex to potentially be a vector of station indices if multiple stations can respond to an incident.
 class Incident {

@@ -1,5 +1,4 @@
-#include "objects/location.h"
-#include "objects/vehicle.h"
+#include "objects/firestation.h"
 #include "utils/logger.h"
 #include <iostream>
 #include <iomanip>

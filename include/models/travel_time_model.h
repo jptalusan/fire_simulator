@@ -1,6 +1,10 @@
 #ifndef TRAVEL_TIME_MODEL_H
 #define TRAVEL_TIME_MODEL_H
 
+#include <string>
+#include <vector>
+#include "objects/common.h"
+
 class TravelTimeModel {
 public:
     virtual std::pair<float, std::vector<Location>> getTravelTimeAndRoute(const Location& from, const Location& to) = 0;

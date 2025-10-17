@@ -1,5 +1,4 @@
 #include "objects/vehicle.h"
-#include "objects/location.h"
 #include <iostream>
 #include <iomanip>
 

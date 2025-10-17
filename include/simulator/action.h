@@ -1,6 +1,9 @@
 #ifndef ACTION_H
 #define ACTION_H
 
+#include <iostream>
+#include "enums.h"
+
 struct ActionPayload {
     double travelTime = 0.0; // in seconds
     int stationIndex = -1;

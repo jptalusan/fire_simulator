@@ -1,5 +1,5 @@
 #include <vector>
-#include "objects/location.h"
+#include "objects/firestation.h"
 #include "objects/incident.h"
 #include "objects/vehicle.h"
 #include "simulator/event.h"

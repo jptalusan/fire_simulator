@@ -5,7 +5,14 @@
 #include "utils/constants.h"
 #include "utils/logger.h"
 
-// TODO: We dont need to sort, just place it in a priority queue, then pop it when its resolved.
+DispatchPolicy::DispatchPolicy(const std::vector<FireStation>& fireStations,
+                               TravelTimeModel& travelTimeModel)
+    : fireStations_(fireStations), travelTimeModel_(travelTimeModel) {
+    for (const auto& station : fireStations_) {
+        fireStationLocations_.push_back(station.getLocation());
+    }
+}
+
 int DispatchPolicy::getNextIncidentIndex(const State& state) const {
     const std::vector<int>& inProgressIncidents = state.inProgressIncidentIndices;
 
@@ -217,4 +224,22 @@ std::vector<double> DispatchPolicy::getColumn(const std::vector<std::vector<doub
         }
     }
     return column;
+}
+
+
+std::unordered_map<ApparatusType, int> DispatchPolicy::getRemainingApparatusNeeded(const Incident& incident) const {
+    std::unordered_map<ApparatusType, int> remainingNeeded;
+    for (const auto &[type, required] : incident.requiredApparatusMap) {
+        int currentCount = 0;
+        auto currentIt = incident.currentApparatusMap.find(type);
+        if (currentIt != incident.currentApparatusMap.end()) {
+            currentCount = currentIt->second;
+        }
+
+        int remaining = required - currentCount;
+        if (remaining > 0) {
+            remainingNeeded[type] = remaining;
+        }
+    }
+    return remainingNeeded;
 }

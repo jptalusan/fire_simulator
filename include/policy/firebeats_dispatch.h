@@ -1,28 +1,20 @@
 #ifndef FIREBEATS_DISPATCH_H
 #define FIREBEATS_DISPATCH_H
 
-#include <memory>
+#include "models/travel_time_model.h"
 #include "dispatch_policy.h"
-#include "objects/incident.h"
-#include "services/queries.h" // You should have an OSRM query utility class or function
     
 class FireBeatsDispatch : public DispatchPolicy {
 public:
-    FireBeatsDispatch(const std::string& distanceMatrixPath="", 
-                      const std::string& durationMatrixPath="",
+    FireBeatsDispatch(TravelTimeModel& travelTimeModel,
                       const std::string& fireBeatsMatrixPath="",
-                      const std::string& zoneIDToNameMapPath="");
+                      const std::string& zoneIDToNameMapPath="",
+                      std::vector<FireStation> fireStations = {});
 
-    std::vector<Action> getAction(const State& state) const override;
-    const std::vector<Action> getAction2(const State& state) const override;
+    const std::vector<Action> getAction(const State& state) const override;
 
     ~FireBeatsDispatch();
 private:
-    // Distance and duration matrices
-    std::string distanceMatrixPath_;
-    std::string durationMatrixPath_;
-    double* distanceMatrix_;
-    double* durationMatrix_;
     int width_;
     int height_;
     // FireBeats matrix

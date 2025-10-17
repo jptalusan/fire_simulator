@@ -1,29 +1,18 @@
 #include "policy/firebeats_dispatch.h"
+#include "models/travel_time_model.h"
 #include "services/chunks.h"
-#include "services/queries.h"
-#include "utils/constants.h"
 #include "utils/error.h"
 #include "utils/logger.h"
-#include "utils/helpers.h"
 #include <iostream>
 
 // Firebeats naming convention is a bit confusing. and currently this is incomplete.
 // Check the preprocess notebook for a list of beats that I have no idea what they mean (DSOP,BAR,HQ, etc.)
-FireBeatsDispatch::FireBeatsDispatch(const std::string& distanceMatrixPath, 
-                                     const std::string& durationMatrixPath,
+FireBeatsDispatch::FireBeatsDispatch(TravelTimeModel& travelTimeModel,
                                      const std::string& fireBeatsMatrixPath,
-                                     const std::string& zoneIDToNameMapPath)
-    : distanceMatrix_(nullptr), durationMatrix_(nullptr), fireBeatsMatrix_(nullptr) {
-        // Validate the URL
-        std::ifstream file(distanceMatrixPath);
-        if (file) {
-            distanceMatrix_ = load_matrix_binary_flat(distanceMatrixPath, height_, width_);
-            durationMatrix_ = load_matrix_binary_flat(durationMatrixPath, height_, width_);
-        } else {
-            LOG_ERROR("File does not exist, defaulting to using OSRM Table API.");
-            throw std::runtime_error("Distance matrix file not found: " + distanceMatrixPath);
-        }
-
+                                     const std::string& zoneIDToNameMapPath,
+                                     std::vector<FireStation> fireStations)
+    : DispatchPolicy(std::move(fireStations), travelTimeModel),
+      fireBeatsMatrix_(nullptr)  {
         std::ifstream fireBeatsFile(fireBeatsMatrixPath);
         if (fireBeatsFile) {
             fireBeatsMatrix_ = getFireBeats(fireBeatsMatrixPath, fireBeatsHeight_, fireBeatsWidth_);
@@ -37,8 +26,6 @@ FireBeatsDispatch::FireBeatsDispatch(const std::string& distanceMatrixPath,
     }
 
 FireBeatsDispatch::~FireBeatsDispatch() {
-    delete[] durationMatrix_; // Clean up the matrix if it was allocated
-    delete[] distanceMatrix_; // Clean up the matrix if it was allocated
     delete[] fireBeatsMatrix_; // Clean up the fire beats data if it was allocated
 }
 
@@ -97,21 +84,33 @@ int* FireBeatsDispatch::getFireBeats(const std::string& filename, int& height, i
  * @param state The current simulation state, containing incidents and stations.
  * @return The incident ID of the unresolved incident (placeholder; will return station ID in future).
  */
-// TODO: Move this getactiveincidents block to a common function in base class.
-std::vector<Action> FireBeatsDispatch::getAction(const State& state) const {
-    int incidentIndex = getNextIncidentIndex(state);
+// TODO: This function is gigantic!!!
+const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const {
+    std::vector<Action> actions = {};
+    if (!state.newIncident_.has_value()) {
+        return actions;
+    }
+    const Incident& incident = state.newIncident_.value();
 
-    if (incidentIndex < 0) {
-        LOG_DEBUG("No unresolved incident found in the active incidents.");
-        return { Action::createDoNothingAction() }; // No action needed
+    // Maybe this is expensive
+    std::vector<Location> emsVehicleLocations;
+    std::vector<Vehicle> emsVehicles;
+
+    for (const auto& station : fireStations_) {
+        std::vector<int> _emsVehicleIds = station.getAvailableApparatus(ApparatusType::Medic);
+        
+        // Add vehicles from this station to the overall collection
+        for (const auto& vehicleId : _emsVehicleIds) {
+            // std::cout << "Found EMS Vehicle ID: " << vehicleId << " at Station: " << station.getStationId() << std::endl;
+            const Vehicle& vehicle = state.getConstVehicleList().at(vehicleId);
+            if (vehicle.getStatus() != ApparatusStatus::Available) {
+                continue; // Skip non-available vehicles
+            }
+            emsVehicles.push_back(vehicle);
+            emsVehicleLocations.push_back(vehicle.getCurrentLocation());
+        }
     }
 
-    const Incident& incident = state.getActiveIncidentsConst().at(incidentIndex);
-    
-    // If matrix is loaded, use it instead of OSRM
-    std::vector<double> durations = getColumn(durationMatrix_, width_, height_, incidentIndex);
-    std::vector<double> distances = getColumn(distanceMatrix_, width_, height_, incidentIndex);
-    
     int zoneIndex = incident.zoneIndex;
     // Check if the zone index is valid
     if (beatsIndexToNameMap_.find(zoneIndex) == beatsIndexToNameMap_.end()) {
@@ -122,7 +121,73 @@ std::vector<Action> FireBeatsDispatch::getAction(const State& state) const {
     // Given the zoneIndex (or beats ID like 38R4, find the column for that which is the order of first to last station in the beats)
     std::vector<int> beatStationIndices = getColumn(fireBeatsMatrix_, fireBeatsWidth_, fireBeatsHeight_, zoneIndex);
 
-    return getAction_(incident, state, beatStationIndices, durations);
+    std::unordered_map<ApparatusType, int> remainingNeeded = getRemainingApparatusNeeded(incident);
+    
+    // TODO: Check if this matches.
+    std::vector<std::vector<double>> tableMatrix = 
+        travelTimeModel_.getTravelTimeMatrix(fireStationLocations_, 
+                                             std::vector{incident.getLocation()});
+    const std::vector<double> durationColumn = getColumn(tableMatrix, size_t(0));
+
+    std::vector<std::vector<double>> emsMatrix = 
+        travelTimeModel_.getTravelTimeMatrix(emsVehicleLocations, 
+                                             std::vector{incident.getLocation()});
+    const std::vector<double> emsDurationColumn = getColumn(emsMatrix, size_t(0));
+    std::vector<int> emsSortedIndices = getSortedIndicesByDuration(emsDurationColumn);
+
+    for (const auto& [type, neededCount] : remainingNeeded) {
+        int dispatchedCount = 0;
+        bool enoughDispatched = false;
+        if (type == ApparatusType::Medic) { // For EMS
+            for (int index : emsSortedIndices) {
+                const Vehicle& vehicle = emsVehicles.at(index);
+                if (vehicle.getStatus() != ApparatusStatus::Available) {
+                    continue; // Skip non-available vehicles
+                }
+                // Dispatch this vehicle
+                Action action = Action::createDispatchAction(vehicle.getStationIndex(), 
+                                                             incident.incidentIndex, 
+                                                             vehicle.getVehicleId(),
+                                                             type, 1, emsDurationColumn[index]);
+                actions.push_back(action);
+                dispatchedCount++;
+                if (dispatchedCount >= neededCount) {
+                    break; // Already dispatched enough of this type
+                }
+            }
+        } else { // Fire apparatus
+            for (int index : beatStationIndices) {
+                
+                const FireStation& station = state.getAllStations().at(index);
+
+                std::vector<int> vehicleIds = station.getAvailableApparatus(type);
+                // Add vehicles from this station to the overall collection
+                for (const auto& vehicleId : vehicleIds) {
+                    const Vehicle& vehicle = state.getConstVehicleList().at(vehicleId);
+                    if (vehicle.getStatus() != ApparatusStatus::Available) {
+                        continue; // Skip non-available vehicles
+                    }
+                    // Dispatch this vehicle
+                    Action action = Action::createDispatchAction(vehicle.getStationIndex(), 
+                                                                incident.incidentIndex, 
+                                                                vehicle.getVehicleId(),
+                                                                type, 1, durationColumn[index]);
+                    actions.push_back(action);
+                    dispatchedCount++;
+                    if (dispatchedCount >= neededCount) {
+                        enoughDispatched = true;
+                        break; // Already dispatched enough of this type
+                    }
+                }
+
+                if (enoughDispatched) {
+                    break; // Already dispatched enough of this type
+                }
+            }
+        }
+    }
+
+    return actions;
 }
 
 /*
@@ -176,10 +241,4 @@ std::unordered_map<int, std::string> FireBeatsDispatch::readZoneIndexToNameMapCS
     }
 
     return zoneMap;
-}
-
-
-const std::vector<Action> FireBeatsDispatch::getAction2([[maybe_unused]] const State& state) const {
-    std::vector<Action> actions = {};
-    return actions;
 }

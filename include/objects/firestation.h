@@ -1,20 +1,11 @@
-#ifndef LOCATION_H
-#define LOCATION_H
+#ifndef FIRESTATION_H
+#define FIRESTATION_H
 
-#include <sstream>
-#include <iomanip>
 #include <unordered_map>
 #include "enums.h"
 #include <vector>
 #include "objects/vehicle.h" // need full Vehicle type for vectors/members
 #include "objects/common.h"
-
-inline std::string locationToString(const Location& location) {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(6);
-    oss << location.lon << "," << location.lat; // lon,lat
-    return oss.str();
-}
 
 class FireStation {
     public:
@@ -51,4 +42,4 @@ class FireStation {
         std::unordered_map<ApparatusType, int> available_count_;
 };
 
-#endif // LOCATION_H
+#endif // FIRESTATION_H

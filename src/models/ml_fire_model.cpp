@@ -212,9 +212,9 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
         
         // Log first few features in the order for debugging
         if (!feature_order_.empty()) {
-            LOG_INFO("[MLFireModel] First 20 features in order:");
+            LOG_DEBUG("[MLFireModel] First 20 features in order:");
             for (size_t i = 0; i < std::min(static_cast<size_t>(20), feature_order_.size()); ++i) {
-                LOG_INFO("  [{}] {}", i, feature_order_[i]);
+                LOG_DEBUG("  [{}] {}", i, feature_order_[i]);
             }
         }
         
