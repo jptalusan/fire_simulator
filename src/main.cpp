@@ -123,8 +123,10 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     // ###### ACTUAL CODE ######
     if (argc == 1) {
-        printUsage(argv[0]);
-        return 0;
+        argc = 2;
+        argv[1] = (char*)"--ENV_PATH=../.env";
+        // printUsage(argv[0]);
+        // return 0;
     }
 
     std::string arg(argv[1]);
