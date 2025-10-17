@@ -84,10 +84,10 @@ const std::vector<Action> NearestDispatch::getAction2(const State& state) const 
 
     const Incident& incident = state.newIncident_.value();
     
-    // incident.printInfo();
-    for (const auto& [type, count] : incident.requiredApparatusMap) {
-        LOG_INFO("POLICY: Incident {} ({}) requires {} of type {}", incident.incidentIndex, incident.incident_id, count, to_string(type));
-    }
+    // // incident.printInfo();
+    // for (const auto& [type, count] : incident.requiredApparatusMap) {
+    //     LOG_INFO("POLICY: Incident {} ({}) requires {} of type {}", incident.incidentIndex, incident.incident_id, count, to_string(type));
+    // }
 
     for (const auto& station : state.getAllStations()) {
         fireStationLocations.push_back(station.getLocation());

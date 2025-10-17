@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
     std::shared_ptr<EnvLoader> env = EnvLoader::getInstance();
 
     // Initialize logger (this needs the env, might need to update)
-    utils::Logger::init("boilerplate_app");
+    utils::Logger::init("fire_simulator");
     utils::Logger::setLevel("info");
 
     LOG_INFO("Starting Fire Simulator...");

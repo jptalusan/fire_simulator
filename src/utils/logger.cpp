@@ -39,7 +39,7 @@ void Logger::init(const std::string& name) {
     if (!log_file.empty()) {
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file, true);
         file_sink->set_level(spdlog::level::trace);
-        file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v");
+        file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
         sinks.push_back(file_sink);
     }
     
