@@ -6,6 +6,7 @@
 #include "policy/dispatch_policy.h"
 #include "models/incident_model.h"
 #include "environment/environment_model.h"
+#include "models/travel_time_model.h"
 #include <vector>
 
 struct StepResult {
@@ -24,6 +25,7 @@ class Simulator {
 public:
     Simulator(State& initialState, 
         IncidentModel& incidentModel, 
+        TravelTimeModel& travelTimeModel,
         EnvironmentModel& environmentModel,
         DispatchPolicy& dispatchPolicy
     );
@@ -43,6 +45,7 @@ private:
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     IncidentModel& incidentModel_;
+    TravelTimeModel& travelTimeModel_;
     std::vector<std::vector<Vehicle>> vehicles_history_;
     std::vector<std::vector<FireStation>> stations_history_;
     std::vector<std::pair<time_t, std::vector<Action>>> actions_history_;

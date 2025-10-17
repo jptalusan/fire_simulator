@@ -21,10 +21,12 @@ std::vector<ApparatusType> apparatusTypes = {
 
 Simulator::Simulator(State &initialState, 
                      IncidentModel &incidentModel,
+                     TravelTimeModel &travelTimeModel,
                      EnvironmentModel &environmentModel,
                      DispatchPolicy &dispatchPolicy)
     : state_(initialState), environment_(environmentModel),
-      dispatchPolicy_(dispatchPolicy), incidentModel_(incidentModel) {
+      dispatchPolicy_(dispatchPolicy), incidentModel_(incidentModel),
+      travelTimeModel_(travelTimeModel) {
 }
 
 StepResult Simulator::step(const std::vector<Action>& actions) {
@@ -34,7 +36,7 @@ StepResult Simulator::step(const std::vector<Action>& actions) {
     state_ = environment_.takeActions(state_, actions);
 
     // Get the next incident
-    const std::optional<Incident> nextIncident = incidentModel_.getNextIncident(state_, state_.getSystemTime());
+    const std::optional<Incident> nextIncident = incidentModel_.getNextIncident(state_.getSystemTime());
     
     if (!nextIncident.has_value()) {
         LOG_WARN("No more incidents available");
@@ -114,7 +116,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         vehicle.setStatus(ApparatusStatus::ReturningToStation);
                         incident.status = IncidentStatus::hasBeenResolved;
                         // Calculate vehicle travel time back to station...
-                        std::pair<float, std::vector<double>> routeInfo = generate_route(sim_location, vehicle.getStationLocation());
+                        std::pair<float, std::vector<Location>> routeInfo = travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
                         float timeToReturn = routeInfo.first; // in seconds
                         vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
                         vehicle.setIncidentIndex(-1); // Clear incident index as vehicle is leaving
@@ -137,14 +139,13 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         time_t _totalTime = difftime(vehicle.getTimeToReturn(), vehicle.timeToStartedReturning);
                         double percentTraveled = static_cast<double>(_traveledTime) / static_cast<double>(_totalTime);
                         LOG_INFO("[{}] Vehicle {} is returning to {}, traveled {:.2f}%", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), percentTraveled * 100.0);
-                        std::pair<float, std::vector<double>> routeInfo = generate_route(sim_location, vehicle.getStationLocation());
-                        // Divide by 2 because its a flat array of [lon, lat, lon, lat, ...]
-                        size_t routeSize = static_cast<size_t>(routeInfo.second.size() / 2);
+                        std::pair<float, std::vector<Location>> routeInfo = travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
+                        size_t routeSize = static_cast<size_t>(routeInfo.second.size());
                         if (routeSize >= 2) {
                             size_t index = static_cast<size_t>(percentTraveled * (routeSize - 1));
                             if (index >= routeSize) index = routeSize - 1;
-                            double lat = routeInfo.second[index * 2];
-                            double lon = routeInfo.second[index * 2 + 1];
+                            double lat = routeInfo.second[index].lat;
+                            double lon = routeInfo.second[index].lon;
                             LOG_INFO("[{}] Vehicle {} current location updated from ({}) to ({}, {})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), lat, lon);
                             vehicle.setCurrentLocation(Location(lat, lon));
                         }
@@ -185,7 +186,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
 State& Simulator::reset() {
     state_.advanceTime(0); // Reset time to 0 or initial time
     state_.getActiveIncidents().clear();
-    std::optional<Incident> incident = incidentModel_.getNextIncident(state_, 0);
+    std::optional<Incident> incident = incidentModel_.getNextIncident(0);
     
     // This will throw std::bad_optional_access if incident is nullopt
     const Incident& incidentRef = incident.value();

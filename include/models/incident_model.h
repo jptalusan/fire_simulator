@@ -23,9 +23,10 @@ public:
      * @param time The time to query for incidents
      * @return Optional incident if found, nullopt if no incident exists at or after the given time
      */
-    virtual std::optional<Incident> getNextIncident(State& state, std::time_t time) = 0;
+    virtual std::optional<Incident> getNextIncident(std::time_t time) = 0;
     virtual bool load(const std::vector<Incident>& incidents) = 0;
     virtual bool load(const std::string& csvPath) = 0;
+    virtual bool load() = 0;
 };
 
 /**
@@ -37,6 +38,7 @@ public:
 class EmpiricalIncidentModel : public IncidentModel {
 public:
     EmpiricalIncidentModel(FireModel& fireModel) : fireModel_(fireModel) {}
+    bool load() override;
     
     /**
      * @brief Load incidents from a CSV file
@@ -56,7 +58,7 @@ public:
      * @param time The time to query for incidents
      * @return Optional incident if found, nullopt if no incident exists at or after the given time
      */
-    std::optional<Incident> getNextIncident(State& state, std::time_t time) override;
+    std::optional<Incident> getNextIncident(std::time_t time) override;
     
     /**
      * @brief Get the total number of loaded incidents
@@ -77,6 +79,27 @@ private:
      */
     void sortIncidents();
     FireModel& fireModel_;
+};
+
+/**
+ * @brief Empirical incident model that loads incidents from data sources
+ * 
+ * This model loads incidents from CSV files or vectors and serves them
+ * chronologically based on their report times.
+ */
+class SurvivalIncidentModel : public IncidentModel {
+public:
+    SurvivalIncidentModel() {}
+    bool load(const std::string& csvPath) override;
+    bool load(const std::vector<Incident>& incidents) override;
+    bool load() override;
+    std::optional<Incident> getNextIncident(std::time_t time) override;
+    size_t getIncidentCount() const;
+    void clear();
+
+private:
+    std::vector<Incident> incidents_;
+    void sortIncidents();
 };
 
 #endif // INCIDENT_MODEL_H

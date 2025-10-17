@@ -34,7 +34,7 @@ std::string fetch_osrm_response(const std::string& full_url) {
 
 
 // Generate OSRM route query for a single source-destination pair
-std::pair<float, std::vector<double>> generate_route(
+std::pair<float, std::vector<Location>> generate_route(
     const Location& source,
     const Location& destination
 ) {
@@ -60,18 +60,102 @@ std::pair<float, std::vector<double>> generate_route(
     
     // Extract coordinates from geometry and flatten to vector<double>
     // Format: [lon1, lat1, lon2, lat2, ...]
-    std::vector<double> coordinates;
+    std::vector<Location> coordinates;
     auto geometry = json_resp["routes"][0]["geometry"]["coordinates"];
-    
+    coordinates.reserve(geometry.size());
+
     for (const auto& coord : geometry) {
         // Note: GeoJSON format is [longitude, latitude]
         double lon = coord[0].get<double>();
         double lat = coord[1].get<double>();
-        coordinates.push_back(lon);
-        coordinates.push_back(lat);
+        coordinates.push_back(Location{lon, lat});
     }
 
     return {duration, coordinates};
+}
+
+// Generate OSRM table queries: all sources with destination chunks
+std::vector<std::vector<double>> generate_duration_traveltime_matrix(
+    const std::vector<Location>& sources,
+    const std::vector<Location>& destinations,
+    size_t chunk_size
+) {
+    const std::string base_url = EnvLoader::getInstance()->get("BASE_OSRM_URL", "http://localhost:8080");
+    size_t num_sources = sources.size();
+    size_t num_destinations = destinations.size();
+
+    // Initialize final durations matrix [sources][destinations]
+    std::vector<std::vector<double>> full_duration_matrix(num_sources, std::vector<double>(num_destinations, -1.0));
+
+    // Precompute source strings
+    std::vector<std::string> source_strs;
+    for (const auto& s : sources) source_strs.push_back(locationToString(s));
+
+    for (size_t i = 0; i < destinations.size(); i += chunk_size) {
+        std::vector<std::string> all_coords = source_strs;
+        std::vector<std::string> chunk_strs;
+        std::vector<size_t> dest_indices;
+
+        // Build destination chunk
+        for (size_t j = i; j < std::min(i + chunk_size, destinations.size()); ++j) {
+            chunk_strs.push_back(locationToString(destinations[j]));
+            all_coords.push_back(chunk_strs.back());
+            dest_indices.push_back(sources.size() + (j - i));
+        }
+
+        // Build coordinates string
+        std::ostringstream coords_param;
+        for (size_t k = 0; k < all_coords.size(); ++k) {
+            coords_param << all_coords[k];
+            if (k < all_coords.size() - 1)
+                coords_param << ";";
+        }
+
+        // Sources: 0..num_sources-1
+        std::ostringstream sources_param;
+        for (size_t s = 0; s < num_sources; ++s)
+            sources_param << s << (s < num_sources - 1 ? ";" : "");
+
+        // Destinations: indices after sources
+        std::ostringstream destinations_param;
+        for (size_t d = 0; d < dest_indices.size(); ++d)
+            destinations_param << dest_indices[d] << (d < dest_indices.size() - 1 ? ";" : "");
+
+        // Build URL
+        std::string full_url = base_url + "/table/v1/driving/" + coords_param.str() +
+            "?sources=" + sources_param.str() +
+            "&destinations=" + destinations_param.str() +
+            "&annotations=duration";
+
+        // Fetch and parse JSON
+        std::string response = fetch_osrm_response(full_url);
+        auto json_resp = json::parse(response);
+
+        if (json_resp["code"] != "Ok") {
+            std::cerr << "OSRM error: " << json_resp["code"] << "\n";
+            continue;
+        }
+        
+        auto durations = json_resp["durations"];
+
+        // Fill values into full_matrix
+        for (size_t row = 0; row < durations.size(); ++row) {
+            for (size_t col = 0; col < durations[row].size(); ++col) {
+                size_t dst_index = i + col;
+                if (durations[row][col].is_null()) {
+                    throw OSRMError(
+                        fmt::format("Unreachable route from source {} to destination {}",
+                                    row, dst_index));
+                } else {
+                    full_duration_matrix[row][dst_index] = durations[row][col].get<double>();
+                }
+            }
+        }
+
+        LOG_DEBUG("Processed chunk from {} to {}",
+                 i, std::min(i + chunk_size, destinations.size()) - 1);
+    }
+    return full_duration_matrix;
 }
 
 

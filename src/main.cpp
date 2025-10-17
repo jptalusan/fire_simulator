@@ -2,6 +2,7 @@
 #include "policy/nearest_dispatch.h"
 #include "policy/firebeats_dispatch.h"
 #include "models/incident_model.h"
+#include "models/travel_time_model.h"
 #include "utils/constants.h"
 #include "utils/logger.h"
 #include "io/loaders.h"
@@ -15,6 +16,7 @@
 #ifdef HAVE_SPDLOG_STOPWATCH
 #include "spdlog/stopwatch.h"
 #endif
+#include <environment/environment_model.h>
 
 using json = nlohmann::json;
 
@@ -148,11 +150,16 @@ int main(int argc, char* argv[]) {
     // Additional logic can be added here
     std::string incidents_path = env->get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
 
+    // TRAVEL TIME MODEL (we don't real need it here because we don't precompute anymore.)
+    std::unique_ptr<TravelTimeModel> travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
+        env->get("BASE_OSRM_URL", "http://localhost:8080")
+    );
+
     std::vector<Incident> incidents = {};
     std::vector<FireStation> stations = {};
     std::vector<Vehicle> vehicles = {};
     size_t chunk_size = 500;
-    loader::preComputingMatrices(stations, incidents, vehicles, chunk_size);
+    loader::preComputingMatrices(stations, incidents, vehicles, chunk_size, travelTimeModel.get());
 
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
@@ -197,7 +204,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << " ---START--- " << std::endl;
     EnvironmentModel environment_model(*fireModel);
-    Simulator simulator(initial_state, *incidentModel, environment_model, *policy);
+    Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
     initial_state = simulator.reset();
 
     int num_steps = 25;

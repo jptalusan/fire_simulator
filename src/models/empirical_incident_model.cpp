@@ -37,7 +37,11 @@ bool EmpiricalIncidentModel::load(const std::vector<Incident>& incidents) {
     return true;
 }
 
-std::optional<Incident> EmpiricalIncidentModel::getNextIncident([[maybe_unused]] State& state,std::time_t time) {
+bool EmpiricalIncidentModel::load() {
+    return false;
+}
+
+std::optional<Incident> EmpiricalIncidentModel::getNextIncident(std::time_t time) {
 
     // Find the first incident with report time >= the given time
     auto it = std::upper_bound(incidents_.begin(), incidents_.end(), time,

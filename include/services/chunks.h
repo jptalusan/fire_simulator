@@ -17,7 +17,13 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
     size_t chunk_size=100
 );
 
-std::pair<float, std::vector<double>> generate_route(
+std::vector<std::vector<double>> generate_duration_traveltime_matrix(
+    const std::vector<Location>& sources,
+    const std::vector<Location>& destinations,
+    size_t chunk_size
+);
+
+std::pair<float, std::vector<Location>> generate_route(
     const Location& source,
     const Location& destination
 );
