@@ -30,7 +30,7 @@ Simulator::Simulator(State &initialState,
 }
 
 StepResult Simulator::step(const std::vector<Action>& actions) {
-    LOG_INFO("[{}] Taking {} actions.", utils::formatTime(state_.getSystemTime()), actions.size());
+    LOG_DEBUG("[{}] Taking {} actions.", utils::formatTime(state_.getSystemTime()), actions.size());
     // Take the actions from the policy and update the environment
     logActions(actions, state_.getSystemTime());
     state_ = environment_.takeActions(state_, actions);
@@ -54,7 +54,7 @@ StepResult Simulator::step(const std::vector<Action>& actions) {
     state_.advanceTime(nextIncidentTime);
     logState(state_);
 
-    LOG_INFO("[{}] Incident {} is reported.", utils::formatTime(state_.getSystemTime()), nextIncident.value().incidentIndex);
+    LOG_DEBUG("[{}] Incident {} is reported.", utils::formatTime(state_.getSystemTime()), nextIncident.value().incidentIndex);
     return StepResult(state_, 0.0, false, {});
 }
 
@@ -70,7 +70,6 @@ State& Simulator::simulate_time_step(time_t end_time) {
         Location sim_location = vehicle.getCurrentLocation();
         while (sim_time < end_time) {
             // Update vehicle status based on time
-            // std::cout << to_string(vehicle.getStatus()) << "\n";
             switch (vehicle.getStatus()) {
                 case ApparatusStatus::Available:
                     sim_time = end_time;
@@ -86,14 +85,13 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         time_t _traveledTime = difftime(sim_time, vehicle.timeStartedToDispatch);
                         time_t _totalTime = difftime(vehicle.getTimeToIncident(), vehicle.timeStartedToDispatch);
                         double percentTraveled = static_cast<double>(_traveledTime) / static_cast<double>(_totalTime);
-                        LOG_INFO("[{}] Vehicle {} is en route to incident: {}, traveled {:.2f}%, will arrive by: {}", utils::formatTime(sim_time), vehicle.getVehicleId(), incidentIndex, percentTraveled * 100.0, utils::formatTime(vehicle.getTimeToIncident()));
-                        std::cout << std::endl;
+                        LOG_DEBUG("[{}] Vehicle {} is en route to incident: {}, traveled {:.2f}%, will arrive by: {}", utils::formatTime(sim_time), vehicle.getVehicleId(), incidentIndex, percentTraveled * 100.0, utils::formatTime(vehicle.getTimeToIncident()));
                     // Vehicle already arrived at the incident
                     } else if (vehicle.getTimeToIncident() <= end_time) {
                         vehicle.setStatus(ApparatusStatus::AtIncident);
                         vehicle.setCurrentLocation(incident.getLocation());
                         sim_time = vehicle.getTimeToIncident();
-                        LOG_INFO("[{}] Vehicle {} has arrived at from ({}) incident: {} at ({})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), incidentIndex, locationToString(incident.getLocation()));
+                        LOG_DEBUG("[{}] Vehicle {} has arrived at from ({}) incident: {} at ({})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), incidentIndex, locationToString(incident.getLocation()));
                         vehicle.timeStartedToDispatch = -1;
                         vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
                     } else {
@@ -108,7 +106,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                     if (timeToResolve > end_time) {
                         sim_time = end_time;
                         incident.status = IncidentStatus::isBeingResolved;
-                        LOG_INFO("[{}] Vehicle {} is at the incident, resolving...", utils::formatTime(sim_time), vehicle.getVehicleId());
+                        LOG_DEBUG("[{}] Vehicle {} is at the incident, resolving...", utils::formatTime(sim_time), vehicle.getVehicleId());
                         state_.getActiveIncidents().at(incidentIndex) = incident; // Update the incident in the active incidents map
                     } else if (timeToResolve <= end_time) {
                         sim_time = timeToResolve;
@@ -122,7 +120,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         vehicle.setIncidentIndex(-1); // Clear incident index as vehicle is leaving
                         vehicle.timeToStartedReturning = sim_time;
                         vehicle.setTimeToIncident(-1);
-                        LOG_INFO("[{}] Vehicle {} is done and returning to {} by {}", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), utils::formatTime(vehicle.getTimeToReturn()));
+                        LOG_DEBUG("[{}] Vehicle {} is done and returning to {} by {}", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), utils::formatTime(vehicle.getTimeToReturn()));
                         // state_.getActiveIncidents().at(incidentIndex) = incident; // Update the incident in the active incidents map
                         doneIncidents_.insert({incidentIndex, incident});
                         // state_.getActiveIncidents().erase(incidentIndex); // Remove the incident from active incidents
@@ -138,7 +136,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         time_t _traveledTime = difftime(sim_time, vehicle.timeToStartedReturning);
                         time_t _totalTime = difftime(vehicle.getTimeToReturn(), vehicle.timeToStartedReturning);
                         double percentTraveled = static_cast<double>(_traveledTime) / static_cast<double>(_totalTime);
-                        LOG_INFO("[{}] Vehicle {} is returning to {}, traveled {:.2f}%", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), percentTraveled * 100.0);
+                        LOG_DEBUG("[{}] Vehicle {} is returning to {}, traveled {:.2f}%", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), percentTraveled * 100.0);
                         std::pair<float, std::vector<Location>> routeInfo = travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
                         size_t routeSize = static_cast<size_t>(routeInfo.second.size());
                         if (routeSize >= 2) {
@@ -146,7 +144,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                             if (index >= routeSize) index = routeSize - 1;
                             double lat = routeInfo.second[index].lat;
                             double lon = routeInfo.second[index].lon;
-                            LOG_INFO("[{}] Vehicle {} current location updated from ({}) to ({}, {})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), lat, lon);
+                            LOG_DEBUG("[{}] Vehicle {} current location updated from ({}) to ({}, {})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), lat, lon);
                             vehicle.setCurrentLocation(Location(lat, lon));
                         }
                     // Vehicle has returned to station
@@ -161,7 +159,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         state_.getAllStations_().at(vehicle.getStationIndex()) = station; // Update the station in the state
                         
                         // Reset timers for returning and dispatching
-                        LOG_INFO("[{}] Vehicle {} has returned to station and is now available", utils::formatTime(sim_time), vehicle.getVehicleId());
+                        LOG_DEBUG("[{}] Vehicle {} has returned to station and is now available", utils::formatTime(sim_time), vehicle.getVehicleId());
                         vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
                         vehicle.timeStartedToDispatch = -1; // Resetting as we don't need it until next dispatch
                     } else {
@@ -194,7 +192,7 @@ State& Simulator::reset() {
     state_.newIncident_ = incidentRef;  // Store by value
     state_.advanceTime(incidentRef.reportTime);
 
-    LOG_INFO("[{}] Simulation reset, incident {} is reported.", utils::formatTime(state_.getSystemTime()), incidentRef.incidentIndex);
+    LOG_DEBUG("[{}] Simulation reset, incident {} is reported.", utils::formatTime(state_.getSystemTime()), incidentRef.incidentIndex);
     vehicles_history_.clear();
     stations_history_.clear();
     actions_history_.clear();

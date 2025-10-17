@@ -1,3 +1,4 @@
+#include "models/fire_model.h"
 #include "simulator/simulator.h"
 #include "policy/nearest_dispatch.h"
 #include "policy/firebeats_dispatch.h"
@@ -7,16 +8,13 @@
 #include "utils/logger.h"
 #include "io/loaders.h"
 #include "services/chunks.h"
-#include "objects/location.h"
-
 #include <memory>
-#include <unordered_map>
 #include <nlohmann/json.hpp>
+#include "environment/environment_model.h"
 
 #ifdef HAVE_SPDLOG_STOPWATCH
 #include "spdlog/stopwatch.h"
 #endif
-#include <environment/environment_model.h>
 
 using json = nlohmann::json;
 
@@ -29,9 +27,11 @@ void printUsage(const char* program_name) {
     std::cout << "  --run-python                    Run Python post-processing script after simulation\n";
     std::cout << "  --OSRM_URL=URL                  OSRM table API URL (default: http://localhost:8080/table/v1/driving/)\n";
     std::cout << "  --BASE_OSRM_URL=URL             Base OSRM URL (default: http://localhost:8080)\n";
-    std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: NEAREST/FIREBEATS, default: NEAREST)\n";
+    std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: [NEAREST,FIREBEATS], default: NEAREST)\n";
+    std::cout << "  --FIRE_MODEL_TYPE=STRING        Fire Model Type (options: [HISTORICAL,ML], default: HISTORICAL)\n";
+    std::cout << "  --INCIDENT_MODEL_TYPE=STRING    Incident Model Type (options: [EMPIRICAL], default: EMPIRICAL)\n";
+    std::cout << "  --TRAVEL_TIME_MODEL_TYPE=STRING Travel Time Model Type (options: [OSRM,GIS], default: OSRM)\n";
     std::cout << "  --INCIDENTS_CSV_PATH=PATH       Path to incidents CSV file (default: ../data/incidents_5000.csv)\n";
-    std::cout << "  --STATIONS_CSV_PATH=PATH        Path to stations CSV file (default: ../data/stations.csv)\n";
     std::cout << "  --APPARATUS_CSV_PATH=PATH       Path to apparatus CSV file (default: ../data/stations_with_apparatus.csv)\n";
     std::cout << "  --BOUNDS_GEOJSON_PATH=PATH      Path to bounds GeoJSON file (default: ../data/bounds.geojson)\n";
     std::cout << "  --RANDOM_SEED=NUMBER            Random seed for simulation (default: 42)\n";
@@ -54,6 +54,9 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"OSRM_URL", "http://localhost:8080/table/v1/driving/"},
         {"BASE_OSRM_URL", "http://localhost:8080"},
         {"DISPATCH_POLICY", "NEAREST"},
+        {"FIRE_MODEL_TYPE", "DEPARTMENT"},
+        {"INCIDENT_MODEL_TYPE", "EMPIRICAL"},
+        {"TRAVEL_TIME_MODEL_TYPE", "OSRM"},
         {"INCIDENTS_CSV_PATH", "../data/incidents_5000.csv"},
         {"STATIONS_CSV_PATH", "../data/stations.csv"},
         {"APPARATUS_CSV_PATH", "../data/stations_with_apparatus.csv"},
@@ -185,24 +188,50 @@ int main(int argc, char* argv[]) {
     } else {
         throw std::runtime_error("Only FIREBEATS or NEAREST policy supported");
     }
+    
+    std::string fire_model_type = env->get("FIRE_MODEL_TYPE", "HISTORICAL");
+    std::string incident_model_type = env->get("INCIDENT_MODEL_TYPE", "EMPIRICAL");
+    std::string travel_time_model_type = env->get("TRAVEL_TIME_MODEL_TYPE", "OSRM");
 
+    std::unique_ptr<ServiceTimeAndApparatusModel> fireModel;
+    std::unique_ptr<IncidentModel> incidentModel;
+    std::unique_ptr<TravelTimeModel> travelTimeModel;
+    
     int seed = std::stoi(env->get("RANDOM_SEED", "42"));
     std::string nfd_path = env->get("NFD_RESPONSE_CSV_PATH", "");
-    std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
-    std::unique_ptr<FireModel> fireModel = std::make_unique<DepartmentFireModel>(seed, nfd_path, resolution_stats_path);
+    if (fire_model_type == "HISTORICAL") {
+        LOG_INFO("Using Historical Fire Model.");
+        std::string resolution_stats_path = env->get("RESOLUTION_STATS_CSV_PATH", "../data/response_time_summary.csv");
+        fireModel = std::make_unique<HistoricalFireModel>(seed, nfd_path, resolution_stats_path);
+    } else if (fire_model_type == "ML") {
+        LOG_INFO("Using ML Fire Model.");
+        std::string model_path = env->get("MODEL_PATH", "../models/fire_incident_gb_model.onnx");
+        std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
+        fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
+    } else {
+        throw std::runtime_error("Only HISTORICAL or ML fire model supported");
+    }
 
-    // std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
-    // std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
-    // std::unique_ptr<FireModel> fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
+    if (travel_time_model_type == "OSRM") {
+        LOG_INFO("Using OSRM Travel Time Model.");
+        travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
+            env->get("BASE_OSRM_URL", "http://localhost:8080")
+        );
+    } else if (travel_time_model_type == "GIS") {
+        LOG_INFO("Using GIS Travel Time Model.");
+        // travelTimeModel = std::make_unique<GISTravelTimeModel>();
+    } else {
+        throw std::runtime_error("Only OSRM or GIS travel time model supported");
+    }
 
-    std::unique_ptr<TravelTimeModel> travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
-        env->get("BASE_OSRM_URL", "http://localhost:8080")
-    );
+    if (incident_model_type == "EMPIRICAL") {
+        LOG_INFO("Using Empirical Incident Model.");
+        incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
+        incidentModel->load(incidents);
+    } else {
+        throw std::runtime_error("Only EMPIRICAL incident model supported");
+    }
 
-    std::unique_ptr<IncidentModel> incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
-    incidentModel->load(incidents);
-
-    std::cout << " ---START--- " << std::endl;
     EnvironmentModel environment_model(*fireModel);
     Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
     initial_state = simulator.reset();
@@ -212,16 +241,16 @@ int main(int argc, char* argv[]) {
         std::vector<Action> actions = policy->getAction2(initial_state);
         StepResult result = simulator.step(actions);
         initial_state = result.state;
-        std::cout << " ---------------------- " << std::endl;
         if (result.done) {
             break;
         }
     }
+    
     simulator.writeIncidentReport();
     simulator.writeActionReport(initial_state);
     // Too much data
     // simulator.writeVehicleReport();
-
+    
     #ifdef HAVE_SPDLOG_STOPWATCH
     LOG_ERROR("Simulation completed successfully in {:.3} s.", sw);
     #endif

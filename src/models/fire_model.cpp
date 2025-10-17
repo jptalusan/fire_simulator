@@ -1,0 +1,60 @@
+#include "enums.h"
+
+//TODO: Delete this function and put in loader.h
+IncidentCategory stringToIncidentCategory(const std::string& str) {
+    if (str == "One") return IncidentCategory::One;
+    if (str == "OneB") return IncidentCategory::OneB;
+    if (str == "OneBM") return IncidentCategory::OneBM;
+    if (str == "OneC") return IncidentCategory::OneC;
+    if (str == "OneD") return IncidentCategory::OneD;
+    if (str == "OneE") return IncidentCategory::OneE;
+    if (str == "OneEM") return IncidentCategory::OneEM;
+    if (str == "OneF") return IncidentCategory::OneF;
+    if (str == "OneG") return IncidentCategory::OneG;
+    if (str == "OneH") return IncidentCategory::OneH;
+    if (str == "OneJ") return IncidentCategory::OneJ;
+    if (str == "Two") return IncidentCategory::Two;
+    if (str == "TwoM") return IncidentCategory::TwoM;
+    if (str == "TwoMF") return IncidentCategory::TwoMF;
+    if (str == "TwoA") return IncidentCategory::TwoA;
+    if (str == "TwoB") return IncidentCategory::TwoB;
+    if (str == "TwoC") return IncidentCategory::TwoC;
+    if (str == "Three") return IncidentCategory::Three;
+    if (str == "ThreeF") return IncidentCategory::ThreeF;
+    if (str == "ThreeM") return IncidentCategory::ThreeM;
+    if (str == "ThreeA") return IncidentCategory::ThreeA;
+    if (str == "ThreeB") return IncidentCategory::ThreeB;
+    if (str == "ThreeC") return IncidentCategory::ThreeC;
+    if (str == "ThreeCM") return IncidentCategory::ThreeCM;
+    if (str == "ThreeD") return IncidentCategory::ThreeD;
+    if (str == "Four") return IncidentCategory::Four;
+    if (str == "FourM") return IncidentCategory::FourM;
+    if (str == "FourA") return IncidentCategory::FourA;
+    if (str == "FourB") return IncidentCategory::FourB;
+    if (str == "FourC") return IncidentCategory::FourC;
+    if (str == "Five") return IncidentCategory::Five;
+    if (str == "FiveA") return IncidentCategory::FiveA;
+    if (str == "Six") return IncidentCategory::Six;
+    if (str == "Seven") return IncidentCategory::Seven;
+    if (str == "SevenB") return IncidentCategory::SevenB;
+    if (str == "SevenBM") return IncidentCategory::SevenBM;
+    if (str == "Eight") return IncidentCategory::Eight;
+    if (str == "EightA") return IncidentCategory::EightA;
+    if (str == "EightB") return IncidentCategory::EightB;
+    if (str == "EightC") return IncidentCategory::EightC;
+    if (str == "EightD") return IncidentCategory::EightD;
+    if (str == "EightE") return IncidentCategory::EightE;
+    if (str == "EightF") return IncidentCategory::EightF;
+    if (str == "EightG") return IncidentCategory::EightG;
+    if (str == "Nine") return IncidentCategory::Nine;
+    if (str == "Ten") return IncidentCategory::Ten;
+    if (str == "Eleven") return IncidentCategory::Eleven;
+    if (str == "ElevenA") return IncidentCategory::ElevenA;
+    if (str == "ElevenB") return IncidentCategory::ElevenB;
+    if (str == "Thirteen") return IncidentCategory::Thirteen;
+    if (str == "Fourteen") return IncidentCategory::Fourteen;
+    if (str == "Fifteen") return IncidentCategory::Fifteen;
+    if (str == "Sixteen") return IncidentCategory::Sixteen;
+    if (str == "Eighteen") return IncidentCategory::Eighteen;
+    return IncidentCategory::Invalid;
+}

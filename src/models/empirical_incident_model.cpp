@@ -3,7 +3,6 @@
 #include "utils/logger.h"
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 
 bool EmpiricalIncidentModel::load(const std::string& csvPath) {
     try {

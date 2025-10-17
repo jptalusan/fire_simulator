@@ -6,7 +6,7 @@
 #include <string>
 #include <optional>
 #include "objects/incident.h"
-#include "models/fire.h"
+#include "models/fire_model.h"
 
 /**
  * @brief Base class for incident models
@@ -16,6 +16,7 @@
  */
 class IncidentModel {
 public:
+    IncidentModel(ServiceTimeAndApparatusModel& fireModel) : fireModel_(fireModel) {}
     virtual ~IncidentModel() = default;
     
     /**
@@ -27,6 +28,8 @@ public:
     virtual bool load(const std::vector<Incident>& incidents) = 0;
     virtual bool load(const std::string& csvPath) = 0;
     virtual bool load() = 0;
+protected:
+    ServiceTimeAndApparatusModel& fireModel_;
 };
 
 /**
@@ -37,7 +40,7 @@ public:
  */
 class EmpiricalIncidentModel : public IncidentModel {
 public:
-    EmpiricalIncidentModel(FireModel& fireModel) : fireModel_(fireModel) {}
+    EmpiricalIncidentModel(ServiceTimeAndApparatusModel& fireModel) : IncidentModel(fireModel) {}
     bool load() override;
     
     /**
@@ -78,7 +81,6 @@ private:
      * @brief Sort incidents by report time
      */
     void sortIncidents();
-    FireModel& fireModel_;
 };
 
 /**
@@ -89,7 +91,7 @@ private:
  */
 class SurvivalIncidentModel : public IncidentModel {
 public:
-    SurvivalIncidentModel() {}
+    SurvivalIncidentModel(ServiceTimeAndApparatusModel& fireModel) : IncidentModel(fireModel) {}
     bool load(const std::string& csvPath) override;
     bool load(const std::vector<Incident>& incidents) override;
     bool load() override;

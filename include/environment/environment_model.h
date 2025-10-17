@@ -1,14 +1,13 @@
 #ifndef ENVIRONMENT_MODEL_H
 #define ENVIRONMENT_MODEL_H
 
-#include "simulator/event.h"
 #include "simulator/state.h"
 #include "simulator/action.h"
-#include "models/fire.h"
+#include "models/fire_model.h"
 
 class EnvironmentModel {
 public:
-    EnvironmentModel(FireModel& fireModel);
+    EnvironmentModel(ServiceTimeAndApparatusModel& fireModel);
 
     // Handle an event and update state
     // std::vector<Event> handleEvent(State& state, const Event& event);
@@ -23,7 +22,7 @@ public:
     //                         Incident& incident, std::vector<Event>& newEvents,
     //                         bool& hasSentResolutionEvent);
 private:
-    FireModel& fireModel_;
+    ServiceTimeAndApparatusModel& fireModel_;
 };
 
 #endif // ENVIRONMENT_MODEL_H

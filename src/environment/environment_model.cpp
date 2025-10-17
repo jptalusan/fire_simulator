@@ -1,14 +1,12 @@
-#include <iostream>
 #include "environment/environment_model.h"
+#include "models/fire_model.h"
 #include "objects/incident.h"
-#include "simulator/event.h"
 #include "utils/constants.h"
 #include "utils/helpers.h"
-#include "utils/error.h"
 #include <fmt/format.h>
 #include "utils/logger.h"
 
-EnvironmentModel::EnvironmentModel(FireModel& fireModel)
+EnvironmentModel::EnvironmentModel(ServiceTimeAndApparatusModel& fireModel)
     : fireModel_(fireModel) {}
 
 State& EnvironmentModel::takeActions(State& state, const std::vector<Action>& actions) {
@@ -34,7 +32,7 @@ State& EnvironmentModel::takeActions(State& state, const std::vector<Action>& ac
             // vehicle.setTimeToReturn(currentTime + static_cast<time_t>(travelTime) + incidentResolutionTime + constants::RESPOND_DELAY_SECONDS);
             vehicle.setIncidentIndex(incident.incidentIndex);
             state.getVehicleList().at(vehicleIndex) = vehicle; // Update the vehicle in the state
-            LOG_INFO("[{}] Dispatched {} Vehicle {} of {} to incident {}, will arrive at {}, resolution time: {:.2f} s", utils::formatTime(currentTime), to_string(vehicle.getType()),vehicle.getVehicleId(), vehicle.getStationId(), incident.incidentIndex, utils::formatTime(arrivalTime), incidentResolutionTime);
+            LOG_DEBUG("[{}] Dispatched {} Vehicle {} of {} to incident {}, will arrive at {}, resolution time: {:.2f} s", utils::formatTime(currentTime), to_string(vehicle.getType()),vehicle.getVehicleId(), vehicle.getStationId(), incident.incidentIndex, utils::formatTime(arrivalTime), incidentResolutionTime);
 
             // Update the station's available vehicle count
             FireStation& station = state.getStation(vehicle.getStationIndex());
