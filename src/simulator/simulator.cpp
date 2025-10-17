@@ -30,6 +30,7 @@ Simulator::Simulator(State &initialState,
 StepResult Simulator::step(const std::vector<Action>& actions) {
     LOG_INFO("[{}] Taking {} actions.", utils::formatTime(state_.getSystemTime()), actions.size());
     // Take the actions from the policy and update the environment
+    logActions(actions, state_.getSystemTime());
     state_ = environment_.takeActions(state_, actions);
 
     // Get the next incident
@@ -44,7 +45,12 @@ StepResult Simulator::step(const std::vector<Action>& actions) {
     time_t nextIncidentTime = nextIncident.value().reportTime;
 
     state_ = simulate_time_step(nextIncidentTime);
+
+    // Log the state after taking actions and simulating time step
+
+    // Advance the system time to the next incident's report time
     state_.advanceTime(nextIncidentTime);
+    logState(state_);
 
     LOG_INFO("[{}] Incident {} is reported.", utils::formatTime(state_.getSystemTime()), nextIncident.value().incidentIndex);
     return StepResult(state_, 0.0, false, {});
@@ -86,8 +92,8 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         vehicle.setCurrentLocation(incident.getLocation());
                         sim_time = vehicle.getTimeToIncident();
                         LOG_INFO("[{}] Vehicle {} has arrived at from ({}) incident: {} at ({})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), incidentIndex, locationToString(incident.getLocation()));
-                        vehicle.timeStartedToDispatch = 0;
-                        vehicle.timeToStartedReturning = 0; // Resetting as we don't need it until next return
+                        vehicle.timeStartedToDispatch = -1;
+                        vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
                     } else {
                         sim_time = end_time;
                     }
@@ -113,9 +119,10 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
                         vehicle.setIncidentIndex(-1); // Clear incident index as vehicle is leaving
                         vehicle.timeToStartedReturning = sim_time;
+                        vehicle.setTimeToIncident(-1);
                         LOG_INFO("[{}] Vehicle {} is done and returning to {} by {}", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), utils::formatTime(vehicle.getTimeToReturn()));
                         // state_.getActiveIncidents().at(incidentIndex) = incident; // Update the incident in the active incidents map
-                        state_.doneIncidents_.insert({incidentIndex, incident});
+                        doneIncidents_.insert({incidentIndex, incident});
                         // state_.getActiveIncidents().erase(incidentIndex); // Remove the incident from active incidents
                     } else {
                         sim_time = end_time;
@@ -152,8 +159,10 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         station.updateAvailableCount(vehicle.getType(), 1);
                         state_.getAllStations_().at(vehicle.getStationIndex()) = station; // Update the station in the state
                         
+                        // Reset timers for returning and dispatching
                         LOG_INFO("[{}] Vehicle {} has returned to station and is now available", utils::formatTime(sim_time), vehicle.getVehicleId());
-                        vehicle.timeToStartedReturning = 0; // Resetting as we don't need it until next return
+                        vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
+                        vehicle.timeStartedToDispatch = -1; // Resetting as we don't need it until next dispatch
                     } else {
                         sim_time = end_time;
                     }
@@ -185,129 +194,141 @@ State& Simulator::reset() {
     state_.advanceTime(incidentRef.reportTime);
 
     LOG_INFO("[{}] Simulation reset, incident {} is reported.", utils::formatTime(state_.getSystemTime()), incidentRef.incidentIndex);
-    state_history_.clear();
-    station_history_.clear();
-    action_history_.clear();
+    vehicles_history_.clear();
+    stations_history_.clear();
+    actions_history_.clear();
+    doneIncidents_.clear();
     return state_;
 }
 
-// const std::vector<State>& Simulator::getStateHistory() const {
-//   return state_history_;
-// }
+void Simulator::logActions(const std::vector<Action>& actions, time_t current_time) {
+    actions_history_.emplace_back(current_time, actions);
+}
 
-// const std::vector<Action>& Simulator::getActionHistory() const {
-//   return action_history_;
-// }
+void Simulator::logState(const State& state) {
+    vehicles_history_.push_back(state.getConstVehicleList());
+    stations_history_.push_back(state.getAllStations());
+    state_times_history_.push_back(state.getSystemTime());
+}
 
-// State& Simulator::getCurrentState() { return state_; }
+// TODO: CurrLat and CurrLon are wrong here, should be location upon dispatch
+void Simulator::writeActionReport(const State& state) const {
+    std::string report_path = EnvLoader::getInstance()->get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
+    std::ofstream csv(report_path);
 
-// void Simulator::writeReportToCSV() {
-//   //All required apparatus counts and all recieved appartus counts
-//     std::unordered_map<int, Incident>& activeIncidents = state_.getActiveIncidents();
-//     std::unordered_map<int, Incident>& doneIncidents = state_.doneIncidents_;
+    csv << "Time,VehicleID,Status,StationIndex,StationID,IncidentID,Type,Count,TravelTimeToIncident,CurrLat,CurrLon,IncidentLat,IncidentLon\n";
 
-//     // Insert all elements from doneIncidents into activeIncidents
-//     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
+    for (size_t t = 0; t < vehicles_history_.size(); ++t) {
+        const auto& vehicles = vehicles_history_[t];
+        // const auto& stations = stations_history_[t];
+        // const time_t current_time = state_times_history_[t];
+        const auto& actions = actions_history_[t];
+        for (const auto& action : actions.second) {
+            if (action.type != StationActionType::Dispatch) continue;
+            Incident incident = state.getActiveIncidentsConst().at(action.payload.incidentIndex);
+            csv << std::fixed << std::setprecision(6);
+            csv << utils::formatTime(actions.first) << ","
+                << action.payload.vehicleIndex << ","
+                << to_string(ApparatusStatus::Dispatched) << ","
+                << action.payload.stationIndex << ","
+                << state.getAllStations().at(action.payload.stationIndex).getStationId() << ","
+                << action.payload.incidentIndex << ","
+                << to_string(action.payload.apparatusType) << ","
+                << action.payload.apparatusCount << ","
+                << action.payload.travelTime << ","
+                << vehicles.at(action.payload.vehicleIndex).getStationLocation().lat << ","
+                << vehicles.at(action.payload.vehicleIndex).getStationLocation().lon << ","
+                << incident.getLocation().lat << ","
+                << incident.getLocation().lon << "\n";
+        }
+    }
+    csv.close();
+}
 
-//     std::string report_path = EnvLoader::getInstance()->get("REPORT_CSV_PATH", "../logs/incident_report.csv");
+void Simulator::writeIncidentReport() const {
+    std::string report_path = EnvLoader::getInstance()->get("REPORT_CSV_PATH", "../logs/incident_report.csv");
+    std::ofstream csv(report_path);
+    csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved";
+    for (const auto& type : apparatusTypes) {
+        csv << "," << to_string(type) << "Required," << to_string(type) << "Received";
+    }
+    csv << ",Zone,Status\n";
+    std::vector<Incident> sortedIncidents;
+    sortedIncidents.reserve(doneIncidents_.size());  // Preallocate memory for efficiency
+    for (const auto& [id, incident] : doneIncidents_) {
+        sortedIncidents.emplace_back(incident);
+    }
+    std::sort(sortedIncidents.begin(), sortedIncidents.end(),
+        [](const Incident& a, const Incident& b) {
+            return a.reportTime < b.reportTime;
+        });
 
-//     std::ofstream csv(report_path);
+    for (size_t i = 0; i < sortedIncidents.size(); ++i) {
+        const auto& incident = sortedIncidents[i];
+        if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
+            LOG_ERROR("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
+            continue; // Skip this incident
+        }
+        // TODO: Fix apparatus count and add type.
+        csv << std::fixed << std::setprecision(6);
+        csv << incident.incidentIndex << ","
+            << incident.incident_id << ","
+            << utils::formatTime(incident.reportTime) << ","
+            << utils::formatTime(incident.timeRespondedTo) << ","
+            << utils::formatTime(incident.resolvedTime);
 
-//     // Write header
-//     csv << "IncidentIndex,IncidentID,Reported,Responded,Resolved";
-//     for (const auto& type : apparatusTypes) {
-//         csv << "," << to_string(type) << "Required," << to_string(type) << "Received";
-//     }
-//     csv << ",Zone,Status\n";
-//     std::vector<Incident> sortedIncidents;
-//     sortedIncidents.reserve(activeIncidents.size());  // Preallocate memory for efficiency
-//     for (const auto& [id, incident] : activeIncidents) {
-//         sortedIncidents.emplace_back(incident);
-//     }
-//     std::sort(sortedIncidents.begin(), sortedIncidents.end(),
-//         [](const Incident& a, const Incident& b) {
-//             return a.reportTime < b.reportTime;
-//         });
+         // Output required and received for each apparatus type
+         for (const auto& type : apparatusTypes) {
+             int required = 0;
+             int received = 0;
+             auto reqIt = incident.requiredApparatusMap.find(type);
+             if (reqIt != incident.requiredApparatusMap.end()) required = reqIt->second;
+             auto recIt = incident.currentApparatusMap.find(type);
+             if (recIt != incident.currentApparatusMap.end()) received = recIt->second;
+             csv << "," << required << "," << received;
+         }
+         csv << "," << incident.zoneIndex << "," << to_string(incident.status) << "\n";
+    }
+    csv.close();
+}
 
-//     for (size_t i = 0; i < sortedIncidents.size(); ++i) {
-//         const auto& incident = sortedIncidents[i];
-//         if (incident.resolvedTime < 0 || incident.resolvedTime > 2147483647) {
-//             LOG_ERROR("Incident {} has a resolved time out of bounds: {}", incident.incidentIndex, incident.resolvedTime);
-//             continue; // Skip this incident
-//         }
-//         // TODO: Fix apparatus count and add type.
-//         csv << std::fixed << std::setprecision(6);
-//         csv << incident.incidentIndex << ","
-//             << incident.incident_id << ","
-//             << utils::formatTime(incident.reportTime) << ","
-//             << utils::formatTime(incident.timeRespondedTo) << ","
-//             << utils::formatTime(incident.resolvedTime);
+void Simulator::writeVehicleReport() const {
+    std::string report_path = EnvLoader::getInstance()->get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
+    std::ofstream csv(report_path);
 
-//          // Output required and received for each apparatus type
-//          for (const auto& type : apparatusTypes) {
-//              int required = 0;
-//              int received = 0;
-//              auto reqIt = incident.requiredApparatusMap.find(type);
-//              if (reqIt != incident.requiredApparatusMap.end()) required = reqIt->second;
-//              auto recIt = incident.currentApparatusMap.find(type);
-//              if (recIt != incident.currentApparatusMap.end()) received = recIt->second;
-//              csv << "," << required << "," << received;
-//          }
-//          csv << "," << incident.zoneIndex << "," << to_string(incident.status) << "\n";
-//     }
-//     csv.close();
-// }
+    csv << "Time,VehicleID,Status,StationID,IncidentID,Type,TravelTimeToIncident,TravelTimeToStation,Lat,Lon\n";
 
-// void Simulator::writeActions() {
-//   //TODO: Remaining appaaratus count for the station and what they dispatched and how many they dispatched for the incident.
-//     std::string station_report_path = EnvLoader::getInstance()->get("STATION_REPORT_CSV_PATH", "../logs/station_report.csv");
-
-//     std::vector<Action> actionHistory = getActionHistory();
-
-//     std::unordered_map<int, Incident>& activeIncidents = state_.getActiveIncidents();
-//     std::unordered_map<int, Incident>& doneIncidents = state_.doneIncidents_;
-
-//     // Insert all elements from doneIncidents into activeIncidents
-//     activeIncidents.insert(doneIncidents.begin(), doneIncidents.end()); // Existing keys in activeIncidents are NOT overwritten
-
-//     std::ofstream station_csv(station_report_path);
-
-//     station_csv << "DispatchTime,StationID,StationName";
-//     for (const auto& type : apparatusTypes) {
-//         station_csv << "," << to_string(type) << "Dispatched," << to_string(type) << "Remaining";
-//         }
-//     station_csv << ",TravelTime,IncidentIndex,IncidentID\n";
-
-//     for (size_t i = 0; i < actionHistory.size(); ++i) {
-//         const auto& action = actionHistory[i];
-//         if (action.type != StationActionType::Dispatch) continue;
-//         std::string metrics;
-//         metrics.reserve(256)
-//         ;
-//         // Get the relevant station snapshot at the time of dispatch
-//         const FireStation& station = station_history_[i];
-
-
-//         // Get the incident for dispatch time
-//         const Incident& incident = activeIncidents.at(action.payload.incidentIndex);
-//         fmt::format_to(std::back_inserter(metrics), "{},{},{}", 
-//             utils::formatTime(incident.timeRespondedTo), station.getStationIndex(), station.getStationId());
-
-//         for (const auto& type : apparatusTypes) {
-//             int dispatched = 0;
-//             int remaining = station.getAvailableCount(type);
-
-//             // Only fill dispatched for the type in this action
-//             if (type == action.payload.apparatusType) {
-//                 dispatched = action.payload.apparatusCount;
-//             }
-//             fmt::format_to(std::back_inserter(metrics), ",{},{}", dispatched, remaining);
-//         }
-
-//         fmt::format_to(std::back_inserter(metrics), ",{:.2f},{},{}", 
-//             action.payload.travelTime, action.payload.incidentIndex, incident.incident_id);
-
-//         station_csv << metrics << "\n";
-//     }
-//     station_csv.close();
-// }
+    for (size_t t = 0; t < vehicles_history_.size(); ++t) {
+        const auto& vehicles = vehicles_history_[t];
+        // const auto& stations = stations_history_[t];
+        const time_t current_time = state_times_history_[t];
+        for (const auto& vehicle : vehicles) {
+            if (vehicle.getVehicleId() != 23) {
+                continue; // Only log vehicle 23 for now
+            }
+            if (vehicle.getStatus() == ApparatusStatus::Available) {
+                continue; // Only log non-available vehicles for now
+            }
+            time_t travelTimeToIncident = -1;;
+            time_t travelTimeToStation = -1;
+            if ((vehicle.getTimeToIncident() > 0) && (vehicle.timeStartedToDispatch > 0)) {
+                travelTimeToIncident = difftime(vehicle.getTimeToIncident(), vehicle.timeStartedToDispatch);
+            }
+            if ((vehicle.getTimeToReturn() > 0) && (vehicle.timeToStartedReturning > 0)) {
+                travelTimeToStation = difftime(vehicle.getTimeToReturn(), vehicle.timeToStartedReturning);
+            }
+            csv << std::fixed << std::setprecision(6);
+            csv << utils::formatTime(current_time) << ","
+                << vehicle.getVehicleId() << ","
+                << to_string(vehicle.getStatus()) << ","
+                << vehicle.getStationId() << ","
+                << vehicle.getIncidentIndex() << ","
+                << to_string(vehicle.getType()) << ","
+                << travelTimeToIncident << ","
+                << travelTimeToStation << ","
+                << vehicle.getCurrentLocation().lat << ","
+                << vehicle.getCurrentLocation().lon << "\n";
+        }
+    }
+    csv.close();
+}

@@ -40,6 +40,8 @@ State& EnvironmentModel::takeActions(State& state, const std::vector<Action>& ac
             FireStation& station = state.getStation(vehicle.getStationIndex());
             station.updateAvailableCount(vehicle.getType(), -1);
             state.getAllStations_().at(vehicle.getStationIndex()) = station; // Update the station in the state
+
+            incident.currentApparatusMap[vehicle.getType()] += 1;
         }
     }
     // Update the incident

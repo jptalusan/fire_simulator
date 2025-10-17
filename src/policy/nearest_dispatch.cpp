@@ -153,10 +153,10 @@ std::vector<Action> NearestDispatch::getEMSForIncident([[maybe_unused]] const St
             }
             if (vehicle.getType() == type) {
                 // Dispatch this vehicle
-                Action action = Action::createDispatchAction(vehicle.getVehicleId(), 
-                                                                incident.incidentIndex, 
-                                                                vehicle.getVehicleId(),
-                                                                type, 1, durationColumn[index]);
+                Action action = Action::createDispatchAction(vehicle.getStationIndex(),
+                                                             incident.incidentIndex, 
+                                                             vehicle.getVehicleId(), 
+                                                             type, 1, durationColumn[index]);
                 actions.push_back(action);
                 dispatchedCount++;
             }
@@ -209,10 +209,10 @@ std::vector<Action> NearestDispatch::getFireVehiclesForIncident(const State& sta
                     continue; // Skip non-available vehicles
                 }
                 // Dispatch this vehicle
-                Action action = Action::createDispatchAction(vehicle.getVehicleId(), 
-                                                                incident.incidentIndex, 
-                                                                vehicle.getVehicleId(),
-                                                                type, 1, durationColumn[index]);
+                Action action = Action::createDispatchAction(vehicle.getStationIndex(), 
+                                                             incident.incidentIndex, 
+                                                             vehicle.getVehicleId(),
+                                                             type, 1, durationColumn[index]);
                 actions.push_back(action);
                 dispatchedCount++;
                 if (dispatchedCount >= neededCount) {

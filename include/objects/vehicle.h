@@ -76,8 +76,8 @@ class Vehicle {
         time_t getTimeToIncident() const noexcept { return timeToIncident; }
         time_t getTimeToReturn() const noexcept { return timeToReturn; }
         void setCurrentLocation(const Location& location) { currentLocation = location; }
-        time_t timeToStartedReturning = std::time(nullptr);
-        time_t timeStartedToDispatch = std::time(nullptr);
+        time_t timeToStartedReturning = -1;
+        time_t timeStartedToDispatch = -1;
 
     private:
         int stationIndex;

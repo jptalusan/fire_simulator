@@ -31,7 +31,6 @@ public:
     // TODO: Improve this, ignored stations and incidents should be handled better
     std::vector<int> ignoredStations;
     std::vector<int> ignoredIncidents;
-    std::unordered_map<int, Incident> doneIncidents_;
     std::unordered_map<std::string, int> stationIndexMap_; // Maps station address to index
     std::vector<int> inProgressIncidentIndices;
     std::vector<int> dispatchApparatus(ApparatusType type, int count, int stationIndex);

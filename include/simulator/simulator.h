@@ -27,28 +27,26 @@ public:
         EnvironmentModel& environmentModel,
         DispatchPolicy& dispatchPolicy
     );
-    // void run();
-    // const std::vector<State>& getStateHistory() const;
-    // const std::vector<Action>& getActionHistory() const;
-    // const std::vector<FireStation>& getStationHistory() const;
-    // State& getCurrentState();
-
-    // void writeActions();
-    // void writeReportToCSV();
-    // void setNextEvent();
-    // const Event* getNextEvent() const;
+    
     StepResult step(const std::vector<Action>& actions);
     State& simulate_time_step(time_t new_time);
     State& reset();
+    void logState(const State& state);
+    void logActions(const std::vector<Action>& actions, time_t current_time);
+    std::unordered_map<int, Incident> doneIncidents_;
+    void writeActionReport(const State& state) const;
+    void writeIncidentReport() const;
+    void writeVehicleReport() const;
 
 private:
     State& state_;
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     IncidentModel& incidentModel_;
-    std::vector<State> state_history_;
-    std::vector<FireStation> station_history_;
-    std::vector<Action> action_history_;
+    std::vector<std::vector<Vehicle>> vehicles_history_;
+    std::vector<std::vector<FireStation>> stations_history_;
+    std::vector<std::pair<time_t, std::vector<Action>>> actions_history_;
+    std::vector<time_t> state_times_history_;
 };
 
 #endif // SIMULATOR_H
