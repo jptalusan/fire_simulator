@@ -60,24 +60,4 @@ std::shared_ptr<spdlog::logger> Logger::get() {
     return s_logger;
 }
 
-void Logger::setLevel(const std::string& level) {
-    auto logger = get();
-    if (!logger) return;
-    
-    if (level == "trace") {
-        logger->set_level(spdlog::level::trace);
-    } else if (level == "debug") {
-        logger->set_level(spdlog::level::debug);
-    } else if (level == "info") {
-        logger->set_level(spdlog::level::info);
-    } else if (level == "warn") {
-        logger->set_level(spdlog::level::warn);
-    } else if (level == "error") {
-        logger->set_level(spdlog::level::err);
-    } else if (level == "critical") {
-        logger->set_level(spdlog::level::critical);
-    }
-}
-
-
 } // namespace utils

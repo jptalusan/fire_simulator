@@ -25,8 +25,6 @@ void printUsage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [OPTIONS]\n";
     std::cout << "\nOPTIONS:\n";
     std::cout << "  --run-python                    Run Python post-processing script after simulation\n";
-    std::cout << "  --OSRM_URL=URL                  OSRM table API URL (default: http://localhost:8080/table/v1/driving/)\n";
-    std::cout << "  --BASE_OSRM_URL=URL             Base OSRM URL (default: http://localhost:8080)\n";
     std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: [NEAREST,FIREBEATS], default: NEAREST)\n";
     std::cout << "  --FIRE_MODEL_TYPE=STRING        Fire Model Type (options: [HISTORICAL,ML], default: HISTORICAL)\n";
     std::cout << "  --INCIDENT_MODEL_TYPE=STRING    Incident Model Type (options: [EMPIRICAL], default: EMPIRICAL)\n";
@@ -37,6 +35,7 @@ void printUsage(const char* program_name) {
     std::cout << "  --RANDOM_SEED=NUMBER            Random seed for simulation (default: 42)\n";
     std::cout << "  --PYTHON_PATH=PATH              Path to Python executable (default: ../../venvBOC/bin/python)\n";
     std::cout << "  --ENV_PATH=PATH                 Path to .env file. Overrides all other arguments.\n";
+    std::cout << "  --CONSOLE_LOG_LEVEL=LEVEL       Set console log level (options: [trace, debug, info, warn, err, critical, off], default: debug)\n";
     std::cout << "  --help                          Show this help message\n";
     std::cout << "\nExample:\n";
     std::cout << "  " << program_name << " --INCIDENTS_CSV_PATH=../data/custom_incidents.csv --RANDOM_SEED=123\n";
@@ -72,7 +71,8 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"ZONE_MAP_PATH", "../data/zones.csv"},
         {"BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson"},
         {"RANDOM_SEED", 42},
-        {"PYTHON_PATH", "../../venvBOC/bin/python"}
+        {"PYTHON_PATH", "../../venvBOC/bin/python"},
+        {"CONSOLE_LOG_LEVEL", "debug"}
     };
 
     // Parse command line arguments starting from index 1 (skip program name)
@@ -148,7 +148,6 @@ int main(int argc, char* argv[]) {
 
     // Initialize logger (this needs the env, might need to update)
     utils::Logger::init("fire_simulator");
-    utils::Logger::setLevel("info");
 
     LOG_INFO("Starting Fire Simulator...");
 
