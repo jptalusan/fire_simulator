@@ -498,9 +498,7 @@ std::vector<Incident> loadIncidentsFromCSV() {
 // TODO: Add checking if the binary files already exist, if so, load them instead of generating them again.
 void preComputingMatrices(std::vector<FireStation>& stations, 
                           std::vector<Incident>& incidents,
-                          std::vector<Vehicle>& vehicles,
-                          size_t chunk_size,
-                          TravelTimeModel* travelTimeModel) {
+                          std::vector<Vehicle>& vehicles) {
     LOG_INFO("Starting Precomputation...");
     //spdlog::stopwatch sw;
     // Additional logic can be added here
@@ -561,29 +559,6 @@ void preComputingMatrices(std::vector<FireStation>& stations,
     for (const auto& incident : incidents) {
         destinations.emplace_back(incident.getLocation());
     }
-    bool matrixNotExist = true;
-    if (matrixNotExist) {
-        LOG_INFO("Distance and Duration matrix files do not exist. Generating new matrices...");
-    } else {
-        LOG_INFO("Distance and Duration matrix files already exist. Skipping matrix generation.");
-        return;
-    }
-
-    if (!travelTimeModel) {
-        LOG_ERROR("TravelTimeModel pointer is null.");
-        throw std::invalid_argument("TravelTimeModel pointer is null.");
-    }
-    auto result = travelTimeModel->getTravelTimeMatrix(sources, destinations);
-    const std::vector<std::vector<double>>& full_duration_matrix = result;
-
-    std::cout << full_duration_matrix.size() << " sources, " 
-              << full_duration_matrix[0].size() << " destinations.\n";
-    // print_matrix(full_duration_matrix, 5, 5);
-    // For readability
-    write_matrix_to_csv(full_duration_matrix, matrix_csv_path, 2, false);
-    save_matrix_binary(full_duration_matrix, duration_matrix_path);
-    // save_matrix_binary(full_distance_matrix, distance_matrix_path);
-   // LOG_INFO("Preprocessing completed successfully in {:.3} s.", sw);
 }
 
 } // namespace loader

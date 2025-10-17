@@ -150,16 +150,10 @@ int main(int argc, char* argv[]) {
     // Additional logic can be added here
     std::string incidents_path = env->get("INCIDENTS_CSV_PATH", "../data/incidents.csv");
 
-    // TRAVEL TIME MODEL (we don't real need it here because we don't precompute anymore.)
-    std::unique_ptr<TravelTimeModel> travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
-        env->get("BASE_OSRM_URL", "http://localhost:8080")
-    );
-
     std::vector<Incident> incidents = {};
     std::vector<FireStation> stations = {};
     std::vector<Vehicle> vehicles = {};
-    size_t chunk_size = 500;
-    loader::preComputingMatrices(stations, incidents, vehicles, chunk_size, travelTimeModel.get());
+    loader::preComputingMatrices(stations, incidents, vehicles);
 
     #ifdef HAVE_SPDLOG_STOPWATCH
     spdlog::stopwatch sw;
@@ -198,6 +192,10 @@ int main(int argc, char* argv[]) {
     // std::string model_path = env->get("MODEL_PATH", "../models/gradient_boost_fire_model.onnx");
     // std::string features_path = env->get("FEATURES_PATH", "../models/fire_model_features_mapping.json");
     // std::unique_ptr<FireModel> fireModel = std::make_unique<MLFireModel>(seed, model_path, features_path, nfd_path);
+
+    std::unique_ptr<TravelTimeModel> travelTimeModel = std::make_unique<OSRMTravelTimeModel>(
+        env->get("BASE_OSRM_URL", "http://localhost:8080")
+    );
 
     std::unique_ptr<IncidentModel> incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
     incidentModel->load(incidents);
