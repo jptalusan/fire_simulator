@@ -209,6 +209,12 @@ int main(int argc, char* argv[]) {
     if (incident_model_type == constants::POLICY_EMPIRICAL) {
         LOG_INFO("Using Empirical Incident Model.");
         incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
+        // HACK: Last incident that gets reported the next day
+        Incident extra_incident = incidents.back();
+        extra_incident.reportTime += 86400; // Add one day in seconds
+        extra_incident.incidentIndex += 1;
+        extra_incident.incident_id += 1;
+        incidents.push_back(extra_incident);
         incidentModel->load(incidents);
     } else {
         throw std::runtime_error("Only EMPIRICAL incident model supported");

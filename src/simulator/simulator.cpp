@@ -302,12 +302,12 @@ void Simulator::writeVehicleReport() const {
         // const auto& stations = stations_history_[t];
         const time_t current_time = state_times_history_[t];
         for (const auto& vehicle : vehicles) {
-            if (vehicle.getVehicleId() != 23) {
+            if (vehicle.getVehicleId() != 24) {
                 continue; // Only log vehicle 23 for now
             }
-            if (vehicle.getStatus() == ApparatusStatus::Available) {
-                continue; // Only log non-available vehicles for now
-            }
+            // if (vehicle.getStatus() == ApparatusStatus::Available) {
+            //     continue; // Only log non-available vehicles for now
+            // }
             time_t travelTimeToIncident = -1;;
             time_t travelTimeToStation = -1;
             if ((vehicle.getTimeToIncident() > 0) && (vehicle.timeStartedToDispatch > 0)) {

@@ -68,7 +68,9 @@ std::vector<Action> NearestDispatch::getEMSForIncident([[maybe_unused]]const Sta
     
     for (const auto& [type, neededCount] : remainingNeeded) {
         int dispatchedCount = 0;
-
+        if (type != ApparatusType::Medic) {
+            continue; // Skip EMS here
+        }
         for (int index : sortedIndices) {
             if (dispatchedCount >= neededCount) {
                 break; // Already dispatched enough of this type
