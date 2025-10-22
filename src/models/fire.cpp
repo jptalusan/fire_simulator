@@ -267,7 +267,7 @@ MLFireModel::MLFireModel(unsigned int seed, const std::string& model_path, const
     loadONNXModel(model_path);       // Then load model
     loadApparatusRequirements(apparatus_csv_path);  // Load apparatus requirements
     
-    LOG_INFO("[MLFireModel] Initialized with {} expected input features", expected_input_features_);
+    // LOG_INFO("[MLFireModel] Initialized with {} expected input features", expected_input_features_);
 }
 
 
@@ -336,8 +336,15 @@ double MLFireModel::computeResolutionTime(State& state, const Incident& incident
         float predicted_time = onnx_predictor_->predict(features);
         
         if (predicted_time < 0) {
-            LOG_ERROR("[MLFireModel] ONNX prediction failed, using fallback");
+            LOG_ERROR("[MLFireModel] ONNX prediction failed {:.2f}, using fallback",predicted_time);
+
             return 45 * constants::SECONDS_IN_MINUTE; // Fallback
+        }
+
+        if (predicted_time > 150 * constants::SECONDS_IN_MINUTE) {
+            // LOG_ERROR("[MLFireModel] ONNX prediction failed {:.2f}, using fallback",predicted_time);
+
+            return 150 * constants::SECONDS_IN_MINUTE; // Fallback
         }
         
         // Ensure minimum response time (clamp to at least 1 minute)
@@ -364,6 +371,122 @@ void MLFireModel::loadONNXModel(const std::string& model_path) {
     
     LOG_INFO("[MLFireModel] Successfully loaded ONNX model");
 }
+
+// void MLFireModel::loadFeatureConfig(const std::string& config_path) {
+//     LOG_INFO("[MLFireModel] Loading feature configuration from: {}", config_path);
+    
+//     std::ifstream config_file(config_path);
+//     if (!config_file.is_open()) {
+//         LOG_ERROR("[MLFireModel] Cannot open feature config file: {}", config_path);
+//         throw std::runtime_error("Cannot open feature config file");
+//     }
+    
+//     try {
+//         config_file >> feature_config_;
+        
+//         // Extract model info
+//         if (feature_config_.contains("model_info")) {
+//             auto model_info = feature_config_["model_info"];
+//             expected_input_features_ = model_info.value("input_features", 0);
+//             model_type_ = model_info.value("model_type", "unknown");
+//         }
+        
+//         // Extract numerical features and scaling parameters
+//         if (feature_config_.contains("numerical_features")) {
+//             auto numerical_config = feature_config_["numerical_features"];
+//             numerical_features_ = numerical_config.value("names", std::vector<std::string>());
+            
+//             if (numerical_config.contains("scaler_params")) {
+//                 auto scaler_params = numerical_config["scaler_params"];
+//                 auto means = scaler_params.value("mean", std::vector<double>());
+//                 auto scales = scaler_params.value("scale", std::vector<double>());
+                
+//                 for (size_t i = 0; i < numerical_features_.size() && i < means.size() && i < scales.size(); ++i) {
+//                     numerical_scaling_[numerical_features_[i]] = {means[i], scales[i]};
+//                 }
+//             }
+//         }
+        
+//         // Extract categorical features and encodings
+//         if (feature_config_.contains("categorical_features")) {
+//             auto categorical_config = feature_config_["categorical_features"];
+//             categorical_features_ = categorical_config.value("original_names", std::vector<std::string>());
+            
+//             if (categorical_config.contains("categories")) {
+//                 auto categories = categorical_config["categories"];
+//                 for (auto& [feature_name, category_info] : categories.items()) {
+//                     std::map<std::string, int> feature_mapping;
+                    
+//                 if (category_info.contains("encoded_categories")) {
+//                     auto encoded_categories = category_info["encoded_categories"];
+//                     for (size_t i = 0; i < encoded_categories.size(); ++i) {
+//                         std::string category_value;
+//                         if (encoded_categories[i].is_string()) {
+//                             category_value = encoded_categories[i].get<std::string>();
+//                         } else {
+//                             // Convert numeric values to string with .0 format to match runtime usage
+//                             double val = encoded_categories[i].get<double>();
+//                             category_value = std::to_string(static_cast<int>(val)) + ".0";
+//                         }
+                        
+//                         // Handle NaN special case
+//                         if (encoded_categories[i].is_null() || 
+//                             (encoded_categories[i].is_string() && encoded_categories[i] == "NaN")) {
+//                             category_value = "nan";
+//                         }
+                        
+//                         feature_mapping[category_value] = static_cast<int>(i + 1); // +1 because first is dropped
+//                     }
+//                 }
+                
+//                 // Add dropped category as 0 (all zeros in one-hot)
+//                 if (category_info.contains("dropped_category")) {
+//                     std::string dropped_value;
+//                     auto dropped_category = category_info["dropped_category"];
+                    
+//                     if (dropped_category.is_string()) {
+//                         dropped_value = dropped_category.get<std::string>();
+//                     } else if (dropped_category.is_number()) {
+//                         // Convert numeric values to string with .0 format to match runtime usage
+//                         double val = dropped_category.get<double>();
+//                         dropped_value = std::to_string(static_cast<int>(val)) + ".0";
+//                     } else if (dropped_category.is_null()) {
+//                         dropped_value = "nan";
+//                     }
+                    
+//                     feature_mapping[dropped_value] = 0;
+//                 }
+                    
+//                     categorical_mappings_[feature_name] = feature_mapping;
+//                 }
+//             }
+//         }
+        
+//         // Extract the exact feature order from JSON - this is crucial!
+//         if (feature_config_.contains("feature_order")) {
+//             feature_order_ = feature_config_["feature_order"].get<std::vector<std::string>>();
+//             LOG_INFO("[MLFireModel] Loaded feature order with {} features", feature_order_.size());
+//         } else {
+//             LOG_WARN("[MLFireModel] No feature_order found in config, using default ordering");
+//         }
+        
+//         LOG_INFO("[MLFireModel] Loaded feature config - {} numerical, {} categorical features", 
+//                 numerical_features_.size(), categorical_features_.size());
+//         LOG_INFO("[MLFireModel] Expected input features: {}", expected_input_features_);
+        
+//         // Log first few features in the order for debugging
+//         if (!feature_order_.empty()) {
+//             LOG_INFO("[MLFireModel] First 20 features in order:");
+//             for (size_t i = 0; i < std::min(static_cast<size_t>(20), feature_order_.size()); ++i) {
+//                 LOG_INFO("  [{}] {}", i, feature_order_[i]);
+//             }
+//         }
+        
+//     } catch (const std::exception& e) {
+//         LOG_ERROR("[MLFireModel] Error parsing feature config: {}", e.what());
+//         throw std::runtime_error("Error parsing feature config");
+//     }
+// }
 
 void MLFireModel::loadFeatureConfig(const std::string& config_path) {
     LOG_INFO("[MLFireModel] Loading feature configuration from: {}", config_path);
@@ -394,7 +517,14 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
                 auto means = scaler_params.value("mean", std::vector<double>());
                 auto scales = scaler_params.value("scale", std::vector<double>());
                 
-                for (size_t i = 0; i < numerical_features_.size() && i < means.size() && i < scales.size(); ++i) {
+                // ✅ FIX: Add validation for array sizes
+                if (means.size() != numerical_features_.size() || scales.size() != numerical_features_.size()) {
+                    LOG_ERROR("[MLFireModel] Scaling parameter count mismatch: features={}, means={}, scales={}", 
+                             numerical_features_.size(), means.size(), scales.size());
+                    throw std::runtime_error("Scaling parameter count mismatch");
+                }
+                
+                for (size_t i = 0; i < numerical_features_.size(); ++i) {
                     numerical_scaling_[numerical_features_[i]] = {means[i], scales[i]};
                 }
             }
@@ -405,52 +535,83 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
             auto categorical_config = feature_config_["categorical_features"];
             categorical_features_ = categorical_config.value("original_names", std::vector<std::string>());
             
+            // ✅ FIX: Use correct JSON structure path
             if (categorical_config.contains("categories")) {
                 auto categories = categorical_config["categories"];
                 for (auto& [feature_name, category_info] : categories.items()) {
                     std::map<std::string, int> feature_mapping;
                     
-                if (category_info.contains("encoded_categories")) {
-                    auto encoded_categories = category_info["encoded_categories"];
-                    for (size_t i = 0; i < encoded_categories.size(); ++i) {
-                        std::string category_value;
-                        if (encoded_categories[i].is_string()) {
-                            category_value = encoded_categories[i].get<std::string>();
-                        } else {
-                            // Convert numeric values to string with .0 format to match runtime usage
-                            double val = encoded_categories[i].get<double>();
-                            category_value = std::to_string(static_cast<int>(val)) + ".0";
+                    if (category_info.contains("encoded_categories")) {
+                        auto encoded_categories = category_info["encoded_categories"];
+                        for (size_t i = 0; i < encoded_categories.size(); ++i) {
+                            std::string category_value;
+                            
+                            // ✅ FIX: Handle null values first, then convert
+                            if (encoded_categories[i].is_null()) {
+                                category_value = "nan";
+                            } else if (encoded_categories[i].is_string()) {
+                                category_value = encoded_categories[i].get<std::string>();
+                                if (category_value == "NaN") {
+                                    category_value = "nan";  // Normalize NaN representation
+                                }
+                            } else if (encoded_categories[i].is_number()) {
+                                // ✅ FIX: Better numeric conversion handling
+                                if (encoded_categories[i].is_number_integer()) {
+                                    int val = encoded_categories[i].get<int>();
+                                    category_value = std::to_string(val) + ".0";
+                                } else {
+                                    double val = encoded_categories[i].get<double>();
+                                    // Check if it's effectively an integer
+                                    if (val == std::floor(val)) {
+                                        category_value = std::to_string(static_cast<int>(val)) + ".0";
+                                    } else {
+                                        category_value = std::to_string(val);
+                                    }
+                                }
+                            } else {
+                                LOG_WARN("[MLFireModel] Unknown category type for {}, using string conversion", feature_name);
+                                category_value = encoded_categories[i].dump();
+                            }
+                            
+                            feature_mapping[category_value] = static_cast<int>(i + 1); // +1 because first is dropped
+                        }
+                    }
+                    
+                    // Add dropped category as 0 (all zeros in one-hot)
+                    if (category_info.contains("dropped_category")) {
+                        auto dropped_category = category_info["dropped_category"];
+                        std::string dropped_value;
+                        
+                        // ✅ FIX: Same null handling for dropped category
+                        if (dropped_category.is_null()) {
+                            dropped_value = "nan";
+                        } else if (dropped_category.is_string()) {
+                            dropped_value = dropped_category.get<std::string>();
+                            if (dropped_value == "NaN") {
+                                dropped_value = "nan";
+                            }
+                        } else if (dropped_category.is_number()) {
+                            if (dropped_category.is_number_integer()) {
+                                int val = dropped_category.get<int>();
+                                dropped_value = std::to_string(val) + ".0";
+                            } else {
+                                double val = dropped_category.get<double>();
+                                if (val == std::floor(val)) {
+                                    dropped_value = std::to_string(static_cast<int>(val)) + ".0";
+                                } else {
+                                    dropped_value = std::to_string(val);
+                                }
+                            }
                         }
                         
-                        // Handle NaN special case
-                        if (encoded_categories[i].is_null() || 
-                            (encoded_categories[i].is_string() && encoded_categories[i] == "NaN")) {
-                            category_value = "nan";
-                        }
-                        
-                        feature_mapping[category_value] = static_cast<int>(i + 1); // +1 because first is dropped
+                        feature_mapping[dropped_value] = 0;
                     }
-                }
-                
-                // Add dropped category as 0 (all zeros in one-hot)
-                if (category_info.contains("dropped_category")) {
-                    std::string dropped_value;
-                    auto dropped_category = category_info["dropped_category"];
-                    
-                    if (dropped_category.is_string()) {
-                        dropped_value = dropped_category.get<std::string>();
-                    } else if (dropped_category.is_number()) {
-                        // Convert numeric values to string with .0 format to match runtime usage
-                        double val = dropped_category.get<double>();
-                        dropped_value = std::to_string(static_cast<int>(val)) + ".0";
-                    } else if (dropped_category.is_null()) {
-                        dropped_value = "nan";
-                    }
-                    
-                    feature_mapping[dropped_value] = 0;
-                }
                     
                     categorical_mappings_[feature_name] = feature_mapping;
+                    
+                    // ✅ ADD: Debug logging for categorical mappings
+                    LOG_DEBUG("[MLFireModel] Loaded categorical mapping for '{}' with {} categories", 
+                             feature_name, feature_mapping.size());
                 }
             }
         }
@@ -459,8 +620,16 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
         if (feature_config_.contains("feature_order")) {
             feature_order_ = feature_config_["feature_order"].get<std::vector<std::string>>();
             LOG_INFO("[MLFireModel] Loaded feature order with {} features", feature_order_.size());
+            
+            // ✅ ADD: Validate feature order matches expected count
+            if (static_cast<int>(feature_order_.size()) != expected_input_features_) {
+                LOG_ERROR("[MLFireModel] Feature order size ({}) doesn't match expected features ({})", 
+                         feature_order_.size(), expected_input_features_);
+                throw std::runtime_error("Feature order size mismatch");
+            }
         } else {
-            LOG_WARN("[MLFireModel] No feature_order found in config, using default ordering");
+            LOG_ERROR("[MLFireModel] No feature_order found in config - this is required!");
+            throw std::runtime_error("Missing feature_order in config");
         }
         
         LOG_INFO("[MLFireModel] Loaded feature config - {} numerical, {} categorical features", 
@@ -468,16 +637,14 @@ void MLFireModel::loadFeatureConfig(const std::string& config_path) {
         LOG_INFO("[MLFireModel] Expected input features: {}", expected_input_features_);
         
         // Log first few features in the order for debugging
-        if (!feature_order_.empty()) {
-            LOG_INFO("[MLFireModel] First 20 features in order:");
-            for (size_t i = 0; i < std::min(static_cast<size_t>(20), feature_order_.size()); ++i) {
-                LOG_INFO("  [{}] {}", i, feature_order_[i]);
-            }
+        LOG_INFO("[MLFireModel] First 20 features in order:");
+        for (size_t i = 0; i < std::min(static_cast<size_t>(20), feature_order_.size()); ++i) {
+            LOG_INFO("  [{}] {}", i, feature_order_[i]);
         }
         
     } catch (const std::exception& e) {
         LOG_ERROR("[MLFireModel] Error parsing feature config: {}", e.what());
-        throw std::runtime_error("Error parsing feature config");
+        throw std::runtime_error("Error parsing feature config: " + std::string(e.what()));
     }
 }
 
