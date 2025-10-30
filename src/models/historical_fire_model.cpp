@@ -13,6 +13,8 @@ HistoricalFireModel::HistoricalFireModel(unsigned int seed, const std::string& c
 
 void HistoricalFireModel::loadApparatusRequirements(const std::string& csv_path) {
     std::ifstream file(csv_path);
+    
+    LOG_INFO("[HistoricalFireModel] Loading apparatus requirements from: {}", csv_path);
     std::string line;
     bool first = true;
     while (std::getline(file, line)) {
@@ -42,6 +44,10 @@ void HistoricalFireModel::loadApparatusRequirements(const std::string& csv_path)
         if (tokens.size() > 13 && !tokens[13].empty()) reqs[ApparatusType::Reach] = std::stoi(tokens[13]);
         if (tokens.size() > 14 && !tokens[14].empty()) reqs[ApparatusType::Chief] = std::stoi(tokens[14]);
 
+        if (reqs.size() == 0) {
+            LOG_WARN("[HistoricalFireModel] No apparatus requirements found for category: {}", tokens[0]);
+            throw IncidentRequirementsError("No apparatus requirements found for category: " + tokens[0]);
+        }
         apparatus_requirements_[cat] = reqs;
         
     }

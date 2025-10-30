@@ -1,5 +1,4 @@
 #pragma once
-#include <exception>
 #include <stdexcept>
 #include <string>
 
@@ -48,5 +47,11 @@ public:
 class StationIndexMismatchError : public std::runtime_error {
 public:
     explicit StationIndexMismatchError(const std::string& msg="Station index mismatch error")
+        : std::runtime_error(msg) {}
+};
+
+class IncidentRequirementsError : public std::runtime_error {
+public:
+    explicit IncidentRequirementsError(const std::string& msg="Incident requirements error")
         : std::runtime_error(msg) {}
 };
