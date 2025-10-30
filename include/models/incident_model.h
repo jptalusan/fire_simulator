@@ -28,6 +28,9 @@ public:
     virtual bool load(const std::vector<Incident>& incidents) = 0;
     virtual bool load(const std::string& csvPath) = 0;
     virtual bool load() = 0;
+    
+    std::vector<int> outstandingIncidentIndices_;
+    int currentIncidentIdx_ = 0;
 protected:
     ServiceTimeAndApparatusModel& fireModel_;
 };

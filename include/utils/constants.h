@@ -28,6 +28,8 @@ namespace constants {
     inline static constexpr double RESPOND_DELAY_SECONDS = 60.0;
     inline static constexpr double DISPATCH_BUFFER_SECONDS = 600.0;
 
+    inline static constexpr time_t STEP_FORWARD_TIME = 300; // 5 minutes
+
     // Incident Levels
     inline static constexpr const char* INCIDENT_LEVEL_LOW = "Low";
     inline static constexpr const char* INCIDENT_LEVEL_MODERATE = "Moderate";

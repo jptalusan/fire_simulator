@@ -14,6 +14,7 @@ public:
     double lat;
     double lon;
     time_t reportTime;
+    time_t originalReportTime; // Time when the incident was originally reported
     time_t timeRespondedTo; // Time when the incident was responded to
     time_t resolvedTime; // Time when the incident was resolved
     int incidentIndex;
@@ -38,6 +39,7 @@ public:
         : lat(0.0),
           lon(0.0),
           reportTime(std::time(nullptr)),
+          originalReportTime(std::time(nullptr)),
           timeRespondedTo(std::time(nullptr)),
           resolvedTime(std::time(nullptr)),
           incidentIndex(-1),

@@ -34,7 +34,7 @@ const std::vector<Action> NearestDispatch::getAction(const State& state) const {
         for (const auto& vehicleId : _emsVehicleIds) {
             // std::cout << "Found EMS Vehicle ID: " << vehicleId << " at Station: " << station.getStationId() << std::endl;
             const Vehicle& vehicle = state.getConstVehicleList().at(vehicleId);
-            if (vehicle.getStatus() != ApparatusStatus::Available) {
+            if ((vehicle.getStatus() != ApparatusStatus::Available) && (vehicle.getStatus() != ApparatusStatus::ReturningToStation)) {
                 continue; // Skip non-available vehicles
             }
             emsVehicles.push_back(vehicle);
@@ -60,6 +60,12 @@ std::vector<Action> NearestDispatch::getEMSForIncident([[maybe_unused]]const Sta
     const std::vector<Vehicle>& vehicles) const {
 
     std::vector<Action> actions = {};
+
+    if (locations.size() <= 0) {
+        LOG_DEBUG("No EMS vehicle locations available for incident {}", incident.incidentIndex);
+        return actions;
+    }
+    
     std::vector<std::vector<double>> tableMatrix = 
             travelTimeModel_.getTravelTimeMatrix(locations, std::vector{incident.getLocation()});
 
@@ -106,6 +112,8 @@ std::vector<Action> NearestDispatch::getFireVehiclesForIncident(const State& sta
     const std::vector<Location>& locations) const {
 
     std::vector<Action> actions = {};
+
+    // TODO: Check if there are actually available vehicles of needed types
 
     std::vector<std::vector<double>> tableMatrix = 
         travelTimeModel_.getTravelTimeMatrix(locations, std::vector{incident.getLocation()});

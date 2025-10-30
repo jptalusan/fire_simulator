@@ -3,6 +3,7 @@
 #include "utils/logger.h"
 #include <algorithm>
 #include <fstream>
+#include "utils/constants.h"
 
 bool EmpiricalIncidentModel::load(const std::string& csvPath) {
     try {
@@ -40,23 +41,37 @@ bool EmpiricalIncidentModel::load() {
     return false;
 }
 
+// TDOO: Critical. having an outstanding incident is important but it should be handled better
+/*
+what about other existing incidents that have just been "reported". right now they get overwritten reusling in only one outstanding incident at a time
+*/
 std::optional<Incident> EmpiricalIncidentModel::getNextIncident(std::time_t time) {
-
-    // Find the first incident with report time >= the given time
-    auto it = std::upper_bound(incidents_.begin(), incidents_.end(), time,
-        [](std::time_t t, const Incident& incident) {
-            return t < incident.reportTime;
-        });
-    
-    if (it != incidents_.end()) {
-        std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(*it);
-        it->setRequiredApparatusMap(requiredApparatusMap); // Set the required apparatus map for the incident
-        it->status = IncidentStatus::hasBeenReported; // Update status to reported
-        return *it;
+    if (incidents_.size() <= static_cast<size_t>(currentIncidentIdx_)) {
+        LOG_WARN("No more incidents available in EmpiricalIncidentModel");
+        return std::nullopt;
     }
-    
-    // No incident found at or after the given time
-    return std::nullopt;
+
+    // Get reference to the incident in the vector (not a copy)
+    Incident& incident = incidents_.at(currentIncidentIdx_);
+    auto it = std::find(outstandingIncidentIndices_.begin(), outstandingIncidentIndices_.end(), incident.incidentIndex);
+
+    if (it != outstandingIncidentIndices_.end()) {
+        incident.reportTime = time + constants::STEP_FORWARD_TIME;
+        return incident;
+    } else {
+        if (incident.reportTime < time) {
+            incident.reportTime = time;
+        }
+        std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
+        // print required apparatus map for debugging
+        LOG_DEBUG("Incident {} requires apparatus:", incident.incidentIndex);
+        for (const auto& [type, count] : requiredApparatusMap) {
+            LOG_DEBUG("  {}: {}", to_string(type), count);
+        }
+        incident.setRequiredApparatusMap(requiredApparatusMap); // Set the required apparatus map for the incident
+        incident.status = IncidentStatus::hasBeenReported; // Update status to reported
+        return incident;
+    }
 }
 
 size_t EmpiricalIncidentModel::getIncidentCount() const {

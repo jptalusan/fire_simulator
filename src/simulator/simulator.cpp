@@ -32,6 +32,20 @@ Simulator::Simulator(State &initialState,
 StepResult Simulator::step(const std::vector<Action>& actions) {
     LOG_DEBUG("[{}] Taking {} actions.", utils::formatTime(state_.getSystemTime()), actions.size());
     // Take the actions from the policy and update the environment
+    if (actions.empty() || actions[0].type == StationActionType::DoNothing) {
+        const Incident& incident = state_.newIncident_.value();
+        incidentModel_.outstandingIncidentIndices_.push_back(incident.incidentIndex);
+    } else {
+        // Delete from the outstanding incidents list if it has an action associated with it.
+        const Incident& incident = state_.newIncident_.value();
+        // check if incident.incidentIndex is in outstandingIncidentIndices_
+        auto it = std::find(incidentModel_.outstandingIncidentIndices_.begin(), incidentModel_.outstandingIncidentIndices_.end(), incident.incidentIndex);
+        if (it != incidentModel_.outstandingIncidentIndices_.end()) {
+            incidentModel_.outstandingIncidentIndices_.erase(it);
+        }
+        incidentModel_.currentIncidentIdx_++;
+    }
+
     logActions(actions, state_.getSystemTime());
     state_ = environment_.takeActions(state_, actions);
 
@@ -272,7 +286,7 @@ void Simulator::writeIncidentReport() const {
         csv << std::fixed << std::setprecision(6);
         csv << incident.incidentIndex << ","
             << incident.incident_id << ","
-            << utils::formatTime(incident.reportTime) << ","
+            << utils::formatTime(incident.originalReportTime) << ","
             << utils::formatTime(incident.timeRespondedTo) << ","
             << utils::formatTime(incident.resolvedTime);
 

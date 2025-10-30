@@ -132,6 +132,9 @@ std::vector<std::vector<double>> generate_duration_traveltime_matrix(
 
         if (json_resp["code"] != "Ok") {
             std::cerr << "OSRM error: " << json_resp["code"] << "\n";
+            std::cerr << "Number of sources: " << sources.size() << "\n";
+            std::cerr << "Number of destinations: " << destinations.size() << "\n";
+            std::cerr << "URL: " << full_url << "\n";
             continue;
         }
         

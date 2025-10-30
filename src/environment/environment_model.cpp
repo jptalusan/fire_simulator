@@ -22,6 +22,8 @@ State& EnvironmentModel::takeActions(State& state, const std::vector<Action>& ac
     for (const auto& action : actions) {
         if (action.type == StationActionType::Dispatch) {
             double travelTime = action.payload.travelTime;
+            // print travel time
+            LOG_DEBUG("[{}] Vehicle {} is dispatched to incident {}, travel time: {:.2f} s", utils::formatTime(currentTime), action.payload.vehicleIndex, incident.incidentIndex, travelTime);
             int vehicleIndex = action.payload.vehicleIndex;
             Vehicle& vehicle = state.getVehicleList().at(vehicleIndex);
             vehicle.setStatus(ApparatusStatus::Dispatched);

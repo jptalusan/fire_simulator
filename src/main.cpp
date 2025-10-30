@@ -215,9 +215,10 @@ int main(int argc, char* argv[]) {
         incidentModel = std::make_unique<EmpiricalIncidentModel>(*fireModel);
         // HACK: Last incident that gets reported the next day
         Incident extra_incident = incidents.back();
-        extra_incident.reportTime += 86400; // Add one day in seconds
-        extra_incident.incidentIndex += 1;
-        extra_incident.incident_id += 1;
+        extra_incident.originalReportTime = extra_incident.originalReportTime + 86400; // Add one day in seconds
+        extra_incident.reportTime = extra_incident.reportTime + 86400; // Add one day in seconds
+        extra_incident.incidentIndex = extra_incident.incidentIndex + 1;
+        extra_incident.incident_id = extra_incident.incident_id + 1;
         incidents.push_back(extra_incident);
         incidentModel->load(incidents);
     } else {
@@ -244,7 +245,7 @@ int main(int argc, char* argv[]) {
     Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
     initial_state = simulator.reset();
 
-    int num_steps = incidents.size();
+    int num_steps = 10000;
     for (int step = 0; step < num_steps; ++step) {
         std::vector<Action> actions = policy->getAction(initial_state);
         StepResult result = simulator.step(actions);
