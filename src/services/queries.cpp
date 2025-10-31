@@ -26,7 +26,8 @@ bool checkOSRM(const std::string& base_url) {
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/dash-selfsigned.crt");
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     res = curl_easy_perform(curl);
     bool is_ok = false;
 

@@ -20,6 +20,8 @@ std::string fetch_osrm_response(const std::string& full_url) {
         curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/dash-selfsigned.crt");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
         // Optional: curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 
         CURLcode res = curl_easy_perform(curl);
@@ -220,7 +222,7 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
         auto json_resp = json::parse(response);
 
         if (json_resp["code"] != "Ok") {
-            std::cerr << "OSRM error: " << json_resp["code"] << "\n";
+            std::cerr << "OSRM error: " << full_url << "," << json_resp["code"] << "\n";
             continue;
         }
         
@@ -233,8 +235,8 @@ std::pair<std::vector<std::vector<double>>, std::vector<std::vector<double>>> ge
                 if (durations[row][col].is_null()) {
                     full_distance_matrix[row][dst_index] = -1.0; // Unreachable
                     throw OSRMError(
-                        fmt::format("Unreachable route from source {} to destination {}",
-                                    row, dst_index));
+                        fmt::format("{} Unreachable route from source {} to destination {}",
+                                    full_url, row, dst_index));
                 } else {
                     full_duration_matrix[row][dst_index] = durations[row][col].get<double>();
                 }
@@ -535,7 +537,8 @@ std::string queryOverpassAPI(Location center, double radius) {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL); // Optional: Set HTTP headers if needed
-
+        curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/dash-selfsigned.crt");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
         // Perform the request
         res = curl_easy_perform(curl);
 
