@@ -19,6 +19,7 @@ namespace constants {
     inline static constexpr const char* POLICY_EMPIRICAL = "EMPIRICAL";
     inline static constexpr const char* POLICY_OSRM = "OSRM";
     inline static constexpr const char* POLICY_GIS = "GIS";
+    inline static constexpr const char* POLICY_INTERPOLATED = "INTERPOLATED";
 
     // Numeric constants
     inline static constexpr int DEFAULT_NUM_FIRE_TRUCKS = 2;

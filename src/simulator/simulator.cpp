@@ -158,7 +158,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                             if (index >= routeSize) index = routeSize - 1;
                             double lat = routeInfo.second[index].lat;
                             double lon = routeInfo.second[index].lon;
-                            LOG_DEBUG("[{}] Vehicle {} current location updated from ({}) to ({}, {})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), lat, lon);
+                            LOG_DEBUG("[{}] Vehicle {} current location updated from ({}, {}) to ({}, {})", utils::formatTime(sim_time), vehicle.getVehicleId(), sim_location.lat, sim_location.lon, lat, lon);
                             vehicle.setCurrentLocation(Location(lat, lon));
                         }
                     // Vehicle has returned to station

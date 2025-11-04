@@ -69,7 +69,7 @@ std::pair<float, std::vector<Location>> generate_route(
         // Note: GeoJSON format is [longitude, latitude]
         double lon = coord[0].get<double>();
         double lat = coord[1].get<double>();
-        coordinates.push_back(Location{lon, lat});
+        coordinates.push_back(Location{lat, lon});
     }
 
     return {duration, coordinates};
