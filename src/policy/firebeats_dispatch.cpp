@@ -140,6 +140,11 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
         bool enoughDispatched = false;
         if (type == ApparatusType::Medic) { // For EMS
             for (int index : emsSortedIndices) {
+                if (index < 0) {
+                    LOG_DEBUG("[{}] No more available {}, Dispatched {}, needed {}", utils::formatTime(state.getSystemTime()), to_string(type), dispatchedCount, neededCount);
+                    continue;
+                }
+
                 const Vehicle& vehicle = emsVehicles.at(index);
                 if (vehicle.getStatus() != ApparatusStatus::Available) {
                     continue; // Skip non-available vehicles
@@ -156,8 +161,12 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
                 }
             }
         } else { // Fire apparatus
-            for (int index : beatStationIndices) {
+            for (const auto& index : beatStationIndices) {
                 
+                if (index < 0) {
+                    LOG_DEBUG("[{}] No more available {}, Dispatched {}, needed {}", utils::formatTime(state.getSystemTime()), to_string(type), dispatchedCount, neededCount);
+                    continue;
+                }
                 const FireStation& station = state.getAllStations().at(index);
 
                 std::vector<int> vehicleIds = station.getAvailableApparatus(type);

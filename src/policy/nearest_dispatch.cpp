@@ -82,7 +82,11 @@ std::vector<Action> NearestDispatch::getEMSForIncident([[maybe_unused]]const Sta
                 break; // Already dispatched enough of this type
             }
             
-            const Vehicle& vehicle = vehicles[index];
+            if (index < 0) {
+                LOG_DEBUG("[{}] No more available {}, Dispatched {}, needed {}", utils::formatTime(state.getSystemTime()), to_string(type), dispatchedCount, neededCount);
+                continue;
+            }
+            const Vehicle& vehicle = vehicles.at(index);
             if ((vehicle.getStatus() != ApparatusStatus::Available) && 
                 (vehicle.getStatus() != ApparatusStatus::ReturningToStation)) {
                 LOG_DEBUG("Skipping EMS Vehicle ID: {} as it is not available.", vehicle.getVehicleId());
@@ -129,6 +133,10 @@ std::vector<Action> NearestDispatch::getFireVehiclesForIncident(const State& sta
 
         for (int index : sortedIndices) {
             
+            if (index < 0) {
+                LOG_DEBUG("[{}] No more available {}, Dispatched {}, needed {}", utils::formatTime(state.getSystemTime()), to_string(type), dispatchedCount, neededCount);
+                continue;
+            }
             const FireStation& station = state.getAllStations().at(index);
 
             std::vector<int> vehicleIds = station.getAvailableApparatus(type);
