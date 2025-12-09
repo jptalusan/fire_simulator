@@ -114,8 +114,11 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
     int zoneIndex = incident.zoneIndex;
     // Check if the zone index is valid
     if (beatsIndexToNameMap_.find(zoneIndex) == beatsIndexToNameMap_.end()) {
-        LOG_ERROR("Invalid zone index: {} for incident {}", zoneIndex, incident.incident_id);
-        throw InvalidValueError("Invalid zone index for incident: " + std::to_string(incident.incident_id));
+        LOG_WARN("Invalid zone index: {} for incident {}. Skipping incident.", zoneIndex, incident.incident_id);
+        // Return a special "skip" action to indicate this incident should be skipped
+        Action skipAction = Action::createDoNothingAction();
+        skipAction.shouldSkipIncident = true;
+        return std::vector<Action>{skipAction};
     }
 
     // Given the zoneIndex (or beats ID like 38R4, find the column for that which is the order of first to last station in the beats)

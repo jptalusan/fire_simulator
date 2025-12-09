@@ -29,6 +29,7 @@ class Action {
 public:
     StationActionType type;
     ActionPayload payload;  // Direct struct instead of map
+    bool shouldSkipIncident = false;  // Flag to indicate incident should be skipped entirely
     
     Action() = default;
     Action(StationActionType type_, const ActionPayload& payload_ = {})

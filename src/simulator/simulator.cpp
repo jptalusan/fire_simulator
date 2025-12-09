@@ -31,8 +31,18 @@ Simulator::Simulator(State &initialState,
 
 StepResult Simulator::step(const std::vector<Action>& actions) {
     LOG_DEBUG("[{}] Taking {} actions.", utils::formatTime(state_.getSystemTime()), actions.size());
-    // Take the actions from the policy and update the environment
-    if (actions.empty() || actions[0].type == StationActionType::DoNothing) {
+    
+    // Check if this incident should be skipped (e.g., invalid zone ID)
+    bool shouldSkip = !actions.empty() && actions[0].shouldSkipIncident;
+    
+    if (shouldSkip) {
+        // Skip this incident entirely - don't add to outstanding, just move to next
+        LOG_INFO("[{}] Skipping incident {} due to invalid data", 
+                 utils::formatTime(state_.getSystemTime()), 
+                 state_.newIncident_.value().incident_id);
+        incidentModel_.currentIncidentIdx_++;
+    } else if (actions.empty() || actions[0].type == StationActionType::DoNothing) {
+        // Normal do-nothing case: add to outstanding incidents
         const Incident& incident = state_.newIncident_.value();
         incidentModel_.outstandingIncidentIndices_.push_back(incident.incidentIndex);
     } else {
@@ -130,6 +140,7 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         // Calculate vehicle travel time back to station...
                         std::pair<float, std::vector<Location>> routeInfo = travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
                         float timeToReturn = routeInfo.first; // in seconds
+                        timeToReturn+=25.0*60.0; // Adding 25 minutes delay before returning
                         vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
                         vehicle.setIncidentIndex(-1); // Clear incident index as vehicle is leaving
                         vehicle.timeToStartedReturning = sim_time;
