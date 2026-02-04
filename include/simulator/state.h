@@ -7,6 +7,7 @@
 #include "objects/incident.h"
 #include "objects/firestation.h"
 #include "objects/vehicle.h"
+#include "objects/hospital.h"
 
 class State {
 public:
@@ -37,12 +38,21 @@ public:
     void returnApparatus(ApparatusType type, int count, const std::vector<int>& apparatusIds);
     
     std::optional<Incident> newIncident_ = std::nullopt;
+
+    // Hospital management
+    void setHospitals(std::vector<Hospital> hospitals);
+    const std::vector<Hospital>& getHospitals() const;
+    const Hospital& getHospital(int index) const;
+    int findNearestHospital(const Location& location) const;
+    bool hasHospitals() const { return !hospitals_.empty(); }
+
 private:
     std::time_t system_time_;
     std::vector<FireStation> stations_;
     std::vector<Vehicle> vehicleList_;
     std::unordered_map<int, Incident> activeIncidents_;
     std::vector<std::string> stationMetrics_;
+    std::vector<Hospital> hospitals_;
 };
 
 #endif // STATE_H

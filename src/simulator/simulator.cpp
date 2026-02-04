@@ -19,14 +19,15 @@ std::vector<ApparatusType> apparatusTypes = {
     ApparatusType::Chief
 };
 
-Simulator::Simulator(State &initialState, 
+Simulator::Simulator(State &initialState,
                      IncidentModel &incidentModel,
                      TravelTimeModel &travelTimeModel,
                      EnvironmentModel &environmentModel,
-                     DispatchPolicy &dispatchPolicy)
+                     DispatchPolicy &dispatchPolicy,
+                     EMSServiceModel &emsServiceModel)
     : state_(initialState), environment_(environmentModel),
       dispatchPolicy_(dispatchPolicy), incidentModel_(incidentModel),
-      travelTimeModel_(travelTimeModel) {
+      travelTimeModel_(travelTimeModel), emsServiceModel_(emsServiceModel) {
 }
 
 StepResult Simulator::step(const std::vector<Action>& actions) {
@@ -118,6 +119,12 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         LOG_DEBUG("[{}] Vehicle {} has arrived at from ({}) incident: {} at ({})", utils::formatTime(sim_time), vehicle.getVehicleId(), locationToString(sim_location), incidentIndex, locationToString(incident.getLocation()));
                         vehicle.timeStartedToDispatch = -1;
                         vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
+
+                        // Track arrival time for Medics (for EMS transport reporting)
+                        if (vehicle.getType() == ApparatusType::Medic) {
+                            vehicle.setIncidentArrivalTime(sim_time);
+                            vehicle.setTransportIncidentIndex(incidentIndex);
+                        }
                     } else {
                         sim_time = end_time;
                     }
@@ -126,31 +133,154 @@ State& Simulator::simulate_time_step(time_t end_time) {
                 case ApparatusStatus::AtIncident: {
                     int incidentIndex = vehicle.getIncidentIndex();
                     Incident& incident = incidentsMap.at(incidentIndex);
-                    time_t timeToResolve = incident.resolvedTime;
-                    if (timeToResolve > end_time) {
-                        sim_time = end_time;
-                        incident.status = IncidentStatus::isBeingResolved;
-                        LOG_DEBUG("[{}] Vehicle {} is at the incident, resolving...", utils::formatTime(sim_time), vehicle.getVehicleId());
-                        state_.getActiveIncidents().at(incidentIndex) = incident; // Update the incident in the active incidents map
-                    } else if (timeToResolve <= end_time) {
-                        sim_time = timeToResolve;
-                        // Incident has been resolved, vehicle is returning to station
-                        vehicle.setStatus(ApparatusStatus::ReturningToStation);
-                        incident.status = IncidentStatus::hasBeenResolved;
-                        // Calculate vehicle travel time back to station...
-                        std::pair<float, std::vector<Location>> routeInfo = travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
-                        float timeToReturn = routeInfo.first; // in seconds
-                        timeToReturn+=25.0*60.0; // Adding 25 minutes delay before returning
-                        vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
-                        vehicle.setIncidentIndex(-1); // Clear incident index as vehicle is leaving
-                        vehicle.timeToStartedReturning = sim_time;
-                        vehicle.setTimeToIncident(-1);
-                        LOG_DEBUG("[{}] Vehicle {} is done and returning to {} by {}", utils::formatTime(sim_time), vehicle.getVehicleId(), vehicle.getStationId(), utils::formatTime(vehicle.getTimeToReturn()));
-                        // state_.getActiveIncidents().at(incidentIndex) = incident; // Update the incident in the active incidents map
-                        doneIncidents_.insert({incidentIndex, incident});
-                        // state_.getActiveIncidents().erase(incidentIndex); // Remove the incident from active incidents
+
+                    // EMS/Medic has separate scene time and transport logic
+                    if (vehicle.getType() == ApparatusType::Medic) {
+                        // First time at incident - compute EMS scene time and transport decision
+                        if (vehicle.getEmsSceneEndTime() <= 0) {
+                            double emsSceneTime = emsServiceModel_.computeEMSSceneTime(incident);
+                            vehicle.setEmsSceneEndTime(sim_time + static_cast<time_t>(emsSceneTime));
+                            vehicle.setRequiresTransport(emsServiceModel_.requiresHospitalTransport(incident));
+                            LOG_DEBUG("[{}] Medic {} at incident {}: scene time={:.0f}s, transport={}",
+                                      utils::formatTime(sim_time), vehicle.getVehicleId(), incidentIndex,
+                                      emsSceneTime, vehicle.getRequiresTransport() ? "yes" : "no");
+                        }
+
+                        if (vehicle.getEmsSceneEndTime() > end_time) {
+                            sim_time = end_time;
+                            incident.status = IncidentStatus::isBeingResolved;
+                            LOG_DEBUG("[{}] Medic {} at incident, EMS scene time remaining...",
+                                      utils::formatTime(sim_time), vehicle.getVehicleId());
+                        } else {
+                            sim_time = vehicle.getEmsSceneEndTime();
+
+                            if (vehicle.getRequiresTransport() && state_.hasHospitals()) {
+                                // Transport required - select hospital and transition
+                                int hospitalIdx = emsServiceModel_.selectHospital(incident, state_, travelTimeModel_);
+                                vehicle.setHospitalIndex(hospitalIdx);
+                                vehicle.setStatus(ApparatusStatus::EnRouteToHospital);
+
+                                const Hospital& hospital = state_.getHospital(hospitalIdx);
+                                auto [travelTime, route] = travelTimeModel_.getTravelTimeAndRoute(
+                                    vehicle.getCurrentLocation(), hospital.getLocation());
+                                vehicle.setTimeToHospital(sim_time + static_cast<time_t>(travelTime));
+
+                                LOG_DEBUG("[{}] Medic {} transporting to hospital {} (idx={}), ETA={}",
+                                          utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                          hospital.getName(), hospitalIdx,
+                                          utils::formatTime(vehicle.getTimeToHospital()));
+                            } else {
+                                // No transport - return directly to station
+                                vehicle.setStatus(ApparatusStatus::ReturningToStation);
+                                auto [timeToReturn, route] = travelTimeModel_.getTravelTimeAndRoute(
+                                    vehicle.getCurrentLocation(), vehicle.getStationLocation());
+                                vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
+                                vehicle.timeToStartedReturning = sim_time;
+                                LOG_DEBUG("[{}] Medic {} no transport, returning to station by {}",
+                                          utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                          utils::formatTime(vehicle.getTimeToReturn()));
+                            }
+                            vehicle.setIncidentIndex(-1);
+                            vehicle.setTimeToIncident(-1);
+                        }
                     } else {
+                        // Fire apparatus: existing behavior (wait for incident resolution + post-scene delay)
+                        time_t timeToResolve = incident.resolvedTime;
+                        if (timeToResolve > end_time) {
+                            sim_time = end_time;
+                            incident.status = IncidentStatus::isBeingResolved;
+                            LOG_DEBUG("[{}] Vehicle {} is at the incident, resolving...",
+                                      utils::formatTime(sim_time), vehicle.getVehicleId());
+                            state_.getActiveIncidents().at(incidentIndex) = incident;
+                        } else if (timeToResolve <= end_time) {
+                            sim_time = timeToResolve;
+                            vehicle.setStatus(ApparatusStatus::ReturningToStation);
+                            incident.status = IncidentStatus::hasBeenResolved;
+
+                            std::pair<float, std::vector<Location>> routeInfo =
+                                travelTimeModel_.getTravelTimeAndRoute(sim_location, vehicle.getStationLocation());
+                            float timeToReturn = routeInfo.first;
+                            timeToReturn += 25.0f * 60.0f; // Post-scene delay for fire apparatus
+                            vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
+                            vehicle.setIncidentIndex(-1);
+                            vehicle.timeToStartedReturning = sim_time;
+                            vehicle.setTimeToIncident(-1);
+                            LOG_DEBUG("[{}] Vehicle {} is done and returning to {} by {}",
+                                      utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                      vehicle.getStationId(), utils::formatTime(vehicle.getTimeToReturn()));
+                            doneIncidents_.insert({incidentIndex, incident});
+                        } else {
+                            sim_time = end_time;
+                        }
+                    }
+                    break;
+                }
+                case ApparatusStatus::EnRouteToHospital: {
+                    // EMS vehicle transporting patient to hospital
+                    if (vehicle.getTimeToHospital() > end_time) {
                         sim_time = end_time;
+                        LOG_DEBUG("[{}] Medic {} en route to hospital...",
+                                  utils::formatTime(sim_time), vehicle.getVehicleId());
+                    } else {
+                        sim_time = vehicle.getTimeToHospital();
+                        vehicle.setStatus(ApparatusStatus::AtHospital);
+
+                        int hospitalIdx = vehicle.getHospitalIndex();
+                        if (hospitalIdx >= 0 && state_.hasHospitals()) {
+                            const Hospital& hospital = state_.getHospital(hospitalIdx);
+                            vehicle.setCurrentLocation(hospital.getLocation());
+                            LOG_DEBUG("[{}] Medic {} arrived at hospital {}",
+                                      utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                      hospital.getName());
+                        }
+
+                        // Compute time at hospital
+                        double hospitalTime = emsServiceModel_.computeHospitalTime();
+                        vehicle.setHospitalLeaveTime(sim_time + static_cast<time_t>(hospitalTime));
+                        LOG_DEBUG("[{}] Medic {} will leave hospital at {} (hospital time={:.0f}s)",
+                                  utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                  utils::formatTime(vehicle.getHospitalLeaveTime()), hospitalTime);
+                    }
+                    break;
+                }
+                case ApparatusStatus::AtHospital: {
+                    // EMS vehicle at hospital, waiting to transfer patient
+                    if (vehicle.getHospitalLeaveTime() > end_time) {
+                        sim_time = end_time;
+                        LOG_DEBUG("[{}] Medic {} at hospital, transferring patient...",
+                                  utils::formatTime(sim_time), vehicle.getVehicleId());
+                    } else {
+                        sim_time = vehicle.getHospitalLeaveTime();
+                        vehicle.setStatus(ApparatusStatus::ReturningToStation);
+
+                        // Calculate travel time back to station from hospital
+                        auto [timeToReturn, route] = travelTimeModel_.getTravelTimeAndRoute(
+                            vehicle.getCurrentLocation(), vehicle.getStationLocation());
+                        vehicle.setTimeToReturn(sim_time + static_cast<time_t>(timeToReturn));
+                        vehicle.timeToStartedReturning = sim_time;
+
+                        LOG_DEBUG("[{}] Medic {} leaving hospital, returning to station by {}",
+                                  utils::formatTime(sim_time), vehicle.getVehicleId(),
+                                  utils::formatTime(vehicle.getTimeToReturn()));
+
+                        // Log EMS transport event before clearing state
+                        EMSTransportEvent event;
+                        event.vehicleId = vehicle.getVehicleId();
+                        event.incidentIndex = vehicle.getTransportIncidentIndex();
+                        event.hospitalIndex = vehicle.getHospitalIndex();
+                        if (state_.hasHospitals() && event.hospitalIndex >= 0) {
+                            event.hospitalName = state_.getHospital(event.hospitalIndex).getName();
+                        }
+                        event.sceneArrivalTime = vehicle.getIncidentArrivalTime();
+                        event.transportStartTime = vehicle.getEmsSceneEndTime();
+                        event.hospitalArrivalTime = vehicle.getTimeToHospital();
+                        event.hospitalDepartureTime = sim_time;
+                        event.sceneTime = difftime(event.transportStartTime, event.sceneArrivalTime);
+                        event.hospitalTime = difftime(event.hospitalDepartureTime, event.hospitalArrivalTime);
+                        logEMSTransport(event);
+
+                        // Clear EMS transport state
+                        vehicle.clearEMSTransportState();
                     }
                     break;
                 }
@@ -187,6 +317,11 @@ State& Simulator::simulate_time_step(time_t end_time) {
                         LOG_DEBUG("[{}] Vehicle {} has returned to station and is now available", utils::formatTime(sim_time), vehicle.getVehicleId());
                         vehicle.timeToStartedReturning = -1; // Resetting as we don't need it until next return
                         vehicle.timeStartedToDispatch = -1; // Resetting as we don't need it until next dispatch
+
+                        // Clear EMS transport state if this is a Medic
+                        if (vehicle.getType() == ApparatusType::Medic) {
+                            vehicle.clearEMSTransportState();
+                        }
                     } else {
                         sim_time = end_time;
                     }
@@ -222,6 +357,7 @@ State& Simulator::reset() {
     stations_history_.clear();
     actions_history_.clear();
     doneIncidents_.clear();
+    emsTransportHistory_.clear();
     return state_;
 }
 
@@ -355,4 +491,30 @@ void Simulator::writeVehicleReport() const {
         }
     }
     csv.close();
+}
+
+void Simulator::logEMSTransport(const EMSTransportEvent& event) {
+    emsTransportHistory_.push_back(event);
+}
+
+void Simulator::writeEMSTransportReport() const {
+    std::string report_path = EnvLoader::getInstance()->get("EMS_TRANSPORT_REPORT_PATH", "../logs/ems_transport_report.csv");
+    std::ofstream csv(report_path);
+
+    csv << "VehicleID,IncidentIndex,HospitalIndex,HospitalName,SceneArrivalTime,TransportStartTime,HospitalArrivalTime,HospitalDepartureTime,SceneTimeSeconds,HospitalTimeSeconds\n";
+
+    for (const auto& event : emsTransportHistory_) {
+        csv << event.vehicleId << ","
+            << event.incidentIndex << ","
+            << event.hospitalIndex << ","
+            << event.hospitalName << ","
+            << utils::formatTime(event.sceneArrivalTime) << ","
+            << utils::formatTime(event.transportStartTime) << ","
+            << utils::formatTime(event.hospitalArrivalTime) << ","
+            << utils::formatTime(event.hospitalDepartureTime) << ","
+            << std::fixed << std::setprecision(1) << event.sceneTime << ","
+            << event.hospitalTime << "\n";
+    }
+    csv.close();
+    LOG_INFO("Wrote {} EMS transport events to {}", emsTransportHistory_.size(), report_path);
 }

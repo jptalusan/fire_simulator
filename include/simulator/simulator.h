@@ -7,6 +7,7 @@
 #include "models/incident_model.h"
 #include "environment/environment_model.h"
 #include "models/travel_time_model.h"
+#include "models/ems_service_model.h"
 #include <vector>
 
 struct StepResult {
@@ -14,20 +15,35 @@ struct StepResult {
     double reward;
     bool done;
     std::unordered_map<std::string, bool> info; //optional metadata
-    
+
     // Constructor to initialize the reference
     StepResult(State& s, double r = 0.0, bool d = false, const std::unordered_map<std::string, bool>& i = {})
         : state(s), reward(r), done(d), info(i) {}
 };
 
+// Track EMS transport events for reporting
+struct EMSTransportEvent {
+    int vehicleId;
+    int incidentIndex;
+    int hospitalIndex;
+    std::string hospitalName;
+    time_t sceneArrivalTime;
+    time_t transportStartTime;
+    time_t hospitalArrivalTime;
+    time_t hospitalDepartureTime;
+    double sceneTime;      // Time spent on scene (seconds)
+    double hospitalTime;   // Time spent at hospital (seconds)
+};
+
 
 class Simulator {
 public:
-    Simulator(State& initialState, 
-        IncidentModel& incidentModel, 
+    Simulator(State& initialState,
+        IncidentModel& incidentModel,
         TravelTimeModel& travelTimeModel,
         EnvironmentModel& environmentModel,
-        DispatchPolicy& dispatchPolicy
+        DispatchPolicy& dispatchPolicy,
+        EMSServiceModel& emsServiceModel
     );
     
     StepResult step(const std::vector<Action>& actions);
@@ -39,17 +55,21 @@ public:
     void writeActionReport(const State& state) const;
     void writeIncidentReport() const;
     void writeVehicleReport() const;
+    void writeEMSTransportReport() const;
 
 private:
+    void logEMSTransport(const EMSTransportEvent& event);
     State& state_;
     EnvironmentModel& environment_;
     DispatchPolicy& dispatchPolicy_;
     IncidentModel& incidentModel_;
     TravelTimeModel& travelTimeModel_;
+    EMSServiceModel& emsServiceModel_;
     std::vector<std::vector<Vehicle>> vehicles_history_;
     std::vector<std::vector<FireStation>> stations_history_;
     std::vector<std::pair<time_t, std::vector<Action>>> actions_history_;
     std::vector<time_t> state_times_history_;
+    std::vector<EMSTransportEvent> emsTransportHistory_;
 };
 
 #endif // SIMULATOR_H

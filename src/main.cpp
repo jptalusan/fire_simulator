@@ -4,6 +4,7 @@
 #include "policy/firebeats_dispatch.h"
 #include "models/incident_model.h"
 #include "models/travel_time_model.h"
+#include "models/ems_service_model.h"
 #include "utils/constants.h"
 #include "utils/logger.h"
 #include "io/loaders.h"
@@ -256,7 +257,47 @@ int main(int argc, char* argv[]) {
     }
 
     EnvironmentModel environment_model(*fireModel);
-    Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
+
+    // Create and initialize EMS Service Model
+    std::unique_ptr<EMSServiceModel> emsServiceModel;
+
+    // Use HistoricalEMSServiceModel by default
+    auto historicalEmsModel = std::make_unique<HistoricalEMSServiceModel>(seed);
+
+    // Load hospitals if path is provided
+    std::string hospitals_path = env->get(constants::HOSPITALS_CSV_PATH, "");
+    if (!hospitals_path.empty()) {
+        std::vector<Hospital> hospitals = loader::loadHospitalsFromCSV(hospitals_path);
+        if (!hospitals.empty()) {
+            initial_state.setHospitals(hospitals);
+            LOG_INFO("Loaded {} hospitals from {}", hospitals.size(), hospitals_path);
+        }
+    }
+
+    // Load EMS statistics files
+    std::string ems_scene_time_path = env->get(constants::EMS_SCENE_TIME_STATS_PATH, "");
+    if (!ems_scene_time_path.empty()) {
+        historicalEmsModel->loadSceneTimeStats(ems_scene_time_path);
+    }
+
+    std::string ems_transport_path = env->get(constants::EMS_TRANSPORT_STATS_PATH, "");
+    if (!ems_transport_path.empty()) {
+        historicalEmsModel->loadTransportStats(ems_transport_path);
+    }
+
+    std::string hospital_time_path = env->get(constants::HOSPITAL_TIME_STATS_PATH, "");
+    if (!hospital_time_path.empty()) {
+        historicalEmsModel->loadHospitalTimeStats(hospital_time_path);
+    }
+
+    std::string zone_hospital_path = env->get(constants::ZONE_HOSPITAL_PROBS_PATH, "");
+    if (!zone_hospital_path.empty()) {
+        historicalEmsModel->loadZoneHospitalProbs(zone_hospital_path);
+    }
+
+    emsServiceModel = std::move(historicalEmsModel);
+
+    Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy, *emsServiceModel);
     initial_state = simulator.reset();
 
     int num_steps = 10000;
@@ -271,6 +312,7 @@ int main(int argc, char* argv[]) {
     
     simulator.writeIncidentReport();
     simulator.writeActionReport(initial_state);
+    simulator.writeEMSTransportReport();
     // Too much data
     // simulator.writeVehicleReport();
     

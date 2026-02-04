@@ -50,4 +50,14 @@ namespace constants {
     inline static constexpr const char* RANDOM_SEED = "RANDOM_SEED";
     inline static constexpr const char* FIREBEATS_MATRIX_PATH = "FIREBEATS_MATRIX_PATH";
     inline static constexpr const char* ZONE_MAP_PATH = "ZONE_MAP_PATH";
+
+    // EMS model file paths (for loading from CSV)
+    inline static constexpr const char* HOSPITALS_CSV_PATH = "HOSPITALS_CSV_PATH";
+    inline static constexpr const char* EMS_SCENE_TIME_STATS_PATH = "EMS_SCENE_TIME_STATS_PATH";
+    inline static constexpr const char* EMS_TRANSPORT_STATS_PATH = "EMS_TRANSPORT_STATS_PATH";
+    inline static constexpr const char* HOSPITAL_TIME_STATS_PATH = "HOSPITAL_TIME_STATS_PATH";
+    inline static constexpr const char* ZONE_HOSPITAL_PROBS_PATH = "ZONE_HOSPITAL_PROBS_PATH";
+
+    // EMS fallback constants (used only when CSV files not available)
+    inline static constexpr double FIRE_APPARATUS_POST_SCENE_DELAY = 1500.0; // 25 min post-scene delay
 }
