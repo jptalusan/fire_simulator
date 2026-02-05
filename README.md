@@ -151,10 +151,3 @@ Different dispatch policies affect which apparatus are sent to an incident.
 2. `station_report.csv`: Mapping of stations to incidents. The same incidents can be mapped to different stations (if they all sent to the incident).
 3. `incident_report.csv`: All metrics per incident, mostly timing related.
 
-## TODO:
-1. ~~Switch from vector of events to Priority Queue~~
-2. ~~Clean up incident and station, remove function calls inside, put in a separate standalone function file.~~
-3. ~~Clean up activeIncidents_, it should just be a priority queue (or even just a queue?)~~
-4. Change incidents so no 2 incidents have the same time (have at least a second of difference).
-5. ~~Create a separate map of incidents. that i just look up O(1) when i need information about the incident. dont add them in the event.~~
-6. Maybe categorize medic as a :moving" fire Stations
