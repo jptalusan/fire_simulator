@@ -26,12 +26,13 @@ bool HistoricalEMSServiceModel::loadSceneTimeStats(const std::string& csvPath) {
     int loadedCount = 0;
     while (std::getline(file, line)) {
         std::istringstream ss(line);
-        std::string category, meanStr, varianceStr, stdStr, countStr;
+        std::string category, meanStr, varianceStr, stdStr, minStr, countStr;
 
         std::getline(ss, category, ',');
         std::getline(ss, meanStr, ',');
         std::getline(ss, varianceStr, ',');
         std::getline(ss, stdStr, ',');
+        std::getline(ss, minStr, ',');
         std::getline(ss, countStr, ',');
 
         EMSSceneTimeStats stats;
@@ -39,6 +40,7 @@ bool HistoricalEMSServiceModel::loadSceneTimeStats(const std::string& csvPath) {
             stats.mean = std::stod(meanStr);
             stats.variance = std::stod(varianceStr);
             stats.std = std::stod(stdStr);
+            stats.min = std::stod(minStr);
             stats.count = std::stoi(countStr);
             sceneTimeStats_[category] = stats;
             loadedCount++;
@@ -125,16 +127,18 @@ bool HistoricalEMSServiceModel::loadHospitalTimeStats(const std::string& csvPath
 }
 
 std::string HistoricalEMSServiceModel::getCategoryKey(const Incident& incident) const {
-    // Use NFIRSType or incident type as the category key
-    // This should match the Category column in the CSV files
+    // Use the original incident type string from CSV (matches EMS stats keys)
+    if (!incident.incident_type_str.empty()) {
+        return incident.incident_type_str;
+    }
     return to_string(incident.incident_type);
 }
 
-double HistoricalEMSServiceModel::sampleNormal(double mean, double std) {
+double HistoricalEMSServiceModel::sampleNormal(double mean, double std, double minVal) {
     std::normal_distribution<double> normalDist(mean, std);
     double sampled = normalDist(rng_);
-    // Ensure non-negative time
-    return std::max(sampled, 60.0);  // Minimum 1 minute
+    // Clamp to per-category minimum (defaults to 60s if not specified)
+    return std::max(sampled, minVal);
 }
 
 double HistoricalEMSServiceModel::computeEMSSceneTime(const Incident& incident) {
@@ -143,17 +147,16 @@ double HistoricalEMSServiceModel::computeEMSSceneTime(const Incident& incident) 
     // Check if we have stats for this category
     auto it = sceneTimeStats_.find(category);
     if (it != sceneTimeStats_.end() && it->second.count > 0) {
-        return sampleNormal(it->second.mean, it->second.std);
+        return sampleNormal(it->second.mean, it->second.std, it->second.min);
     }
 
-    // Try "EMS & Rescue" as fallback category
-    it = sceneTimeStats_.find("EMS & Rescue");
+    // Try "Medical" as fallback (most common EMS incident type)
+    it = sceneTimeStats_.find("Medical");
     if (it != sceneTimeStats_.end() && it->second.count > 0) {
-        return sampleNormal(it->second.mean, it->second.std);
+        return sampleNormal(it->second.mean, it->second.std, it->second.min);
     }
 
-    // Use overall average if no category match
-    // Calculate weighted average from all loaded categories
+    // Use overall weighted average if no category match
     if (!sceneTimeStats_.empty()) {
         double totalWeight = 0.0;
         double weightedSum = 0.0;
@@ -181,13 +184,13 @@ bool HistoricalEMSServiceModel::requiresHospitalTransport(const Incident& incide
         return uniformDist_(rng_) < it->second.transportProbability;
     }
 
-    // Try "EMS & Rescue" as fallback category
-    it = transportStats_.find("EMS & Rescue");
+    // Try "Medical" as fallback (most common EMS incident type)
+    it = transportStats_.find("Medical");
     if (it != transportStats_.end() && it->second.count > 0) {
         return uniformDist_(rng_) < it->second.transportProbability;
     }
 
-    // Use overall average if no category match
+    // Use overall weighted average if no category match
     if (!transportStats_.empty()) {
         double totalWeight = 0.0;
         double weightedSum = 0.0;

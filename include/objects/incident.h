@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <string>
 #include <ctime>
 #include "enums.h"
 #include "objects/common.h"
@@ -22,9 +23,12 @@ public:
     int zoneIndex;
 
     IncidentType incident_type;
+    std::string incident_type_str; // Original incident type string from CSV (for ML model)
     IncidentLevel incident_level;
     IncidentStatus status;
     IncidentCategory category; // Category of the incident
+    bool emsAssigned = false;          // First Medic claimed EMS (handles scene time + transport)
+    int emsStayBehindVehicleId = -1;   // Vehicle ID of the Medic staying behind at scene (-1 = none assigned)
 
     std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
     std::unordered_map<ApparatusType, int> requiredApparatusMap; // How many apparatus is needed for this incident

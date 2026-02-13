@@ -482,6 +482,7 @@ std::vector<Incident> loadIncidentsFromCSV() {
             } else {
                 seenIDs.insert(id);
                 incidents.emplace_back(index, id, lat, lon, itype, ilevel, unix_time, icategory);
+                incidents.back().incident_type_str = type;
                 index++;
             }
         } else {

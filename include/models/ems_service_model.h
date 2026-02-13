@@ -17,6 +17,7 @@ struct EMSSceneTimeStats {
     double mean = 0.0;
     double variance = 0.0;
     double std = 0.0;
+    double min = 0.0;
     int count = 0;
 };
 
@@ -95,7 +96,7 @@ private:
     std::mt19937 rng_;
     std::uniform_real_distribution<double> uniformDist_;
 
-    // Historical stats by category (key is string from NFIRSType)
+    // Historical stats by incident type (key is incident_type_str from CSV)
     std::unordered_map<std::string, EMSSceneTimeStats> sceneTimeStats_;
     std::unordered_map<std::string, EMSTransportStats> transportStats_;
 
@@ -114,8 +115,8 @@ private:
     // Build hospital name to index mapping
     void buildHospitalNameMapping(const State& state);
 
-    // Sample from normal distribution with given mean and std
-    double sampleNormal(double mean, double std);
+    // Sample from normal distribution with given mean and std, clamped to minVal
+    double sampleNormal(double mean, double std, double minVal = 60.0);
 };
 
 #endif // EMS_SERVICE_MODEL_H
