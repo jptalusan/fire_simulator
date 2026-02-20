@@ -82,6 +82,15 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"MEAN_MATRIX_PATH", "../data/interpolation_data/mean_zone_travel_time_matrix.json"},
         {"STD_MATRIX_PATH", "../data/interpolation_data/std_zone_travel_time_matrix.json"},
         {"ZONE_INFO_PATH", "../data/interpolation_data/zone_fire_station_info.json"},
+        {"HOSPITALS_CSV_PATH", "../data/ems_stats/hospital_locations.csv"},
+        {"EMS_SCENE_TIME_STATS_PATH", "../data/ems_stats/scene_time_by_category.csv"},
+        {"EMS_TRANSPORT_STATS_PATH", "../data/ems_stats/transport_prob_by_category.csv"},
+        {"HOSPITAL_TIME_STATS_PATH", "../data/ems_stats/hospital_turnaround_overall.csv"},
+        {"ZONE_HOSPITAL_PROBS_PATH", "../data/ems_stats/hospital_zone_probs.csv"},
+        {"SCENE_TIME_COUPLING_PARAMS_PATH", "../data/ems_stats/scene_time_model_params.csv"},
+        {"HOSPITAL_TIME_BY_DEST_PATH", "../data/ems_stats/hospital_turnaround_by_dest.csv"},
+        {"MULTI_MEDIC_TRANSPORT_DIST_PATH", "../data/ems_stats/transport_multi_medic_dist.csv"},
+        {"EMS_TRANSPORT_REPORT_PATH", "../logs/ems_transport_report.csv"},
         {"RANDOM_SEED", 42},
         {"PYTHON_PATH", "../../venvBOC/bin/python"},
         {"CONSOLE_LOG_LEVEL", "debug"}
@@ -295,12 +304,28 @@ int main(int argc, char* argv[]) {
         historicalEmsModel->loadZoneHospitalProbs(zone_hospital_path);
     }
 
+    // Load new EMS transport model files
+    std::string coupling_params_path = env->get(constants::SCENE_TIME_COUPLING_PARAMS_PATH, "");
+    if (!coupling_params_path.empty()) {
+        historicalEmsModel->loadSceneTimeCouplingParams(coupling_params_path);
+    }
+
+    std::string hospital_by_dest_path = env->get(constants::HOSPITAL_TIME_BY_DEST_PATH, "");
+    if (!hospital_by_dest_path.empty()) {
+        historicalEmsModel->loadHospitalTimeByDest(hospital_by_dest_path);
+    }
+
+    std::string multi_medic_path = env->get(constants::MULTI_MEDIC_TRANSPORT_DIST_PATH, "");
+    if (!multi_medic_path.empty()) {
+        historicalEmsModel->loadMultiMedicTransportDist(multi_medic_path);
+    }
+
     emsServiceModel = std::move(historicalEmsModel);
 
     Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy, *emsServiceModel);
     initial_state = simulator.reset();
 
-    int num_steps = 10000;
+    int num_steps = 25000;
     for (int step = 0; step < num_steps; ++step) {
         std::vector<Action> actions = policy->getAction(initial_state);
         StepResult result = simulator.step(actions);

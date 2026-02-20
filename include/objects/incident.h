@@ -29,6 +29,9 @@ public:
     IncidentCategory category; // Category of the incident
     bool emsAssigned = false;          // First Medic claimed EMS (handles scene time + transport)
     int emsStayBehindVehicleId = -1;   // Vehicle ID of the Medic staying behind at scene (-1 = none assigned)
+    bool emsTransportDecisionMade = false;  // Has the per-incident transport decision been made?
+    int emsTransportCount = 0;              // How many medics should transport (0 or 1, simplified)
+    int emsTransportAssigned = 0;           // How many medics have started transport so far
 
     std::vector<std::tuple<int, int, double>> apparatusReceived; // Maps station index to (number of apparatus, travel time)
     std::unordered_map<ApparatusType, int> requiredApparatusMap; // How many apparatus is needed for this incident
