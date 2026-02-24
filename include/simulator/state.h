@@ -7,6 +7,7 @@
 #include "objects/incident.h"
 #include "objects/firestation.h"
 #include "objects/vehicle.h"
+#include <optional>
 
 class State {
 public:

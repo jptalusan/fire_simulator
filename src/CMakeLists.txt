@@ -8,20 +8,21 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
 # Link libraries to the static library
 target_link_libraries(${PROJECT_NAME}_lib
-    Boost::regex
-    Boost::filesystem
-    Boost::thread
-    spdlog::spdlog
-    fmt::fmt
-    nlohmann_json::nlohmann_json
-    CURL::libcurl
-    ${LPSOLVE_LIBRARY}
+    PUBLIC
+        #Boost::geometry
+	Boost::filesystem
+	Boost::thread
+        nlohmann_json::nlohmann_json
+        spdlog::spdlog
+        fmt::fmt
+        CURL::libcurl
+#    ${LPSOLVE_LIBRARY}
 )
 
 # Use custom-built ONNX Runtime (installed locally)
 # Make sure you have built onnxruntime and placed it in a directory below.
-set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime_install/usr/local")
-set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib/libonnxruntime.dylib")
+set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime/usr/local")
+set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib64/libonnxruntime.so")
 
 # Include directories for the static library
 target_include_directories(${PROJECT_NAME}_lib PUBLIC

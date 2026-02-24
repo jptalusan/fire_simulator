@@ -55,15 +55,15 @@ Modify the `pub.env` and change it to `.env`, update the paths and OSRM url.
 
 1. Make sure that the `incidents.csv` look like this:
 ```csv
-incident_id,lat,lon,incident_type,incident_level,datetime
-0,36.005691,-86.73419,Road Closure,Low,2025-01-01 00:00:00
+incident_id,lat,lon,incident_type,incident_level,datetime,category
+0,36.005691,-86.73419,Road Closure,Low,2025-01-01 00:00:00,Nine
 ```
 it should be 0th indexed without any missing indices in the middle.
 
-2. and the `stations.csv` look like this:
+2. and the `stations.csv` look like this: (and stations_with_apapratus.csv)
 ```
-OBJECTID,Facility Name,Address,City,State,Zip Code,GLOBALID,lon,lat
-1,Station 39,1247 South Dickerson Rd,Goodlettsvi,TN,37072,eac3496b-ab7d-4f6a-ad14-bf5ada67676a,-86.73860485,36.29107537
+StationID,Stations,lat,lon,Address,Engine_ID,Truck,Rescue,Hazard,Squad,FAST,Medic,Brush,Boat,UTV,REACH,Chief
+0,Station 1,36.2293898,-86.75674762,130 Broadmoor Avenue,1,,1,,1,,,,,,,
 ```
 it should be 0th  indexed without any missing indices in the middle.
 
@@ -150,6 +150,8 @@ Different dispatch policies affect which apparatus are sent to an incident.
 1. `output.log`
 2. `station_report.csv`: Mapping of stations to incidents. The same incidents can be mapped to different stations (if they all sent to the incident).
 3. `incident_report.csv`: All metrics per incident, mostly timing related.
+
+## RHEL8 Related Instructions
 
 ## TODO:
 1. ~~Switch from vector of events to Priority Queue~~

@@ -1,6 +1,7 @@
 #ifndef ENUMS_H
 #define ENUMS_H
 
+#include <cstdint>
 #include <string>
 #include <algorithm>
 #include <cctype>
