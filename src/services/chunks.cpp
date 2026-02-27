@@ -1,6 +1,8 @@
 #include <services/chunks.h>
 #include <fstream>
 #include <iomanip>
+#include <cstdint>
+#include <fmt/format.h>
 #include "config/EnvLoader.h"
 #include "utils/error.h"
 #include "utils/logger.h"

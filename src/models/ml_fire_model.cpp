@@ -5,6 +5,8 @@
 #include "enums.h"
 #include <set>
 #include <string>
+#include <algorithm>
+#include <fstream>
 
 MLFireModel::MLFireModel([[maybe_unused]] unsigned int seed, const std::string& model_path, const std::string& config_path, const std::string& apparatus_csv_path){
     // Initialize ONNX predictor

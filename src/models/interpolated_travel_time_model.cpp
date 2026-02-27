@@ -5,10 +5,14 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <cmath>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #include <algorithm>
 #include <random>
 #include <vector>
 #include <limits>
+#include <cstdint>
 #include <spdlog/spdlog.h>
 
 InterpolatedTravelTimeModel::InterpolatedTravelTimeModel(const std::string& mean_matrix_path,

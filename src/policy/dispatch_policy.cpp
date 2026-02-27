@@ -1,6 +1,8 @@
 #include "policy/dispatch_policy.h"
 #include <map>
 #include <numeric>
+#include <algorithm>
+#include <limits>
 #include "utils/helpers.h"
 #include "utils/constants.h"
 #include "utils/logger.h"

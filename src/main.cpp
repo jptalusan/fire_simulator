@@ -10,6 +10,8 @@
 #include "io/loaders.h"
 #include "services/chunks.h"
 #include <memory>
+#include <iostream>
+#include <cstdlib>
 #include <nlohmann/json.hpp>
 #include "environment/environment_model.h"
 

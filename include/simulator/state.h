@@ -4,6 +4,7 @@
 #include <ctime>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 #include "objects/incident.h"
 #include "objects/firestation.h"
 #include "objects/vehicle.h"

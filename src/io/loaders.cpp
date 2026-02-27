@@ -1,7 +1,10 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
+#include <sstream>
 #include "io/loaders.h"
+#include "enums.h"
 #include "config/EnvLoader.h"
 #include "objects/geometry.h"
 #include "utils/error.h"

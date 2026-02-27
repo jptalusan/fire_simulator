@@ -3,6 +3,9 @@
 #include "utils/helpers.h"
 #include "utils/logger.h"
 #include "services/chunks.h"
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
 
 std::vector<ApparatusType> apparatusTypes = {
     ApparatusType::Engine,

@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 
 enum class EventType : uint8_t {
     Incident,

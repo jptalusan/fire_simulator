@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <cstdint>
 #include "objects/common.h"
 #include "objects/geometry.h"
 #include "utils/util.h"

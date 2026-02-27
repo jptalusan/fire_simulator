@@ -2,6 +2,7 @@
 #define FIRE_H
 
 #include <random>
+#include "enums.h"
 #include "simulator/state.h"
 #include "utils/util.h"
 #include "models/onnx_predictor.h"

@@ -1,5 +1,8 @@
 #include "models/fire_model.h"
 #include <random>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 #include "utils/logger.h"
 #include "enums.h"
 #include "utils/constants.h"

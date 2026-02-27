@@ -1,4 +1,5 @@
 #include <vector>
+#include <string>
 #include "objects/firestation.h"
 #include "objects/incident.h"
 #include "objects/vehicle.h"
