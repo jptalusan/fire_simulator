@@ -18,37 +18,105 @@ fire_simulator
 └── README.md
 ```
 
-## Building Prerequisites
-You can follow the instructions [here](https://github.com/jptalusan/onnxruntime_boilerplate) to generate the ONNX library.
-Or download a pre-built version for MacOS ARM [here](https://vanderbilt.box.com/s/wderjr1ojh8fyikywijftra0626vjnyj) untar in the folder called `externals`.
-The structure should look like this:
-```bash
-external
-└── onnxruntime_install
-    └── usr/local...
-```
+## Building Prerequisites on RHEL8
 
+1. Install an updated `gcc-toolset-13` this will provide updated `gcc` and `g++`.
+    ```bash
+    sudo yum update
+    dnf install gcc-toolset-13
+    yum install libcurl-devel
+    # add this to your bashrc
+    vi ~/.bash_profile
+    
+    # Enable gcc-toolset-13 automatically (After the initial path= command)
+    if [ -f /opt/rh/gcc-toolset-13/enable ]; then
+        source /opt/rh/gcc-toolset-13/enable
+    fi
+    ```
+2. Install `Python3.10` to get `cmake`
+    ```bash
+    yum install python3.11
+    # You need to source activate this python first then install cmake.
+    # We need cmake > v3.11 for everything
+    /bin/python3.11 -m venv .venv
+    source .venv/bin/activate
+    pip install cmake
 
-## Building the Project
+    # update profile
+    sudo vi ~/.bash_profile
+    # Add this line at the end (after the toolset steps above)
+    PATH="$HOME/.venv/bin/cmake:$PATH”
+    # Activate
+    source ~/.bash_profile
+    ```
+3. Download, build, and install `boost v1.89` since the current `boost-devel` included in the `dnf` is outdated (v1.66) which will cause issues with our `onnxruntime` build later. [(Reference)](https://www.boost.org/doc/user-guide/getting-started.html)
+    ```bash
+    sudo yum install bzip2-devel zlib-devel libicu-devel
+    
+    # You can just extract it to your home directory
+    cd ~
+    # The link in the tutorial is broken, check releases page: https://www.boost.org/releases/1.89.0/
+    wget https://archives.boost.io/release/1.89.0/source/boost_1_89_0.tar.bz2
+    tar xf boost_1_89_0.tar.bz2
+    cd boost_1_89_0
 
-Install the required packages:
-> `gdb` debugging does not work on current macOS devices.
-```bash
-# For macOS
-brew install cmake
-brew install curl
-brew install nlohmann-json
-brew install spdlog
-brew install boost
-brew install lp_solve
-xcode-select --install
+    # Boostrap
+    ./bootstrap.sh
+    ./b2
+    ./b2 install --prefix=/usr/local
+    ```
+4. Clone, build, and install `onnxruntime (v1.22.2)` to the `fire_simulator/externals` folder.
+    ```bash
+    cd ~
+    git clone --recursive https://github.com/Microsoft/onnxruntime.git
+    cd onnxruntime
 
-# For unix
-sudo apt update
-sudo apt install cmake g++ libcurl4-openssl-dev libgtest-dev gdb libboost-all-dev
-sudo apt install nlohmann-json3-dev libspdlog-dev lp-solve
-```
-> Do not install googletest, instead just follow their documentation which uses `FetchContent`.
+    # Make sure to use this release, newer ones have a failure that no one resolved.
+    git checkout v1.22.2
+
+    # If you messed up and ran this without running the above command, just delete `build` folder.
+    ./build.sh --config RelWithDebInfo --build_shared_lib --parallel --compile_no_warning_as_error --skip_submodule_sync --cmake_extra_defines
+
+    cd build/Linux/RelWithDebInfo
+
+    # This will install it to a path that has lib64 instead of lib, so adjust accordingly
+    # Destination_Dir for our case is the fire_simulator/externals folder.
+    make install DESTDIR=[DESTINATION_DIR]
+    ```
+5. Other packages such as `nlohmann-json`, `fmt`, and `spdlog` should be handled by the `CMakeLists.txt`
+
+## Install and Setup up Docker
+1. Install the `docker-ce` and `docker-ce-cli` and run it on systemctl.
+    ```bash
+    sudo dnf -y install dnf-plugins-core
+    sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+    sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    # start docker engine, this should start docker when the system restarts.
+    sudo systemctl enable --now docker
+    ```
+2. Pull the docker image needed
+    ```bash
+    cd ~/fire_simulator/docker
+    curl -L "https://download.geofabrik.de/north-america/us/tennessee-latest.osm.pbf" -o ./data/osm.pbf
+    touch ./data/speeds.csv
+    docker build --platform=linux/amd64 --no-cache --tag tn_osrm:ems -f Dockerfile .
+    docker run -d 
+        --name ems_osrm -m=4g \
+        --restart unless-stopped \
+        -p 8085:8085 \
+        tn_osrm:ems
+    ```
+
+## Building `fire_simulator`
+1. Clone the repo and build
+    ```bash
+    cd ~
+    git clone git@github.com:jptalusan/fire_simulator.git
+    cd fire_simulator
+    git checkout rhel_instructions
+    cmake -S . -B build && cmake --build build
+    ```
+2. Before running the application, make sure all data required are present and correct (based on features)
 
 ## Running the Application
 Modify the `pub.env` and change it to `.env`, update the paths and OSRM url.
@@ -60,46 +128,26 @@ incident_id,lat,lon,incident_type,incident_level,datetime,category
 ```
 it should be 0th indexed without any missing indices in the middle.
 
-2. and the `stations.csv` look like this: (and stations_with_apapratus.csv)
+1. and the `stations.csv` look like this: (and stations_with_apapratus.csv)
 ```
 StationID,Stations,lat,lon,Address,Engine_ID,Truck,Rescue,Hazard,Squad,FAST,Medic,Brush,Boat,UTV,REACH,Chief
 0,Station 1,36.2293898,-86.75674762,130 Broadmoor Avenue,1,,1,,1,,,,,,,
 ```
 it should be 0th  indexed without any missing indices in the middle.
 
-3. A third file, `bounds.geojson` with a single polygon, defines the bounds of the system. If a point in incidents or stations is not within the boundary, it is ignored.
+1. A third file, `bounds.geojson` with a single polygon, defines the bounds of the system. If a point in incidents or stations is not within the boundary, it is ignored.
 Right now, if you don't have a bounds.geojson it will not check any point.
 
-4. Supplementary files can be generated by running `scripts/preprocess_to_generate_data.py` a list of required files for this script are:
+1. Supplementary files can be generated by running `scripts/preprocess_to_generate_data.py` a list of required files for this script are:
     * `FIRE RUN CARDS OCT 2024`
     * `FireBeats_shapefile_05152025`
 
-5. Build the project:
-```cmake
-include(FetchContent)
-```
 
-To build the project, navigate to the project directory and run the following command:
-
-```bash
-mkdir build
-cd build
-cmake ..
-make -j4
-```
-or
-```
-./build.sh --clean --test
-```
-This will compile the source files and create an executable in the project's root folder.
-
-4. After building the project, you can run the application with the following command:
-```bash
-
-# while inside build directory
-./src/fire_simulator
-# just make sure the paths in the .env reflect where you are
-```
+2. while inside build directory
+    ```bash
+    cd ~/fire_simulator/build
+    ./src/fire_simulator --env PATH_TO_ENV
+    ```
 
 ## Cleaning Up
 To remove the compiled files and clean the project directory, use the command:
@@ -151,12 +199,10 @@ Different dispatch policies affect which apparatus are sent to an incident.
 2. `station_report.csv`: Mapping of stations to incidents. The same incidents can be mapped to different stations (if they all sent to the incident).
 3. `incident_report.csv`: All metrics per incident, mostly timing related.
 
-## RHEL8 Related Instructions
-
 ## TODO:
 1. ~~Switch from vector of events to Priority Queue~~
 2. ~~Clean up incident and station, remove function calls inside, put in a separate standalone function file.~~
 3. ~~Clean up activeIncidents_, it should just be a priority queue (or even just a queue?)~~
-4. Change incidents so no 2 incidents have the same time (have at least a second of difference).
 5. ~~Create a separate map of incidents. that i just look up O(1) when i need information about the incident. dont add them in the event.~~
+4. Change incidents so no 2 incidents have the same time (have at least a second of difference).
 6. Maybe categorize medic as a :moving" fire Stations
