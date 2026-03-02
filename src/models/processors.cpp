@@ -9,7 +9,7 @@ int run_sk_model(Ort::Env& env, Ort::SessionOptions& session_options) {
     auto output_name = session.GetOutputNameAllocated(0, allocator);
     auto input_shape = session.GetInputTypeInfo(0).GetTensorTypeAndShapeInfo().GetShape();
 
-    std::cout << "Input name: " << input_name << std::endl;
+    std::cout << "Input name: " << input_name.get() << std::endl;
     std::cout << "Input shape: ";
     for (auto dim : input_shape) std::cout << dim << " ";
     std::cout << std::endl;

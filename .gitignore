@@ -99,6 +99,7 @@ run_simulator
 external/*
 .vscode/settings.json
 build/
+models_old/
 test_simulator
 test.ipynb
 *.log
