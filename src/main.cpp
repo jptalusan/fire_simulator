@@ -4,11 +4,14 @@
 #include "policy/firebeats_dispatch.h"
 #include "models/incident_model.h"
 #include "models/travel_time_model.h"
+#include "models/ems_service_model.h"
 #include "utils/constants.h"
 #include "utils/logger.h"
 #include "io/loaders.h"
 #include "services/chunks.h"
 #include <memory>
+#include <iostream>
+#include <cstdlib>
 #include <nlohmann/json.hpp>
 #include "environment/environment_model.h"
 
@@ -28,10 +31,14 @@ void printUsage(const char* program_name) {
     std::cout << "  --DISPATCH_POLICY=STRING        Dispatch Policy (options: [NEAREST,FIREBEATS], default: NEAREST)\n";
     std::cout << "  --FIRE_MODEL_TYPE=STRING        Fire Model Type (options: [HISTORICAL,ML], default: HISTORICAL)\n";
     std::cout << "  --INCIDENT_MODEL_TYPE=STRING    Incident Model Type (options: [EMPIRICAL], default: EMPIRICAL)\n";
-    std::cout << "  --TRAVEL_TIME_MODEL_TYPE=STRING Travel Time Model Type (options: [OSRM,GIS], default: OSRM)\n";
+    std::cout << "  --TRAVEL_TIME_MODEL_TYPE=STRING Travel Time Model Type (options: [OSRM,GIS,INTERPOLATED], default: OSRM)\n";
     std::cout << "  --INCIDENTS_CSV_PATH=PATH       Path to incidents CSV file (default: ../data/incidents_5000.csv)\n";
     std::cout << "  --APPARATUS_CSV_PATH=PATH       Path to apparatus CSV file (default: ../data/stations_with_apparatus.csv)\n";
     std::cout << "  --BOUNDS_GEOJSON_PATH=PATH      Path to bounds GeoJSON file (default: ../data/bounds.geojson)\n";
+    std::cout << "  --BEATS_SHAPEFILE_PATH=PATH     Path to beats shapefile (default: ../data/beats_shpfile.geojson)\n";
+    std::cout << "  --MEAN_MATRIX_PATH=PATH         Path to mean travel time matrix (default: ../data/interpolation_data/mean_zone_travel_time_matrix.json)\n";
+    std::cout << "  --STD_MATRIX_PATH=PATH          Path to std travel time matrix (default: ../data/interpolation_data/std_zone_travel_time_matrix.json)\n";
+    std::cout << "  --ZONE_INFO_PATH=PATH           Path to zone info file (default: ../data/interpolation_data/zone_fire_station_info.json)\n";
     std::cout << "  --RANDOM_SEED=NUMBER            Random seed for simulation (default: 42)\n";
     std::cout << "  --PYTHON_PATH=PATH              Path to Python executable (default: ../../venvBOC/bin/python)\n";
     std::cout << "  --ENV_PATH=PATH                 Path to .env file. Overrides all other arguments.\n";
@@ -74,6 +81,18 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"FIREBEATS_MATRIX_PATH", "../logs/beats.bin"},
         {"ZONE_MAP_PATH", "../data/zones.csv"},
         {"BEATS_SHAPEFILE_PATH", "../data/beats_shpfile.geojson"},
+        {"MEAN_MATRIX_PATH", "../data/interpolation_data/mean_zone_travel_time_matrix.json"},
+        {"STD_MATRIX_PATH", "../data/interpolation_data/std_zone_travel_time_matrix.json"},
+        {"ZONE_INFO_PATH", "../data/interpolation_data/zone_fire_station_info.json"},
+        {"HOSPITALS_CSV_PATH", "../data/ems_stats/hospital_locations.csv"},
+        {"EMS_SCENE_TIME_STATS_PATH", "../data/ems_stats/scene_time_by_category.csv"},
+        {"EMS_TRANSPORT_STATS_PATH", "../data/ems_stats/transport_prob_by_category.csv"},
+        {"HOSPITAL_TIME_STATS_PATH", "../data/ems_stats/hospital_turnaround_overall.csv"},
+        {"ZONE_HOSPITAL_PROBS_PATH", "../data/ems_stats/hospital_zone_probs.csv"},
+        {"SCENE_TIME_COUPLING_PARAMS_PATH", "../data/ems_stats/scene_time_model_params.csv"},
+        {"HOSPITAL_TIME_BY_DEST_PATH", "../data/ems_stats/hospital_turnaround_by_dest.csv"},
+        {"MULTI_MEDIC_TRANSPORT_DIST_PATH", "../data/ems_stats/transport_multi_medic_dist.csv"},
+        {"EMS_TRANSPORT_REPORT_PATH", "../logs/ems_transport_report.csv"},
         {"RANDOM_SEED", 42},
         {"PYTHON_PATH", "../../venvBOC/bin/python"},
         {"CONSOLE_LOG_LEVEL", "debug"}
@@ -206,8 +225,15 @@ int main(int argc, char* argv[]) {
     } else if (travel_time_model_type == constants::POLICY_GIS) {
         LOG_INFO("Using GIS Travel Time Model.");
         // travelTimeModel = std::make_unique<GISTravelTimeModel>();
+    } else if (travel_time_model_type == constants::POLICY_INTERPOLATED) {
+        LOG_INFO("Using Interpolated Travel Time Model.");
+        travelTimeModel = std::make_unique<InterpolatedTravelTimeModel>(
+            env->get("MEAN_MATRIX_PATH", "../data/interpolation_data/mean_zone_travel_time_matrix.json"),
+            env->get("STD_MATRIX_PATH", "../data/interpolation_data/std_zone_travel_time_matrix.json"),
+            env->get("ZONE_INFO_PATH", "../data/interpolation_data/zone_fire_station_info.json")
+        );
     } else {
-        throw std::runtime_error("Only OSRM or GIS travel time model supported");
+        throw std::runtime_error("Only OSRM, GIS or INTERPOLATED travel time model supported");
     }
 
     if (incident_model_type == constants::POLICY_EMPIRICAL) {
@@ -242,10 +268,66 @@ int main(int argc, char* argv[]) {
     }
 
     EnvironmentModel environment_model(*fireModel);
-    Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy);
+
+    // Create and initialize EMS Service Model
+    std::unique_ptr<EMSServiceModel> emsServiceModel;
+
+    // Use HistoricalEMSServiceModel by default
+    auto historicalEmsModel = std::make_unique<HistoricalEMSServiceModel>(seed);
+
+    // Load hospitals if path is provided
+    std::string hospitals_path = env->get(constants::HOSPITALS_CSV_PATH, "");
+    if (!hospitals_path.empty()) {
+        std::vector<Hospital> hospitals = loader::loadHospitalsFromCSV(hospitals_path);
+        if (!hospitals.empty()) {
+            initial_state.setHospitals(hospitals);
+            LOG_INFO("Loaded {} hospitals from {}", hospitals.size(), hospitals_path);
+        }
+    }
+
+    // Load EMS statistics files
+    std::string ems_scene_time_path = env->get(constants::EMS_SCENE_TIME_STATS_PATH, "");
+    if (!ems_scene_time_path.empty()) {
+        historicalEmsModel->loadSceneTimeStats(ems_scene_time_path);
+    }
+
+    std::string ems_transport_path = env->get(constants::EMS_TRANSPORT_STATS_PATH, "");
+    if (!ems_transport_path.empty()) {
+        historicalEmsModel->loadTransportStats(ems_transport_path);
+    }
+
+    std::string hospital_time_path = env->get(constants::HOSPITAL_TIME_STATS_PATH, "");
+    if (!hospital_time_path.empty()) {
+        historicalEmsModel->loadHospitalTimeStats(hospital_time_path);
+    }
+
+    std::string zone_hospital_path = env->get(constants::ZONE_HOSPITAL_PROBS_PATH, "");
+    if (!zone_hospital_path.empty()) {
+        historicalEmsModel->loadZoneHospitalProbs(zone_hospital_path);
+    }
+
+    // Load new EMS transport model files
+    std::string coupling_params_path = env->get(constants::SCENE_TIME_COUPLING_PARAMS_PATH, "");
+    if (!coupling_params_path.empty()) {
+        historicalEmsModel->loadSceneTimeCouplingParams(coupling_params_path);
+    }
+
+    std::string hospital_by_dest_path = env->get(constants::HOSPITAL_TIME_BY_DEST_PATH, "");
+    if (!hospital_by_dest_path.empty()) {
+        historicalEmsModel->loadHospitalTimeByDest(hospital_by_dest_path);
+    }
+
+    std::string multi_medic_path = env->get(constants::MULTI_MEDIC_TRANSPORT_DIST_PATH, "");
+    if (!multi_medic_path.empty()) {
+        historicalEmsModel->loadMultiMedicTransportDist(multi_medic_path);
+    }
+
+    emsServiceModel = std::move(historicalEmsModel);
+
+    Simulator simulator(initial_state, *incidentModel, *travelTimeModel, environment_model, *policy, *emsServiceModel);
     initial_state = simulator.reset();
 
-    int num_steps = 10000;
+    int num_steps = 25000;
     for (int step = 0; step < num_steps; ++step) {
         std::vector<Action> actions = policy->getAction(initial_state);
         StepResult result = simulator.step(actions);
@@ -257,6 +339,7 @@ int main(int argc, char* argv[]) {
     
     simulator.writeIncidentReport();
     simulator.writeActionReport(initial_state);
+    simulator.writeEMSTransportReport();
     // Too much data
     // simulator.writeVehicleReport();
     

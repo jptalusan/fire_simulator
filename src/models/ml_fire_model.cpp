@@ -3,9 +3,10 @@
 #include "utils/error.h"
 #include "utils/logger.h"
 #include "enums.h"
-#include "utils/constants.h"
-#include "utils/error.h"
-#include "utils/logger.h"
+#include <set>
+#include <string>
+#include <algorithm>
+#include <fstream>
 
 MLFireModel::MLFireModel([[maybe_unused]] unsigned int seed, const std::string& model_path, const std::string& config_path, const std::string& apparatus_csv_path){
     // Initialize ONNX predictor
@@ -303,10 +304,11 @@ std::vector<float> MLFireModel:: extractFeatures([[maybe_unused]]const State& st
     }
     auto zone_encoded = encodeCategoricalFeature("ZONE_ID", zone_id);
     
-    // Incident type
-    std::string incident_type = to_string(incident.incident_type);
+    // Incident type - use original CSV string if available, fall back to enum to_string
+    std::string incident_type = incident.incident_type_str.empty()
+        ? to_string(incident.incident_type) : incident.incident_type_str;
     auto type_encoded = encodeCategoricalFeature("incident_type", incident_type);
-    
+
     // Store categorical features in the map
     // For categorical features, we need to store each one-hot encoded feature separately
     
@@ -483,7 +485,11 @@ std::vector<float> MLFireModel::encodeCategoricalFeature(const std::string& feat
                 encoded_features.push_back(category_index == i ? 1.0f : 0.0f);
             }
         } else {
-            LOG_WARN("[MLFireModel] Unknown category '{}' for feature '{}', using all zeros", value, feature_name);
+            static std::set<std::string> warned_categories;
+            std::string key = feature_name + "::" + value;
+            if (warned_categories.insert(key).second) {
+                LOG_WARN("[MLFireModel] Unknown category '{}' for feature '{}', using all zeros", value, feature_name);
+            }
             // Handle unknown categories (all zeros for drop='first' encoding)
             int num_categories = feature_mapping->second.size() - 1;
             encoded_features.assign(num_categories, 0.0f);
@@ -597,8 +603,9 @@ std::vector<float> MLFireModel::extractCategoricalFeatures(const Incident& incid
     auto zone_encoded = encodeCategoricalFeature("ZONE_ID", zone_id);
     features.insert(features.end(), zone_encoded.begin(), zone_encoded.end());
     
-    // Incident type
-    std::string incident_type = to_string(incident.incident_type);
+    // Incident type - use original CSV string if available, fall back to enum to_string
+    std::string incident_type = incident.incident_type_str.empty()
+        ? to_string(incident.incident_type) : incident.incident_type_str;
     auto type_encoded = encodeCategoricalFeature("incident_type", incident_type);
     features.insert(features.end(), type_encoded.begin(), type_encoded.end());
     

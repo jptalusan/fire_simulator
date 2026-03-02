@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <optional>
 #include <boost/geometry.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <nlohmann/json.hpp>

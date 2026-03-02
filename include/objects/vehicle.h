@@ -79,6 +79,33 @@ class Vehicle {
         time_t timeToStartedReturning = -1;
         time_t timeStartedToDispatch = -1;
 
+        // EMS transport state getters/setters
+        int getHospitalIndex() const noexcept { return hospitalIndex_; }
+        void setHospitalIndex(int index) { hospitalIndex_ = index; }
+        time_t getEmsSceneEndTime() const noexcept { return emsSceneEndTime_; }
+        void setEmsSceneEndTime(time_t time) { emsSceneEndTime_ = time; }
+        time_t getTimeToHospital() const noexcept { return timeToHospital_; }
+        void setTimeToHospital(time_t time) { timeToHospital_ = time; }
+        time_t getHospitalLeaveTime() const noexcept { return hospitalLeaveTime_; }
+        void setHospitalLeaveTime(time_t time) { hospitalLeaveTime_ = time; }
+        bool getRequiresTransport() const noexcept { return requiresTransport_; }
+        void setRequiresTransport(bool required) { requiresTransport_ = required; }
+        time_t getIncidentArrivalTime() const noexcept { return incidentArrivalTime_; }
+        void setIncidentArrivalTime(time_t time) { incidentArrivalTime_ = time; }
+        int getTransportIncidentIndex() const noexcept { return transportIncidentIndex_; }
+        void setTransportIncidentIndex(int index) { transportIncidentIndex_ = index; }
+
+        // Reset all EMS transport state
+        void clearEMSTransportState() {
+            hospitalIndex_ = -1;
+            emsSceneEndTime_ = -1;
+            timeToHospital_ = -1;
+            hospitalLeaveTime_ = -1;
+            requiresTransport_ = false;
+            incidentArrivalTime_ = -1;
+            transportIncidentIndex_ = -1;
+        }
+
     private:
         int stationIndex;
         int vehicleId;
@@ -90,6 +117,15 @@ class Vehicle {
         Location stationLocation;
         ApparatusType apparatusType;
         ApparatusStatus apparatusStatus;
+
+        // EMS transport state
+        int hospitalIndex_ = -1;           // Target hospital index (-1 if not transporting)
+        time_t emsSceneEndTime_ = -1;      // When EMS can leave scene
+        time_t timeToHospital_ = -1;       // ETA at hospital
+        time_t hospitalLeaveTime_ = -1;    // When to leave hospital
+        bool requiresTransport_ = false;   // Whether current call requires transport
+        time_t incidentArrivalTime_ = -1;  // When the medic arrived at the incident
+        int transportIncidentIndex_ = -1;  // Incident index being transported (for reporting)
 };
 
 #endif // VEHICLE_H

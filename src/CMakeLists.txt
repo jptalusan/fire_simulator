@@ -9,20 +9,23 @@ add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 # Link libraries to the static library
 target_link_libraries(${PROJECT_NAME}_lib
     PUBLIC
-        #Boost::geometry
-	Boost::filesystem
-	Boost::thread
+        Boost::filesystem
+        Boost::thread
         nlohmann_json::nlohmann_json
         spdlog::spdlog
         fmt::fmt
         CURL::libcurl
-#    ${LPSOLVE_LIBRARY}
 )
 
 # Use custom-built ONNX Runtime (installed locally)
 # Make sure you have built onnxruntime and placed it in a directory below.
-set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime/usr/local")
-set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib64/libonnxruntime.so")
+if(APPLE)
+    set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime_install/usr/local")
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib/libonnxruntime.dylib")
+else()
+    set(ONNXRUNTIME_INSTALL_DIR "${PROJECT_SOURCE_DIR}/external/onnxruntime/usr/local")
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_INSTALL_DIR}/lib64/libonnxruntime.so")
+endif()
 
 # Include directories for the static library
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
@@ -39,6 +42,12 @@ target_link_libraries(${PROJECT_NAME}
     ${ONNXRUNTIME_LIB}
 )
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    INSTALL_RPATH "${ONNXRUNTIME_INSTALL_DIR}/lib"
-)
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        INSTALL_RPATH "${ONNXRUNTIME_INSTALL_DIR}/lib"
+    )
+else()
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        INSTALL_RPATH "${ONNXRUNTIME_INSTALL_DIR}/lib64"
+    )
+endif()

@@ -99,6 +99,7 @@ run_simulator
 external/*
 .vscode/settings.json
 build/
+models_old/
 test_simulator
 test.ipynb
 *.log
@@ -106,6 +107,9 @@ test.ipynb
 *.bin
 *.pbf
 *.png
+*.pdf
+*.svg
+docs/fire_demo3_fire_demo_api_fire_simulator_demo_paper.md
 .cache/*
 *.json
 *.idea

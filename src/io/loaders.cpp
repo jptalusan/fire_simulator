@@ -1,13 +1,17 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
+#include <sstream>
 #include "io/loaders.h"
+#include "enums.h"
 #include "config/EnvLoader.h"
 #include "objects/geometry.h"
 #include "utils/error.h"
 #include "utils/logger.h"
 #include "utils/constants.h"
 #include "objects/vehicle.h"
+#include "objects/hospital.h"
 #include "services/queries.h"
 #include "services/chunks.h"
 #include "objects/firestation.h"
@@ -481,6 +485,7 @@ std::vector<Incident> loadIncidentsFromCSV() {
             } else {
                 seenIDs.insert(id);
                 incidents.emplace_back(index, id, lat, lon, itype, ilevel, unix_time, icategory);
+                incidents.back().incident_type_str = type;
                 index++;
             }
         } else {
@@ -559,6 +564,58 @@ void preComputingMatrices(std::vector<FireStation>& stations,
     for (const auto& incident : incidents) {
         destinations.emplace_back(incident.getLocation());
     }
+}
+
+std::vector<Hospital> loadHospitalsFromCSV(const std::string& path) {
+    std::string filename = path.empty()
+        ? EnvLoader::getInstance()->get(constants::HOSPITALS_CSV_PATH, "")
+        : path;
+    std::vector<Hospital> hospitals;
+
+    if (filename.empty()) {
+        LOG_WARN("HOSPITALS_CSV_PATH not set, skipping hospital loading");
+        return hospitals;
+    }
+
+    LOG_INFO("Loading hospitals from CSV file: {}", filename);
+    std::ifstream file(filename);
+    std::string line;
+
+    if (!file.is_open()) {
+        LOG_ERROR("Failed to open hospitals file: {}", filename);
+        return hospitals;
+    }
+
+    // Skip header: Index,ID,Name,lat,lon,visit_count
+    std::getline(file, line);
+
+    while (std::getline(file, line)) {
+        std::istringstream ss(line);
+        std::string indexStr, id, name, latStr, lonStr, visitCountStr;
+
+        std::getline(ss, indexStr, ',');
+        std::getline(ss, id, ',');
+        std::getline(ss, name, ',');
+        std::getline(ss, latStr, ',');
+        std::getline(ss, lonStr, ',');
+        std::getline(ss, visitCountStr, ',');
+
+        try {
+            int index = std::stoi(indexStr);
+            double lat = std::stod(latStr);
+            double lon = std::stod(lonStr);
+            int visitCount = visitCountStr.empty() ? 0 : std::stoi(visitCountStr);
+
+            Location location(lat, lon);
+            Hospital hospital(index, id, location, name, visitCount);
+            hospitals.push_back(hospital);
+        } catch (const std::exception& e) {
+            LOG_WARN("Error parsing hospital line: {} - {}", line, e.what());
+        }
+    }
+
+    LOG_INFO("Loaded {} hospitals", hospitals.size());
+    return hospitals;
 }
 
 } // namespace loader

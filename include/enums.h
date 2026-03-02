@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 
 enum class EventType : uint8_t {
     Incident,
@@ -146,6 +147,8 @@ enum class ApparatusStatus : uint8_t {
     Dispatched,
     EnRouteToIncident,
     AtIncident,
+    EnRouteToHospital,    // EMS: Transporting patient to hospital
+    AtHospital,           // EMS: At hospital transferring patient
     ReturningToStation
 };
 
@@ -436,6 +439,8 @@ inline const char* to_string(ApparatusStatus status) {
         case ApparatusStatus::Dispatched:           return "Dispatched";
         case ApparatusStatus::EnRouteToIncident:    return "EnRouteToIncident";
         case ApparatusStatus::AtIncident:           return "AtIncident";
+        case ApparatusStatus::EnRouteToHospital:    return "EnRouteToHospital";
+        case ApparatusStatus::AtHospital:           return "AtHospital";
         case ApparatusStatus::ReturningToStation:   return "ReturningToStation";
         default: return "Invalid";
     }
