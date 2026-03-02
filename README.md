@@ -99,8 +99,8 @@ fire_simulator
     cd ~/fire_simulator/docker
     curl -L "https://download.geofabrik.de/north-america/us/tennessee-latest.osm.pbf" -o ./data/osm.pbf
     touch ./data/speeds.csv
-    docker build --platform=linux/amd64 --no-cache --tag tn_osrm:ems -f Dockerfile .
-    docker run -d 
+    sudo docker build --platform=linux/amd64 --no-cache --tag tn_osrm:ems -f Dockerfile .
+    sudo docker run -d 
         --name ems_osrm -m=4g \
         --restart unless-stopped \
         -p 8085:8085 \
