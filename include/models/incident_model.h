@@ -77,9 +77,12 @@ public:
      */
     void clear();
 
+    void setDisableEms(bool disable) { disableEms_ = disable; }
+
 private:
     std::vector<Incident> incidents_;
-    
+    bool disableEms_ = false;
+
     /**
      * @brief Sort incidents by report time
      */

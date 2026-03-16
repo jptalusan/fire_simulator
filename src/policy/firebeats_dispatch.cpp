@@ -4,6 +4,7 @@
 #include "utils/error.h"
 #include "utils/logger.h"
 #include <iostream>
+#include <unordered_set>
 
 // Firebeats naming convention is a bit confusing. and currently this is incomplete.
 // Check the preprocess notebook for a list of beats that I have no idea what they mean (DSOP,BAR,HQ, etc.)
@@ -138,6 +139,10 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
     const std::vector<double> emsDurationColumn = getColumn(emsMatrix, size_t(0));
     std::vector<int> emsSortedIndices = getSortedIndicesByDuration(emsDurationColumn);
 
+    // Track dispatched vehicles to prevent double-dispatch (actions are batched,
+    // so vehicle status isn't updated until takeActions() processes them)
+    std::unordered_set<int> dispatchedVehicleIds;
+
     for (const auto& [type, neededCount] : remainingNeeded) {
         int dispatchedCount = 0;
         bool enoughDispatched = false;
@@ -152,12 +157,16 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
                 if (vehicle.getStatus() != ApparatusStatus::Available) {
                     continue; // Skip non-available vehicles
                 }
+                if (dispatchedVehicleIds.count(vehicle.getVehicleId())) {
+                    continue; // Already dispatched this vehicle in this round
+                }
                 // Dispatch this vehicle
-                Action action = Action::createDispatchAction(vehicle.getStationIndex(), 
-                                                             incident.incidentIndex, 
+                Action action = Action::createDispatchAction(vehicle.getStationIndex(),
+                                                             incident.incidentIndex,
                                                              vehicle.getVehicleId(),
                                                              type, 1, emsDurationColumn[index]);
                 actions.push_back(action);
+                dispatchedVehicleIds.insert(vehicle.getVehicleId());
                 dispatchedCount++;
                 if (dispatchedCount >= neededCount) {
                     break; // Already dispatched enough of this type
@@ -165,7 +174,7 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
             }
         } else { // Fire apparatus
             for (const auto& index : beatStationIndices) {
-                
+
                 if (index < 0) {
                     LOG_DEBUG("[{}] No more available {}, Dispatched {}, needed {}", utils::formatTime(state.getSystemTime()), to_string(type), dispatchedCount, neededCount);
                     continue;
@@ -175,16 +184,20 @@ const std::vector<Action> FireBeatsDispatch::getAction(const State& state) const
                 std::vector<int> vehicleIds = station.getAvailableApparatus(type);
                 // Add vehicles from this station to the overall collection
                 for (const auto& vehicleId : vehicleIds) {
+                    if (dispatchedVehicleIds.count(vehicleId)) {
+                        continue; // Already dispatched this vehicle in this round
+                    }
                     const Vehicle& vehicle = state.getConstVehicleList().at(vehicleId);
                     if (vehicle.getStatus() != ApparatusStatus::Available) {
                         continue; // Skip non-available vehicles
                     }
                     // Dispatch this vehicle
-                    Action action = Action::createDispatchAction(vehicle.getStationIndex(), 
-                                                                incident.incidentIndex, 
+                    Action action = Action::createDispatchAction(vehicle.getStationIndex(),
+                                                                incident.incidentIndex,
                                                                 vehicle.getVehicleId(),
                                                                 type, 1, durationColumn[index]);
                     actions.push_back(action);
+                    dispatchedVehicleIds.insert(vehicleId);
                     dispatchedCount++;
                     if (dispatchedCount >= neededCount) {
                         enoughDispatched = true;

@@ -42,6 +42,7 @@ void printUsage(const char* program_name) {
     std::cout << "  --RANDOM_SEED=NUMBER            Random seed for simulation (default: 42)\n";
     std::cout << "  --PYTHON_PATH=PATH              Path to Python executable (default: ../../venvBOC/bin/python)\n";
     std::cout << "  --ENV_PATH=PATH                 Path to .env file. Overrides all other arguments.\n";
+    std::cout << "  --DISABLE_EMS=BOOL              Disable EMS/Medic operations (options: [true,false], default: false)\n";
     std::cout << "  --CONSOLE_LOG_LEVEL=LEVEL       Set console log level (options: [trace, debug, info, warn, err, critical, off], default: debug)\n";
     std::cout << "  --help                          Show this help message\n";
     std::cout << "\nExample:\n";
@@ -95,7 +96,8 @@ std::string parseArgumentsAndBuildConfig(int argc, char* argv[]) {
         {"EMS_TRANSPORT_REPORT_PATH", "../logs/ems_transport_report.csv"},
         {"RANDOM_SEED", 42},
         {"PYTHON_PATH", "../../venvBOC/bin/python"},
-        {"CONSOLE_LOG_LEVEL", "debug"}
+        {"CONSOLE_LOG_LEVEL", "debug"},
+        {"DISABLE_EMS", "true"}
     };
 
     // Parse command line arguments starting from index 1 (skip program name)
@@ -269,57 +271,71 @@ int main(int argc, char* argv[]) {
 
     EnvironmentModel environment_model(*fireModel);
 
+    // Check if EMS is disabled
+    std::string disable_ems_str = env->get(constants::DISABLE_EMS, "true");
+    bool disableEms = (disable_ems_str == "true" || disable_ems_str == "1" || disable_ems_str == "TRUE");
+    if (disableEms) {
+        LOG_INFO("EMS operations DISABLED - simulation will focus on non-medic apparatus only.");
+    }
+
+    // Tell the incident model to strip medic requirements when EMS is disabled
+    if (auto* empiricalModel = dynamic_cast<EmpiricalIncidentModel*>(incidentModel.get())) {
+        empiricalModel->setDisableEms(disableEms);
+    }
+
     // Create and initialize EMS Service Model
     std::unique_ptr<EMSServiceModel> emsServiceModel;
 
     // Use HistoricalEMSServiceModel by default
     auto historicalEmsModel = std::make_unique<HistoricalEMSServiceModel>(seed);
 
-    // Load hospitals if path is provided
-    std::string hospitals_path = env->get(constants::HOSPITALS_CSV_PATH, "");
-    if (!hospitals_path.empty()) {
-        std::vector<Hospital> hospitals = loader::loadHospitalsFromCSV(hospitals_path);
-        if (!hospitals.empty()) {
-            initial_state.setHospitals(hospitals);
-            LOG_INFO("Loaded {} hospitals from {}", hospitals.size(), hospitals_path);
+    if (!disableEms) {
+        // Load hospitals if path is provided
+        std::string hospitals_path = env->get(constants::HOSPITALS_CSV_PATH, "");
+        if (!hospitals_path.empty()) {
+            std::vector<Hospital> hospitals = loader::loadHospitalsFromCSV(hospitals_path);
+            if (!hospitals.empty()) {
+                initial_state.setHospitals(hospitals);
+                LOG_INFO("Loaded {} hospitals from {}", hospitals.size(), hospitals_path);
+            }
         }
-    }
 
-    // Load EMS statistics files
-    std::string ems_scene_time_path = env->get(constants::EMS_SCENE_TIME_STATS_PATH, "");
-    if (!ems_scene_time_path.empty()) {
-        historicalEmsModel->loadSceneTimeStats(ems_scene_time_path);
-    }
+        // Load EMS statistics files
+        std::string ems_scene_time_path = env->get(constants::EMS_SCENE_TIME_STATS_PATH, "");
+        if (!ems_scene_time_path.empty()) {
+            historicalEmsModel->loadSceneTimeStats(ems_scene_time_path);
+        }
 
-    std::string ems_transport_path = env->get(constants::EMS_TRANSPORT_STATS_PATH, "");
-    if (!ems_transport_path.empty()) {
-        historicalEmsModel->loadTransportStats(ems_transport_path);
-    }
+        std::string ems_transport_path = env->get(constants::EMS_TRANSPORT_STATS_PATH, "");
+        if (!ems_transport_path.empty()) {
+            historicalEmsModel->loadTransportStats(ems_transport_path);
+        }
 
-    std::string hospital_time_path = env->get(constants::HOSPITAL_TIME_STATS_PATH, "");
-    if (!hospital_time_path.empty()) {
-        historicalEmsModel->loadHospitalTimeStats(hospital_time_path);
-    }
+        std::string hospital_time_path = env->get(constants::HOSPITAL_TIME_STATS_PATH, "");
+        if (!hospital_time_path.empty()) {
+            historicalEmsModel->loadHospitalTimeStats(hospital_time_path);
+        }
 
-    std::string zone_hospital_path = env->get(constants::ZONE_HOSPITAL_PROBS_PATH, "");
-    if (!zone_hospital_path.empty()) {
-        historicalEmsModel->loadZoneHospitalProbs(zone_hospital_path);
-    }
+        std::string zone_hospital_path = env->get(constants::ZONE_HOSPITAL_PROBS_PATH, "");
+        if (!zone_hospital_path.empty()) {
+            historicalEmsModel->loadZoneHospitalProbs(zone_hospital_path);
+        }
 
-    // Load new EMS transport model files
-    std::string coupling_params_path = env->get(constants::SCENE_TIME_COUPLING_PARAMS_PATH, "");
-    if (!coupling_params_path.empty()) {
-        historicalEmsModel->loadSceneTimeCouplingParams(coupling_params_path);
-    }
+        // Load new EMS transport model files
+        std::string coupling_params_path = env->get(constants::SCENE_TIME_COUPLING_PARAMS_PATH, "");
+        if (!coupling_params_path.empty()) {
+            historicalEmsModel->loadSceneTimeCouplingParams(coupling_params_path);
+        }
 
-    std::string hospital_by_dest_path = env->get(constants::HOSPITAL_TIME_BY_DEST_PATH, "");
-    if (!hospital_by_dest_path.empty()) {
-        historicalEmsModel->loadHospitalTimeByDest(hospital_by_dest_path);
-    }
+        std::string hospital_by_dest_path = env->get(constants::HOSPITAL_TIME_BY_DEST_PATH, "");
+        if (!hospital_by_dest_path.empty()) {
+            historicalEmsModel->loadHospitalTimeByDest(hospital_by_dest_path);
+        }
 
-    std::string multi_medic_path = env->get(constants::MULTI_MEDIC_TRANSPORT_DIST_PATH, "");
-    if (!multi_medic_path.empty()) {
-        historicalEmsModel->loadMultiMedicTransportDist(multi_medic_path);
+        std::string multi_medic_path = env->get(constants::MULTI_MEDIC_TRANSPORT_DIST_PATH, "");
+        if (!multi_medic_path.empty()) {
+            historicalEmsModel->loadMultiMedicTransportDist(multi_medic_path);
+        }
     }
 
     emsServiceModel = std::move(historicalEmsModel);
@@ -339,7 +355,9 @@ int main(int argc, char* argv[]) {
     
     simulator.writeIncidentReport();
     simulator.writeActionReport(initial_state);
-    simulator.writeEMSTransportReport();
+    if (!disableEms) {
+        simulator.writeEMSTransportReport();
+    }
     // Too much data
     // simulator.writeVehicleReport();
     

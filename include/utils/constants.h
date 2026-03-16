@@ -63,6 +63,9 @@ namespace constants {
     inline static constexpr const char* HOSPITAL_TIME_BY_DEST_PATH = "HOSPITAL_TIME_BY_DEST_PATH";
     inline static constexpr const char* MULTI_MEDIC_TRANSPORT_DIST_PATH = "MULTI_MEDIC_TRANSPORT_DIST_PATH";
 
+    // EMS toggle
+    inline static constexpr const char* DISABLE_EMS = "DISABLE_EMS";
+
     // EMS fallback constants (used only when CSV files not available)
     inline static constexpr double FIRE_APPARATUS_POST_SCENE_DELAY = 1500.0; // 25 min post-scene delay
 }

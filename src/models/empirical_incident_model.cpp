@@ -46,32 +46,44 @@ bool EmpiricalIncidentModel::load() {
 what about other existing incidents that have just been "reported". right now they get overwritten reusling in only one outstanding incident at a time
 */
 std::optional<Incident> EmpiricalIncidentModel::getNextIncident(std::time_t time) {
-    if (incidents_.size() <= static_cast<size_t>(currentIncidentIdx_)) {
-        LOG_WARN("No more incidents available in EmpiricalIncidentModel");
-        return std::nullopt;
+    // Loop to skip EMS-only incidents when EMS is disabled
+    while (incidents_.size() > static_cast<size_t>(currentIncidentIdx_)) {
+        // Get reference to the incident in the vector (not a copy)
+        Incident& incident = incidents_.at(currentIncidentIdx_);
+        auto it = std::find(outstandingIncidentIndices_.begin(), outstandingIncidentIndices_.end(), incident.incidentIndex);
+
+        if (it != outstandingIncidentIndices_.end()) {
+            incident.reportTime = time + constants::STEP_FORWARD_TIME;
+            return incident;
+        } else {
+            if (incident.reportTime < time) {
+                incident.reportTime = time;
+            }
+            std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
+
+            // Strip all medic requirements when EMS is disabled
+            if (disableEms_) {
+                requiredApparatusMap.erase(ApparatusType::Medic);
+                if (requiredApparatusMap.empty()) {
+                    LOG_INFO("Skipping EMS-only incident {} (DISABLE_EMS=true)", incident.incident_id);
+                    currentIncidentIdx_++;
+                    continue;
+                }
+            }
+
+            // print required apparatus map for debugging
+            LOG_DEBUG("Incident {} requires apparatus:", incident.incidentIndex);
+            for (const auto& [type, count] : requiredApparatusMap) {
+                LOG_DEBUG("  {}: {}", to_string(type), count);
+            }
+            incident.setRequiredApparatusMap(requiredApparatusMap); // Set the required apparatus map for the incident
+            incident.status = IncidentStatus::hasBeenReported; // Update status to reported
+            return incident;
+        }
     }
 
-    // Get reference to the incident in the vector (not a copy)
-    Incident& incident = incidents_.at(currentIncidentIdx_);
-    auto it = std::find(outstandingIncidentIndices_.begin(), outstandingIncidentIndices_.end(), incident.incidentIndex);
-
-    if (it != outstandingIncidentIndices_.end()) {
-        incident.reportTime = time + constants::STEP_FORWARD_TIME;
-        return incident;
-    } else {
-        if (incident.reportTime < time) {
-            incident.reportTime = time;
-        }
-        std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
-        // print required apparatus map for debugging
-        LOG_DEBUG("Incident {} requires apparatus:", incident.incidentIndex);
-        for (const auto& [type, count] : requiredApparatusMap) {
-            LOG_DEBUG("  {}: {}", to_string(type), count);
-        }
-        incident.setRequiredApparatusMap(requiredApparatusMap); // Set the required apparatus map for the incident
-        incident.status = IncidentStatus::hasBeenReported; // Update status to reported
-        return incident;
-    }
+    LOG_WARN("No more incidents available in EmpiricalIncidentModel");
+    return std::nullopt;
 }
 
 size_t EmpiricalIncidentModel::getIncidentCount() const {
