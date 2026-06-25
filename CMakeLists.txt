@@ -49,6 +49,16 @@ FetchContent_MakeAvailable(spdlog)
 
 # Find required dependencies
 cmake_policy(SET CMP0167 OLD)
+
+# Prefer static boost archives so the binary doesn't drag boost shared
+# libraries along with it. Debian/Ubuntu apt boost lags well behind 1.89
+# (the version we link against on RHEL build hosts), so downstream Docker
+# images would otherwise need to install matching .so files manually.
+# Statically linking removes that whole class of runtime dependency.
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
 find_package(Boost REQUIRED COMPONENTS filesystem thread)
 # find_package(PkgConfig REQUIRED)
 find_package(CURL REQUIRED)
