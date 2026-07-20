@@ -179,9 +179,13 @@ std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV() 
         std::getline(ss, token, ',');
         int reach_count = parseIntToken(token);
 
-        // Chief
+        // Suppression_Chief
         std::getline(ss, token, ',');
-        int chief_count = parseIntToken(token);
+        int suppression_chief_count = parseIntToken(token);
+
+        // EMS_Chief
+        std::getline(ss, token, ',');
+        int ems_chief_count = parseIntToken(token);
 
         std::vector<Vehicle> fireEngines = {};
         std::vector<Vehicle> trucks = {};
@@ -193,7 +197,8 @@ std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV() 
         std::vector<Vehicle> boats = {};
         std::vector<Vehicle> utvs = {};
         std::vector<Vehicle> reaches = {};
-        std::vector<Vehicle> chiefs = {};
+        std::vector<Vehicle> suppressionChiefs = {};
+        std::vector<Vehicle> emsChiefs = {};
 
         std::vector<Vehicle> medics = {};
 
@@ -297,12 +302,21 @@ std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV() 
             vehicles.emplace_back(a);
         }
 
-        for (int i = 0; i < chief_count; i++) {
+        for (int i = 0; i < suppression_chief_count; i++) {
             Vehicle a = Vehicle(stationIndex, stationId,
                                 vehicleIndex++, location,
-                                ApparatusType::Chief, 
+                                ApparatusType::SuppressionChief,
                                 ApparatusStatus::Available);
-            chiefs.push_back(a);
+            suppressionChiefs.push_back(a);
+            vehicles.emplace_back(a);
+        }
+
+        for (int i = 0; i < ems_chief_count; i++) {
+            Vehicle a = Vehicle(stationIndex, stationId,
+                                vehicleIndex++, location,
+                                ApparatusType::EMSChief,
+                                ApparatusStatus::Available);
+            emsChiefs.push_back(a);
             vehicles.emplace_back(a);
         }
 
@@ -320,7 +334,8 @@ std::pair<std::vector<FireStation>, std::vector<Vehicle>> loadStationsFromCSV() 
         fireStation.addApparatusToMap(ApparatusType::Boat, boats);
         fireStation.addApparatusToMap(ApparatusType::UTV, utvs);
         fireStation.addApparatusToMap(ApparatusType::Reach, reaches);
-        fireStation.addApparatusToMap(ApparatusType::Chief, chiefs);
+        fireStation.addApparatusToMap(ApparatusType::SuppressionChief, suppressionChiefs);
+        fireStation.addApparatusToMap(ApparatusType::EMSChief, emsChiefs);
 
         fireStation.addApparatusToMap(ApparatusType::Medic, medics);
         fireStation.updateApparatusCounts();

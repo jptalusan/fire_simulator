@@ -45,7 +45,8 @@ void HistoricalFireModel::loadApparatusRequirements(const std::string& csv_path)
         if (tokens.size() > 11 && !tokens[11].empty()) reqs[ApparatusType::Boat] = std::stoi(tokens[11]);
         if (tokens.size() > 12 && !tokens[12].empty()) reqs[ApparatusType::UTV] = std::stoi(tokens[12]);
         if (tokens.size() > 13 && !tokens[13].empty()) reqs[ApparatusType::Reach] = std::stoi(tokens[13]);
-        if (tokens.size() > 14 && !tokens[14].empty()) reqs[ApparatusType::Chief] = std::stoi(tokens[14]);
+        if (tokens.size() > 14 && !tokens[14].empty()) reqs[ApparatusType::SuppressionChief] = std::stoi(tokens[14]);
+        if (tokens.size() > 15 && !tokens[15].empty()) reqs[ApparatusType::EMSChief] = std::stoi(tokens[15]);
 
         if (reqs.size() == 0) {
             LOG_WARN("[HistoricalFireModel] No apparatus requirements found for category: {}", tokens[0]);

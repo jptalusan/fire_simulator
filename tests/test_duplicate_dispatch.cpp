@@ -443,7 +443,7 @@ TEST_F(FireBeatsDuplicateTest, AllFireApparatusTypesNoDuplicates) {
         makeVehicle(2, 0, "S0", ApparatusType::Pumper,  loc0),
         makeVehicle(3, 1, "S1", ApparatusType::Truck,   loc1),
         makeVehicle(4, 0, "S0", ApparatusType::Rescue,  loc0),
-        makeVehicle(5, 1, "S1", ApparatusType::Chief,   loc1),
+        makeVehicle(5, 1, "S1", ApparatusType::SuppressionChief, loc1),
     };
 
     Incident inc(0, 100, 36.16, -86.78,
@@ -455,7 +455,7 @@ TEST_F(FireBeatsDuplicateTest, AllFireApparatusTypesNoDuplicates) {
         {ApparatusType::Pumper, 1},
         {ApparatusType::Truck,  1},
         {ApparatusType::Rescue, 1},
-        {ApparatusType::Chief,  1},
+        {ApparatusType::SuppressionChief,  1},
     });
 
     MockTravelTimeModel ttm({60.0, 90.0, 120.0, 150.0});

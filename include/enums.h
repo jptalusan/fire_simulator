@@ -158,7 +158,11 @@ enum class ApparatusType : uint8_t {
     Truck,
     Rescue,
     Hazard,
-    Chief,
+    // 'Chief' was split into two distinct dispatchable resources so the
+    // dispatcher can route them independently and DISABLE_EMS can strip
+    // EMSChief the same way it strips Medic.
+    SuppressionChief,
+    EMSChief,
     Squad,
     Fast,
     Medic,
@@ -464,7 +468,8 @@ inline const char* to_string(ApparatusType type) {
         case ApparatusType::Truck: return "Truck";
         case ApparatusType::Rescue: return "Rescue";
         case ApparatusType::Hazard: return "Hazard";
-        case ApparatusType::Chief: return "Chief";
+        case ApparatusType::SuppressionChief: return "SuppressionChief";
+        case ApparatusType::EMSChief: return "EMSChief";
         case ApparatusType::Squad: return "Squad";
         case ApparatusType::Fast: return "Fast";
         case ApparatusType::Medic: return "Medic";

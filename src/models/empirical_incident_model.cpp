@@ -61,9 +61,14 @@ std::optional<Incident> EmpiricalIncidentModel::getNextIncident(std::time_t time
             }
             std::unordered_map<ApparatusType, int> requiredApparatusMap = fireModel_.calculateApparatusCount(incident);
 
-            // Strip all medic requirements when EMS is disabled
+            // Strip all EMS-classified apparatus when EMS is disabled.
+            // EMS_Chief is an EMS resource — leaving it in would still send an
+            // EMS chief to medical-only categories (e.g. Cat 13 "Obvious or
+            // Expected Death") whose sole requirement is now EMS_Chief after
+            // the chief split, making fire-only simulations inconsistent.
             if (disableEms_) {
                 requiredApparatusMap.erase(ApparatusType::Medic);
+                requiredApparatusMap.erase(ApparatusType::EMSChief);
                 if (requiredApparatusMap.empty()) {
                     LOG_INFO("Skipping EMS-only incident {} (DISABLE_EMS=true)", incident.incident_id);
                     currentIncidentIdx_++;

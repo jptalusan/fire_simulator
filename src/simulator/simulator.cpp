@@ -19,7 +19,8 @@ std::vector<ApparatusType> apparatusTypes = {
     ApparatusType::Boat,
     ApparatusType::UTV,
     ApparatusType::Reach,
-    ApparatusType::Chief
+    ApparatusType::SuppressionChief,
+    ApparatusType::EMSChief
 };
 
 Simulator::Simulator(State &initialState,
